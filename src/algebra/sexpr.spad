@@ -889,6 +889,13 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       factorials(x:%):%           == coerce factorials(coerce x)$CF
       factorials(x:%, n:Symbol):% == coerce factorials(coerce x, n)$CF
 
+      -- AlgebraicallyClosedFunctionSpace exports RetractableTo AlgebraicNumber
+      -- when R has RetractableTo Integer (upstream 7a12330c); go via Expression R.
+      if R has RetractableTo Integer then
+        coerce(a:AlgebraicNumber):% == coerce(a::Expression(R))
+        retractIfCan(x:%):Maybe(AlgebraicNumber) ==
+          retractIfCan(coerce(x)@Expression(R))@Maybe(AlgebraicNumber)
+
       if SMP has PolynomialFactorizationExplicit then
         factor(x:%):% ==
           (factor(numer x)::OutputForm pretend SIN /
