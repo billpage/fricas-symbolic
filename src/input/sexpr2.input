@@ -52,8 +52,8 @@ test(s=3)
 testEquals("sr","3::PositiveInteger")
 -- RetractableTo AlgebraicNumber, required since upstream 7a12330c
 testEquals("retract(s)@AlgebraicNumber","3::AlgebraicNumber")
-testTrue("retractIfCan(sqrt(2)$SymbolicExpression(Integer))@Union(AlgebraicNumber,\"failed\") case AlgebraicNumber")
-testTrue("retractIfCan(('x)::SymbolicExpression(Integer))@Union(AlgebraicNumber,\"failed\") case \"failed\"")
+testTrue("retractIfCan(sqrt(2)$SymbolicExpression(Integer))@Union(AlgebraicNumber,_"failed_") case AlgebraicNumber")
+testTrue("retractIfCan(('x)::SymbolicExpression(Integer))@Union(AlgebraicNumber,_"failed_") case _"failed_"")
 
 ---------------
 testcase  "ex2"
