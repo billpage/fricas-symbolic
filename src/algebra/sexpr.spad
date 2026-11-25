@@ -7,7 +7,8 @@ SINFunctions(): with
     rank: Symbol -> Integer
   == add
     rank(x:Symbol,n:Integer):Symbol ==
-      PUT(x,'rank,convert(n)@SIN)$Lisp
+      -- MAKEPROP via FUNCALL: the Spad compiler refuses a direct MAKEPROP (compTran1).
+      FUNCALL('MAKEPROP,x,'rank,convert(n)@SIN)$Lisp
       x
     rank(x:Symbol):Integer ==
       r:SIN := GET(x,'rank)$Lisp
@@ -100,7 +101,7 @@ SymbolicCategory(R : Comparable) : Category == Exports where
     if % has TranscendentalFunctionCategory and R has GcdDomain then
       simplify : % -> %
     -- coercions
-    coerce: Pi -> %
+    coerce: PiDomain -> %
     coerce: % -> Expression(R)
     coerce: Expression(R) -> %
     convert: Equation % -> Equation SIN
@@ -109,6 +110,9 @@ SymbolicCategory(R : Comparable) : Category == Exports where
     --
     isMinus: % -> Maybe(List %)
     paren: % -> %
+    eval: % -> %
+      ++ eval(x) re-evaluates x by interpreting its InputForm in this domain.
+      ++ (FunctionSpace no longer exports eval: % -> %, upstream 507c1dd5.)
     if R has ConvertibleTo Pattern R then
       convert: % -> Pattern R
 
@@ -573,8 +577,8 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
   --AN  ==> AlgebraicNumber
   --KAN ==> Kernel AN
   FSF ==> FunctionalSpecialFunction(R, %)
-  ESD ==> ExpressionSpace_&(%)
-  FSD ==> FunctionSpace_&(%, R)
+  ESD ==> ExpressionSpace2_&(%, K)
+  FSD ==> FunctionSpace2_&(%, R, K)
 
   Implementation ==> add
     Rep := SIN
@@ -994,7 +998,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
           else
             return "failed"
 
-    coerce(x:Pi):% == per convert(x)$Pi
+    coerce(x:PiDomain):% == per convert(x)$PiDomain
     coerce(x:Symbol):% == per convert(x)$Symbol
     -- WSP: We need to do something about properties! id:101
     coerce(k:K):% ==
@@ -1002,7 +1006,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       props:List(Record(key: Symbol,entry: None)) := entries properties operator k
       -- copy operator properties to symbol property list
       for p in props repeat
-        PUT(s,p.key,(p.entry) pretend SIN)$Lisp
+        FUNCALL('MAKEPROP,s,p.key,(p.entry) pretend SIN)$Lisp  -- see SINF rank
       per convert(k)@Rep
 
     coerceOutputForm1:(Rep,Boolean)->OutputForm
@@ -1014,7 +1018,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
         s := symbol car x
         -- scripted?
         if #string(s)>2 and ord string(s).1 = 42 and digit? string(s).2 then
-          return coerce(x pretend Symbol)
+          return coerce(x pretend Symbol)$Symbol
         --if s='%paren then
         --  return paren coerceOutputForm car cdr x
         --if s='%box then
@@ -1038,7 +1042,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
             return root coerceOutputForm car cdr x
         if s='nthRoot then
             return root(coerceOutputForm car cdr x, coerceOutputForm car cdr cdr x)
-        if s='_^ and (car cdr cdr x = convert(1/2))$Rep then
+        if s='_^ and (car cdr cdr x = convert((1/2)$Fraction(Integer))@Rep)$Rep then
             return root(coerceOutputForm car cdr x)
         if s='exp and car(cdr x)=1 then return outputForm '%e
         if member?(s,['_+,'_-,'_*,'_/,'_^])$List(Symbol) and #cdr(x)>1 then
