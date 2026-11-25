@@ -280,6 +280,23 @@ rc rs expr
 )set mess time off
 --testEquals("rc rs expr","")
 
+-------------------------------------------
+testcase "Doubles: coefficient on either side"
+-------------------------------------------
+-- CommutativeTimes sorts x*n to n*x; Doubles used to see only x*n, so
+-- 2*x+3*x stayed as 3*x+2*x.
+(x, y) : SymbolicExpression(Integer)
+x := 'x; y := 'y
+testTrue("(unparse(convert(2*x+3*x)@InputForm) = _"5*x_")@Boolean")
+testTrue("(unparse(convert(x*2+x*3)@InputForm) = _"5*x_")@Boolean")
+testTrue("(unparse(convert(x+(x+y))@InputForm) = _"2*x+y_")@Boolean")
+testTrue("(unparse(convert((y+x)+x)@InputForm) = _"2*x+y_")@Boolean")
+xftestTrue("(unparse(convert(2*x+3*x)@InputForm) = _"3*x+2*x_")@Boolean")
+-- Symbolic(Integer, Doubles) alone keeps the coefficient on the right
+(u, v) : Symbolic(Integer, Doubles)
+u := 'u
+testTrue("(unparse(convert(u*2+u*3)@InputForm) = _"u*5_")@Boolean")
+
 -------------
 -- Results --
 -------------

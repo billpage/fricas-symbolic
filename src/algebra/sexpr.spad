@@ -309,18 +309,25 @@ DoublesAxiom(): Category == Axiom with
         rin := convert(integer(x)+integer(y))
       if rin case "failed" and float? x and float? y then
         rin := convert(float(x)+float(y))
-      -- x*n+x*m --> x*(n+m)
+      -- x*n+x*m --> x*(n+m); the integer coefficient may be on either side
+      -- of the products (CommutativeTimes sorts x*n to n*x)
       if rin case "failed" then
-        if (tx:=istimes(x)) case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
-        if (ty:=istimes(y)) case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
+        tx := istimes(x)
+        if tx case Pair SIN and integer?(tx.left) and not integer?(tx.right) then
+          tx := [tx.right, tx.left]$Pair(SIN)
+        if tx case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
+        ty := istimes(y)
+        if ty case Pair SIN and integer?(ty.left) and not integer?(ty.right) then
+          ty := [ty.right, ty.left]$Pair(SIN)
+        if ty case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
         if tx case Pair SIN and ty case Pair SIN and tx.left = ty.left then
           rin := times(tx.left,convert(integer(tx.right)+integer(ty.right)))
       -- (x+y)+y --> x+2*y
-      if rin case "failed" and % has AssociativeAxiomTimes and (t:=isplus(x)) case Pair SIN then
+      if rin case "failed" and % has AssociativeAxiomPlus and (t:=isplus(x)) case Pair SIN then
         r1:=rewriteDoubles(times,istimes,plus,isplus,convert [car sin,t.right,y])
         if r1 case SIN then rin := plus(t.left,r1)
       -- x+(x+y) --> 2*x+y
-      if rin case "failed" and % has AssociativeActiomTimes and (t:=isplus(y)) case Pair SIN then
+      if rin case "failed" and % has AssociativeAxiomPlus and (t:=isplus(y)) case Pair SIN then
         l1:=rewriteDoubles(times,istimes,plus,isplus,convert [car sin,x,t.left])
         if l1 case SIN then rin := plus(l1,t.right)
       if _$testingSystem$Lisp and not rin case "failed" then
