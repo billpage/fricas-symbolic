@@ -1,0 +1,1547 @@
+)abbrev package SINF SINFunctions
+SIN ==> InputForm
+-- This should be built-in to InputForm, i.e. InputForm should satisfy Comparable
+SINFunctions(): with
+    smaller? : (SIN,SIN) -> Boolean
+    rank: (Symbol,Integer) -> Symbol
+    rank: Symbol -> Integer
+  == add
+    rank(x:Symbol,n:Integer):Symbol ==
+      -- MAKEPROP via FUNCALL: the Spad compiler refuses a direct MAKEPROP (compTran1).
+      FUNCALL('MAKEPROP,x,'rank,convert(n)@SIN)$Lisp
+      x
+    rank(x:Symbol):Integer ==
+      r:SIN := GET(x,'rank)$Lisp
+      integer? r => integer r
+      0
+    --null < integer < float < symbol rank < symbol rank < list
+    --null < symbol rank < symbol rank < float < integer < list
+    --null < symbol rank < symbol rank < list < float < integer
+    smaller1?(x:SIN,y:SIN):Boolean ==
+      if _$testingSystem$Lisp then
+        output("smaller1? ",bracket [x::OutputForm,y::OutputForm])$OutputPackage
+      null? y => return false
+      symbol? y => null? x
+        or symbol? x and (rank symbol x < rank symbol y
+          or rank symbol y = rank symbol x and -- symbol x < symbol y)
+          (symbol x = '_^ => '_*; symbol x = '_* => '_^; symbol x) < (symbol y = '_^ => '_*; symbol y = '_* => '_^; symbol y) )
+      if list? y then
+        if null? x then return true
+        if atom? x then return smaller1?(convert [convert([])@InputForm,x],y)
+        if list? x then
+          -- operators
+          if smaller1?(car x,car y) then true
+          if smaller1?(car y,car x) then false
+          -- arguments
+          x1:=cdr x; y1:=cdr y
+          while not null? y1 repeat
+            if null? x1 then true
+            if smaller1?(car x1, car y1) then return true
+            if car y1 ~= car x1 then return false
+            x1:=cdr x1; y1:=cdr y1
+          return false
+
+      float? y => null? x or symbol? x
+        or list? x and smaller1?(x,convert [convert([])@InputForm,y])
+          or float? x and float x < float y
+      integer? y => null? x or symbol? x or float? x
+        or list? x and smaller1?(x,convert [convert([])@InputForm,y])
+          or integer? x and integer x < integer y
+      false
+    smaller?(x:SIN,y:SIN):Boolean ==
+      -- It is not yet proven that smaller? is a total order.
+      -- smaller? == smaller1? except it checks for total order.
+      -- To be removed in the future.
+      if x = y then return false
+      if smaller1?(x,y) then
+        if _$testingSystem$Lisp then
+          if smaller1?(y,x) then
+            output("smaller? ",bracket [x::OutputForm,y::OutputForm])$OutputPackage
+            error("smaller? order failed")
+        return true
+      if smaller1?(y,x) then return false
+      if _$testingSystem$Lisp then
+        output("smaller? order not total",bracket [x::OutputForm,y::OutputForm])$OutputPackage
+        --error("smaller? order not total")
+      return false
+
+)abbrev category SYMCAT SymbolicCategory
+SIN ==> InputForm
+Maybe(S) ==> Union(S,"failed")
+SymbolicCategory(R : Comparable) : Category == Exports where
+  --F ==> Expression R
+  Exports ==> Join(FunctionSpace R, CoercibleTo OutputForm, ConvertibleTo SIN) with
+    axioms: () -> List Equation SIN
+    -- Do we want these even if R not a Ring, e.g. Symbol ?
+    _+: (%,%) -> %
+    _-: (%,%) -> %
+    _-: % -> %
+    _*: (%,%) -> %
+    _*:(PositiveInteger,%) -> %
+    _*:(NonNegativeInteger,%) -> %
+    _*:(%,Integer) -> %
+    _/: (%,%) -> %
+    _^: (%,%) -> %
+    _^: (%,Integer) -> %
+    nthRoot: (%, %) -> %
+    nthRoot: (%, Integer) -> %
+    if R has IntegralDomain then
+      Ring
+      AlgebraicallyClosedFunctionSpace R
+      TranscendentalFunctionCategory
+      CombinatorialOpsCategory
+      LiouvillianFunctionCategory
+      SpecialFunctionCategory
+      coerce: Polynomial R -> %
+      -- transformations
+      expand: % -> %
+    simplify: % -> %
+    if % has FunctionSpace(Integer) then
+      factor: % -> %
+    if % has TranscendentalFunctionCategory and R has GcdDomain then
+      simplify : % -> %
+    -- coercions
+    coerce: PiDomain -> %
+    coerce: % -> Expression(R)
+    coerce: Expression(R) -> %
+    convert: Equation % -> Equation SIN
+    convert: Equation SIN -> Equation %
+    coerce: SIN -> %
+    --
+    isMinus: % -> Maybe(List %)
+    paren: % -> %
+    eval: % -> %
+      ++ eval(x) re-evaluates x by interpreting its InputForm in this domain.
+      ++ (FunctionSpace no longer exports eval: % -> %, upstream 507c1dd5.)
+    if R has ConvertibleTo Pattern R then
+      convert: % -> Pattern R
+
+
+)abbrev category AXIOM Axiom
+++ Properties and axioms for symbolic rewrite rules
+Axiom(): Category == Type with
+    assert: (String,Boolean)->Void
+  add
+    -- Assertion (intended to be run at domain instantiation)
+    assert(name:String,axiom:Boolean) ==
+      if not axiom then error name
+      else if _$testingSystem$Lisp then output(name)$OutputPackage
+
+)abbrev category ALTAX AntiCommutativeAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ AntiCommutative
+AntiCommutativeAxiom(): Category == Axiom with
+    rewriteAntiCommutative: (SIN->SIN,(SIN,SIN)->SIN, SIN, SIN) -> Maybe(SIN)
+  add
+    rewriteAntiCommutative(m:SIN->SIN,f:(SIN,SIN)->SIN, x:SIN, y:SIN): Maybe(SIN) ==
+      --output("rewriteAntiCommutative: ",paren [x::OutputForm,y::OutputForm])$OutputPackage
+      import Integer
+      if symbol? x and symbol? y
+        and rank(symbol x)$SINFunctions < 0
+          and rank(symbol y)$SINFunctions  < 0 then
+            -- non-commutative symbols anti-commute
+            if smaller?(y,x)$SINFunctions then
+              --output("rewriteAntiCommutative: ",m(f(y,x))::OutputForm)$OutputPackage
+              return m(f(y,x))
+            if not smaller?(x,y) then return 0
+      -- everythning else commutes
+      if smaller?(y,x)$SINFunctions then return f(y,x)
+      "failed"
+
+)abbrev category ASSAX AssociativeAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Associative
+AssociativeAxiom(): Category == Axiom with
+    rewriteAssociative: (SIN->Maybe Pair SIN, (SIN,SIN)->SIN, SIN) -> Maybe SIN
+  add
+    rewriteAssociative(terms:SIN->Maybe Pair SIN, f:(SIN,SIN)->SIN, sin:SIN):Maybe(SIN) ==
+      if _$testingSystem$Lisp then
+        output("rewriteAssociative: ",message unparse sin)$OutputPackage
+      x:=sin.2; y:=sin.3
+      rin:SIN
+      -- to the right
+      --if (t:=terms(x)) case Pair SIN then
+      --  rin := f(t.left,f(t.right,y))
+      -- to the left
+      if (t:=terms(y)) case Pair SIN then
+        rin := f(f(x,t.left),t.right)
+      else
+        return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteAssociative: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+        --if not smaller?(sin,rin)$SINFunctions then error "not smaller"
+      return rin
+
+)abbrev category ASSAXP AssociativeAxiomPlus
+AssociativeAxiomPlus():Category == AssociativeAxiom
+)abbrev category ASSAXT AssociativeAxiomTimes
+AssociativeAxiomTimes():Category == AssociativeAxiom
+
+)abbrev category COMAX CommutativeAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Commutative
+CommutativeAxiom(): Category == Axiom with
+    rewriteCommutative: (SIN->Maybe Pair SIN,(SIN,SIN)->SIN, SIN) -> Maybe(SIN)
+  add
+    rewriteCommutative(terms:SIN->Maybe Pair SIN,f:(SIN,SIN)->SIN, sin:SIN): Maybe(SIN) ==
+      if _$testingSystem$Lisp then
+        output("rewriteCommutative: ",message unparse sin)$OutputPackage
+      x:=sin.2; y:=sin.3
+      rin:SIN
+      if smaller?(x,y)$SINFunctions then
+        rin := f(y,x)
+      else
+        -- look on the left
+        if % has AssociativeAxiom and (tx := terms x) case Pair SIN then
+          if smaller?(tx.right,y) then
+            rin := f(tx.left,f(y,tx.right))
+          else
+            -- look on the right
+            if % has AssociativeAxiom and (ty := terms y) case Pair SIN then
+              if smaller?(x,ty.left) then
+                rin := f(f(ty.left,x),ty.right)
+              else
+                return "failed"
+            else
+              return "failed"
+        else
+          return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteCommutative: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+        --if not smaller?(sin,rin)$SINFunctions then error "not smaller"
+      return rin
+
+)abbrev category COMAXP CommutativeAxiomPlus
+CommutativeAxiomPlus():Category == CommutativeAxiom
+)abbrev category COMAXT CommutativeAxiomTimes
+CommutativeAxiomTimes():Category == CommutativeAxiom
+)abbrev category COMAX2 CommutativeAxiomTimesTimes
+CommutativeAxiomTimesTimes():Category == CommutativeAxiom
+)abbrev category COMAX3 CommutativeAxiomJoin
+CommutativeAxiomJoin():Category == CommutativeAxiom
+
+)abbrev category CANAX CancelsAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Cancelling
+CancelsAxiom(): Category == Axiom with
+    rewriteCancels: ((SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN->Maybe Pair SIN,
+     (SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN) -> Maybe SIN
+  add
+    rewriteCancels(times:(SIN,SIN)->SIN, istimes:SIN->Maybe Pair SIN, isplus:SIN->Maybe Pair SIN,
+        minus:(SIN,SIN)->SIN, isminus:SIN->Maybe Pair SIN, sin:SIN):Maybe SIN ==
+      if _$testingSystem$Lisp then
+        output("rewriteCancels: ",message unparse sin)$OutputPackage
+
+      x:=sin.2; y:=sin.3
+      -- constants
+      if integer? x and integer? y then return convert(integer(x)-integer(y))
+      if float? x and float? y then return convert(float(x)-float(y))
+      -- x*n - x*m --> x*(n-m)
+      if (tx:=istimes(x)) case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
+      if (ty:=istimes(y)) case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
+      if tx case Pair SIN and ty case Pair SIN and (ty.left = tx.left)$SIN then
+        return times(tx.left,convert(integer(tx.right)-integer(ty.right)))
+      -- look right
+      if % has AssociativeAxiomPlus then
+        -- (x+y)-y --> x-(y-y)
+        if (t:=isplus(x)) case Pair SIN then
+          r1:=rewriteCancels(times,istimes,isplus,minus,isminus,convert [car sin, t.right,y])
+          if r1 case SIN then return minus(t.left,r1)
+          -- WSP: Do we need to commute the term? id:108
+          if % has CommutativeAxiomPlus then
+            -- (x+y)-x --> y-(x-x)
+            r1:=rewriteCancels(times,istimes,isplus,minus,isminus,convert [car sin, t.left,y])
+            if r1 case SIN then return minus(t.right,r1)
+      -- look left
+      if % has AssociativeAxiomPlus then
+        -- x-(x+y) --> (x-x)-y
+        if (t:=isplus(y)) case Pair SIN then
+          l1:=rewriteCancels(times,istimes,isplus,minus,isminus,convert [car sin, x,t.left])
+          if l1 case SIN then return minus(l1,t.right)
+        if % has CommutativeAxiomPlus then
+          -- y-(x+y) --> (y-y)-x
+          if (t:=isplus(y)) case Pair SIN then
+            l1:=rewriteCancels(times,istimes,isplus,minus,isminus,convert [car sin, x,t.right])
+            if l1 case SIN then return minus(l1,t.left)
+
+      "failed"
+
+      --x:=sin.2; y:=sin.3
+      --rin:SIN
+      --if integer? x and integer? y then
+      --  rin := convert(integer(x)-integer(y))
+      --else
+      --  if float? x and float? y then
+      --    rin := convert(float(x)-float(y))
+      --  else
+      --    if x = y then
+      --      rin := 0
+      --    else
+      --      return "failed"
+      --if _$testingSystem$Lisp then
+      --  output("rewriteCancels: ",infix(message " --> ",coerce(sin)@OutputForm,coerce(rin)@OutputForm))$OutputPackage
+      --  --if smaller?(sin,rin)$SINFunctions then error "not smaller"
+      --return rin
+
+)abbrev category DBLAX DoublesAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Doubling
+DoublesAxiom(): Category == Axiom with
+    rewriteDoubles: ((SIN,SIN)->SIN, SIN->Maybe Pair SIN, (SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN) -> Maybe SIN
+  add
+    rewriteDoubles( times:(SIN,SIN)->SIN, istimes:SIN->Maybe Pair SIN, plus:(SIN,SIN)->SIN, isplus:SIN->Maybe Pair SIN, sin:SIN ) : Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      rin:Maybe SIN := "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteDoubles: ",message unparse sin)$OutputPackage
+      -- constants
+      if rin case "failed" and integer? x and integer? y then
+        rin := convert(integer(x)+integer(y))
+      if rin case "failed" and float? x and float? y then
+        rin := convert(float(x)+float(y))
+      -- x*n+x*m --> x*(n+m)
+      if rin case "failed" then
+        if (tx:=istimes(x)) case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
+        if (ty:=istimes(y)) case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
+        if tx case Pair SIN and ty case Pair SIN and tx.left = ty.left then
+          rin := times(tx.left,convert(integer(tx.right)+integer(ty.right)))
+      -- (x+y)+y --> x+2*y
+      if rin case "failed" and % has AssociativeAxiomTimes and (t:=isplus(x)) case Pair SIN then
+        r1:=rewriteDoubles(times,istimes,plus,isplus,convert [car sin,t.right,y])
+        if r1 case SIN then rin := plus(t.left,r1)
+      -- x+(x+y) --> 2*x+y
+      if rin case "failed" and % has AssociativeActiomTimes and (t:=isplus(y)) case Pair SIN then
+        l1:=rewriteDoubles(times,istimes,plus,isplus,convert [car sin,x,t.left])
+        if l1 case SIN then rin := plus(l1,t.right)
+      if _$testingSystem$Lisp and not rin case "failed" then
+        output("rewriteDoubles: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+      return rin
+
+)abbrev category DISAX DistributiveAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Distributive
+DistributiveAxiom(): Category == Axiom with
+    rewriteDistributive: (SIN->Maybe Pair SIN, (SIN,SIN)->SIN, (SIN,SIN)->SIN, SIN) -> Maybe SIN
+  add
+    rewriteDistributive(terms:SIN->Maybe Pair SIN, plus:(SIN,SIN)->SIN, times:(SIN,SIN)->SIN, sin:SIN): Maybe(SIN) ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteDistributive: ",message unparse sin)$OutputPackage
+      rin:SIN
+      if (t:=terms(x)) case Pair SIN then
+        rin := plus(times(t.left,y),times(t.right,y))
+      else
+        if (t:=terms(y)) case Pair SIN then
+          rin := plus(times(x,t.left),times(x,t.right))
+        else
+          return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteDistributive: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+        --if not smaller?(sin,rin)$SINFunctions then output("not smaller")$OutputPackage
+      return rin
+
+)abbrev category DIVAX DividesAxiom
+Maybe(S) ==> Union(S,"failed")
+applyIf(f,x) ==> if (%r:=x) case "failed" then "failed" else f(%r)
+returnIf(x) ==> if not((%r:=x) case "failed") then return %r
+orReturn(x) ==> if x case "failed" then return "failed"
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Divides
+DividesAxiom(): Category == Axiom with
+    rewriteDivides: ((SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN->Maybe Pair SIN,
+      (SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN) -> Maybe SIN
+  add
+    rewriteDivides(pow:(SIN,SIN)->SIN, ispower:SIN->Maybe Pair SIN, istimes:SIN->Maybe Pair SIN,
+       quotient:(SIN,SIN)->SIN, isquotient:SIN->Maybe Pair SIN, sin:SIN): Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteDivides: ",message unparse sin)$OutputPackage
+      -- constants
+      if integer? x and integer? y then
+        if (r:=integer(x) exquo integer(y)) case Integer then
+          return convert r
+      if float? x and float? y then return convert(float(x)/float(y))
+      -- x^n/x^m --> x^(n+m)
+      if (tx:=ispower(x)) case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
+      if (ty:=ispower(y)) case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
+      if tx case Pair SIN and ty case Pair SIN and (ty.left = tx.left)$SIN then
+        return pow(tx.left,convert(integer(tx.right)-integer(ty.right)))
+      -- look right
+      if % has AssociativeAxiomTimes then
+        -- (x*y)/y --> x/(y/y)
+        if (t:=istimes(x)) case Pair SIN then
+          r1:=rewriteDivides(pow,ispower,istimes,quotient,isquotient,convert [car sin, t.right,y])
+          if r1 case SIN then return quotient(t.left,r1)
+          if % has CommutativeAxiomTimes then
+            r1:=rewriteDivides(pow,ispower,istimes,quotient,isquotient,convert [car sin, t.left,y])
+            if r1 case SIN then return quotient(t.right,r1)
+      -- look left
+      if % has AssociativeAxiomTimes then
+        -- x/(x*y) --> (x/x)/y
+        if (t:=istimes(y)) case Pair SIN then
+          l1:=rewriteDivides(pow,ispower,istimes,quotient,isquotient,convert [car sin, x,t.left])
+          if l1 case SIN then return quotient(l1,t.right)
+          if % has CommutativeAxiomTimes then
+            l1:=rewriteDivides(pow,ispower,istimes,quotient,isquotient,convert [car sin, x,t.right])
+            if l1 case SIN then return quotient(l1,t.left)
+
+      "failed"
+
+      --if _$testingSystem$Lisp then
+      --  output("rewriteDivides: ",paren [x::OutputForm,y::OutputForm])$OutputPackage
+      --if eq(y,0) then return "failed"
+      --if eq(x,0) then return 0
+      --if integer? x and integer? y then
+      --  orReturn(r:=integer(x) exquo integer(y))
+      --  return convert r
+      --if float? x and float? y then return convert(float(x)/float(y))
+      --if x = y then return 1
+      --"failed"
+
+)abbrev category INVAX InverseAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Inverse
+InverseAxiom(): Category == Axiom with
+    rewriteInverseUnary: (SIN->SIN,SIN->Maybe Pair SIN,(SIN,SIN)->SIN,SIN) -> Maybe SIN
+    rewriteRightInverse: (SIN->SIN,(SIN,SIN)->SIN,SIN)-> Maybe SIN
+    rewriteLeftInverse: (SIN->SIN,(SIN,SIN)->SIN,SIN)-> Maybe SIN
+  add
+    rewriteInverseUnary(inv:SIN->SIN,terms:SIN->Maybe Pair SIN,f:(SIN,SIN)->SIN, x:SIN) ==
+      if _$testingSystem$Lisp then
+        output("rewriteInverseUnary: ",message unparse x)$OutputPackage
+      -- involution?
+      -- -(-x) --> x
+      -- 1/(1/x) --> x
+      if list? x and (x = inv last destruct x)$SIN then
+        rin := last destruct x
+      else
+        return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteInverseUnary: ",infix(message " --> ",message unparse x,message unparse rin))$OutputPackage
+      return rin
+    rewriteRightInverse(inv:SIN->SIN,f:(SIN,SIN)->SIN,sin:SIN): Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteRightInverse: ", message unparse sin)$OutputPackage
+      -- inverse on the right
+      -- x - (-y) --> x + y
+      -- x + (-y) --> x - y
+      -- x / (1/y) --> x * y
+      -- x * (1/y) --> x / y
+      -- WSP: Instead of inv we need isInv1 to be isMinus1 or isQuotient1 id:107
+      if list? y and (inv(y) = last destruct y)$SIN then
+        rin :=f(x,last destruct y)
+      else
+        return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteRightInverse: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+      return rin
+    rewriteLeftInverse(inv:SIN->SIN,f:(SIN,SIN)->SIN,sin:SIN): Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteLeftInverse: ", message unparse sin)$OutputPackage
+      -- inverse on the left
+      -- (-x) - y -->     -(x + y)   ??
+      -- (-x) + y -->     -(x - y)   ??
+      -- (1/x) / y -->    1/(x * y)
+      -- (1/x) * y -->x   1/(x / y)
+      if list? x and (inv(x) = last destruct x)$SIN then
+        rin := inv f(last destruct x,y)
+      else
+        return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteLeftInverse: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+      return rin
+
+)abbrev category LIDAX LeftIdentityAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+LeftIdentityAxiom(): Category == Axiom with
+    rewriteLeftIdentity: (SIN,SIN)-> Maybe SIN
+  add
+    rewriteLeftIdentity(u:SIN,sin:SIN): Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteLeftIdentity: ",message unparse sin)$OutputPackage
+      if x=u then
+        rin := y
+      else return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteLeftIdentity: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+      return rin
+
+)abbrev category RIDAX RightIdentityAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+RightIdentityAxiom(): Category == Axiom with
+    rewriteRightIdentity: (SIN,SIN)-> Maybe SIN
+  add
+    rewriteRightIdentity(u:SIN,sin:SIN): Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteRightIdentity: ",message unparse sin)$OutputPackage
+      if y=u then
+        rin := x
+      else return "failed"
+      if _$testingSystem$Lisp then
+        output("rewriteRightIdentity: ",infix(message " --> ",message unparse sin,message unparse rin))$OutputPackage
+      return rin
+
+)abbrev category IDAX IdentityAxiom
+++ Identity
+IdentityAxiom(): Category == Join(LeftIdentityAxiom,RightIdentityAxiom)
+
+)abbrev category SQAX SquaresAxiom
+Maybe(S) ==> Union(S,"failed")
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Squares
+SquaresAxiom(): Category == Axiom with
+    rewriteSquares: ((SIN,SIN)->SIN, SIN->Maybe Pair SIN, (SIN,SIN)->SIN, SIN->Maybe Pair SIN, SIN) -> Maybe SIN
+  add
+    rewriteSquares( pow:(SIN,SIN)->SIN, ispower:SIN->Maybe Pair SIN, times:(SIN,SIN)->SIN, istimes:SIN->Maybe Pair SIN, sin:SIN ) : Maybe SIN ==
+      x:=sin.2; y:=sin.3
+      if _$testingSystem$Lisp then
+        output("rewriteSquares: ",message unparse sin)$OutputPackage
+      -- constants
+      if integer? x and integer? y then return convert(integer(x)*integer(y))
+      if float? x and float? y then return convert(float(x)*float(y))
+      -- x^n*x^m --> x^(n+m)
+      if (tx:=ispower(x)) case "failed" or not integer? tx.right then tx := [x,1]$Pair(SIN)
+      if (ty:=ispower(y)) case "failed" or not integer? ty.right then ty := [y,1]$Pair(SIN)
+      if tx case Pair SIN and ty case Pair SIN and (ty.left = tx.left)$SIN then
+        return pow(tx.left,convert(integer(tx.right)+integer(ty.right)))
+      -- look right
+      if % has AssociativeAxiomTimes then
+        -- (x*y)*y --> x*y^2
+        if (t:=istimes(x)) case Pair SIN then
+          r1:=rewriteSquares(pow,ispower,times,istimes,convert [car sin, t.right,y])
+          if r1 case SIN then return times(t.left,r1)
+      -- look left
+      if % has AssociativeAxiomTimes then
+        -- x*(x*y) --> x^2*y
+        if (t:=istimes(y)) case Pair SIN then
+          l1:=rewriteSquares(pow,ispower,times,istimes,convert [car sin, x,t.left])
+          if l1 case SIN then return times(l1,t.right)
+      "failed"
+
+)abbrev domain SYMB Symbolic
+-- Type safe representation
+rep(x) ==> x @ % pretend Rep
+per(x) ==> x @ Rep pretend %
+-- Applicative-style macros
+Maybe(S) ==> Union(S,"failed")
+applyIf(f,x) ==> if (%r:=x) case "failed" then "failed" else f(%r)
+returnIf(x) ==> if not((%r:=x) case "failed") then return %r
+orReturn(x) ==> if x case "failed" then return "failed"
+
+SIN ==> InputForm
+Pair SIN ==> Record(left:SIN,right:SIN)
+++ Unevaluated mathematical expressions
+++ Author: Bill Page
+++ Date Created: 12 February 2017
+++ Description:
+++ Symbolic is a domain that represents expressions involving symbolic
+++ operations. These expressions remain unevaluated and are displayed as
+++ entered unless otherwise specified. Rewrite rules implementing various
+++ common axioms can be specified that will be automatically applied when
+++ expressions are evaluated by the interpreter. Full simplification of
+++ expressions if/when desired is performed by means of interpretation in
+++ the Expression domain.
+++ Keywords: expression, evaluation, operator, function.
+Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(R) == Implementation where
+  --F ==> Expression R
+  K   ==> Kernel %
+  SMP  ==> SparseMultivariatePolynomial(R, K)
+  AF  ==> AlgebraicFunction(R, %)
+  EF  ==> ElementaryFunction(R, %)
+  CF  ==> CombinatorialFunction(R, %)
+  LF  ==> LiouvillianFunction(R, %)
+  --AN  ==> AlgebraicNumber
+  --KAN ==> Kernel AN
+  FSF ==> FunctionalSpecialFunction(R, %)
+  ESD ==> ExpressionSpace2_&(%, K)
+  FSD ==> FunctionSpace2_&(%, R, K)
+
+  Implementation ==> add
+    Rep := SIN
+
+    smaller?(x:%,y:%):Boolean == smaller?(rep x, rep y)$SINFunctions
+
+    -- paren is an unevaluated kernel in SMP but evaluates as identity
+    oppren := operator(operator('%paren))$ESD
+    -- fix InputForm and derivative
+    input(oppren, (z:List InputForm):InputForm +-> convert concat(convert 'paren, z))$BasicOperator
+    derivative(oppren,(x:%):%+->1)$BasicOperatorFunctions1(%)
+    paren(x:%):% == x
+    --
+    belong? op == true
+    if R has AbelianSemiGroup then
+      0:% == per 0$Rep
+      zero? x == x = 0
+    if R has SemiGroup then
+      1:% == per 1$Rep
+      one? x  == x = 1
+
+    hash(x:%):SingleInteger == hash(rep x)$SIN
+    (x:% = y:%):Boolean ==
+      if _$testingSystem$Lisp then
+        output(" = ",paren [x::OutputForm,y::OutputForm])$OutputPackage
+      (x = y)$Rep
+      --not smaller?(x,y) and not smaller?(y,x)
+
+    subst(x:%,e:Equation %):% == per SUBST(rep rhs e,rep lhs e,rep x)$Lisp
+    -- does "parallel" substitution
+    subst(x:%,ks:List K, vs:List %) == subst(x,[equation(i::%,j) for i in ks for j in vs])
+    -- SUBLIS expects a list of dotted pairs. List Equation suffices.
+    subst(x:%, es:List Equation %):% == per SUBLIS(es,rep x)$Lisp
+
+    --if R has ConvertibleTo SIN then
+    -- +0 is a hack to avoid premature conversion (do we need it?)
+    --hack(x:%):Rep == binary(convert('_+),[rep x,0$Rep])
+    -- better hack?
+    --hack(x:%):Rep == convert([convert 'coerce,rep x])
+
+    eval(x:%):% == coerce rep x
+)if false
+      if _$testingSystem$Lisp then
+        output("eval: ",message unparse sin)$OutputPackage
+      if atom? rep x then return x
+      v:List Symbol := variables x
+      if #v = 0 then return coerce rep x
+      -- we need to substitute variables with unknown modes
+      s:List Symbol := [new()$Symbol for vi in v]
+      ks:List Equation % := [equation(coerce(vi)$%, coerce(si)$%) for vi in v for si in s]
+      sk:List Equation % := [equation(coerce(si)$%, coerce(vi)$%) for vi in v for si in s]
+      rin := subst(coerce(rep subst(x,ks)),sk)
+      if _$testingSystem$Lisp then
+        output("eval: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+      return rin
+)endif
+
+    eval(x:%,k:K,s:%):% ==
+      --output("eval 1:", paren [x::OutputForm, k::OutputForm, s::OutputForm])$OutputPackage
+      eval subst(x,[k],[s])
+    eval(x:%,ks:List K, vs:List %) ==
+      --output("eval 2:", paren [x::OutputForm, ks::OutputForm, vs::OutputForm])$OutputPackage
+      eval subst(x,ks,vs)
+      --r:=x
+      ---- Use temporary symbols in case of parallel substitutions
+      --ts:List K := [kernel(new()$Symbol) for k in ks]
+      --for k in ks for t in ts repeat
+      --  r:=eval(r,k,coerce t)
+      --for t in ts for v in vs repeat
+      --  r:=eval(r,t,v)
+      --return r
+    eval(x:%,a:%,b:%):% ==
+      --output("eval 3:", paren [x::OutputForm, a::OutputForm, b::OutputForm])$OutputPackage
+      eval(x, retract a, b)
+    eval(x:%,e:Equation %):% == eval(x,lhs e,rhs e)
+
+    -- WSP: need to handle subscripted Symbol id:99
+
+    isPlus2(x:SIN):Maybe(Pair SIN) ==
+      list? x and # cdr x = 2 and symbol? car x and symbol car x = '_+ => [car cdr x, car cdr cdr x]
+      "failed"
+    isMinus2(x:SIN):Maybe(Pair SIN) ==
+      list? x and # cdr x = 2 and symbol? car x and symbol car x = '_- => [car cdr x, car cdr cdr x]
+      "failed"
+    isMinus1(x:SIN):Maybe SIN ==
+      list? x and # cdr x = 1 and symbol? car x and symbol car x = '_- => car cdr x
+      "failed"
+    isTimes2(x:SIN):Maybe(Pair SIN) ==
+      list? x and # cdr x = 2 and symbol? car x and symbol car x = '_* => [car cdr x, car cdr cdr x]
+      "failed"
+    isQuotient2(x:SIN):Maybe(Pair SIN) ==
+      list? x and # cdr x = 2 and symbol? car x and symbol car x = '_/ => [car cdr x, car cdr cdr x]
+      "failed"
+    isPower2(x:SIN):Maybe(Pair SIN) ==
+      list? x and symbol? car x and symbol car x = '_^ => [car cdr x, car cdr cdr x]
+      "failed"
+
+    retractIfCan(x:%):Maybe(R) ==
+      if _$testingSystem$Lisp then
+        output("retractIfCan R: ",x::OutputForm)$OutputPackage
+      -- WSP: Why this check? id:106
+      if list? rep x and # cdr rep x = 0 then error "stop"
+      if R has AbelianGroup then
+        if (m:=isMinus1(rep x)) case SIN then
+          if (mr:=retractIfCan(per m)@Maybe(R)) case R then
+            return -mr
+      if R is Integer then
+        if integer? rep x then return (integer rep x) pretend R
+      if R is DoubleFloat then
+        if float? rep x then return (float rep x) pretend R
+      if R is Symbol then
+        if symbol? rep x then return (symbol rep x) pretend R
+      return "failed"
+
+    if R has IntegralDomain then
+      -- Elementary Functions
+      pi()                      == pi()$EF
+      exp x                     == exp(x)$EF
+      log x                     == log(x)$EF
+      sin x                     == sin(x)$EF
+      cos x                     == cos(x)$EF
+      tan x                     == tan(x)$EF
+      cot x                     == cot(x)$EF
+      sec x                     == sec(x)$EF
+      csc x                     == csc(x)$EF
+      asin x                    == asin(x)$EF
+      acos x                    == acos(x)$EF
+      atan x                    == atan(x)$EF
+      acot x                    == acot(x)$EF
+      asec x                    == asec(x)$EF
+      acsc x                    == acsc(x)$EF
+      sinh x                    == sinh(x)$EF
+      cosh x                    == cosh(x)$EF
+      tanh x                    == tanh(x)$EF
+      coth x                    == coth(x)$EF
+      sech x                    == sech(x)$EF
+      csch x                    == csch(x)$EF
+      asinh x                   == asinh(x)$EF
+      acosh x                   == acosh(x)$EF
+      atanh x                   == atanh(x)$EF
+      acoth x                   == acoth(x)$EF
+      asech x                   == asech(x)$EF
+      acsch x                   == acsch(x)$EF
+      SYMBOL := '%symbol
+      operator(op:BasicOperator):BasicOperator ==
+        belong?(op)$AF  => operator(op)$AF
+        belong?(op)$EF  => operator(op)$EF
+        belong?(op)$CF  => operator(op)$CF
+        belong?(op)$LF  => operator(op)$LF
+        belong?(op)$FSF => operator(op)$FSF
+        belong?(op)$FSD => operator(op)$FSD
+        belong?(op)$ESD => operator(op)$ESD
+        nullary? op and has?(op, SYMBOL) => operator(kernel(name op)$K)
+        (n := arity op) case "failed" => operator name op
+        operator(name op, n::NonNegativeInteger)
+      --
+      -- WSP: still need to handle non symbols and scripted symbols id:103
+      kernels1(x:Rep):Set K ==
+        AL ==> AssociationList(Symbol,None)
+        if null? x then return empty()
+        if symbol? x then
+          -- WSP: Should we recover properties/assertions from symbols? id:100
+          k:K := kernel symbol x
+          op:=operator k
+          opl:List Record(key:Symbol,entry:None):=entries properties op
+          pl := destruct SYMBOL_-PLIST(x)$Lisp
+          npl:=[[symbol pl(i),pl(i+1) pretend None]$Record(key:Symbol,entry:None)
+            for i in 1..#pl by 2]
+          setProperties(op,dictionary(concat(opl,npl)))$BasicOperator
+          return set [k]
+        if list? x and symbol? car x then
+            if list? cdr x then
+              s := symbol car x
+              -- ,'_-
+              if member?(s,['_+,'_*,'_/])$List(Symbol) _
+              or s='_^ and integer? car cdr cdr x then
+                r:Set K := reduce("union",
+                  [kernels1(i) for i in destruct cdr x])
+                return r
+              else
+                -- InputForm is sometimes different than the operator name
+                if s='_^ then s:='%power
+                op:=operator(operator(s)$CommonOperators)$%
+                k:K := kernel(op, destruct cdr x, #cdr(x)::NonNegativeInteger)$K
+                return set [k]
+            else
+              return kernels1 car cdr x
+        return empty()
+      kernels(x:%):List K == members kernels1(rep x)
+
+      mainKernel(x:%):Maybe Kernel % ==
+        k := kernels x
+        if empty? k then return "failed"
+        return last k
+
+      -- Symbolic is syntactical!
+      numerator(x:%):% ==
+        r := isQuotient2 rep x
+        if r case Pair SIN then
+          return per r.left
+        else
+          return x
+      denominator(x:%):% ==
+        r := isQuotient2 rep x
+        if r case Pair SIN then
+          return per r.right
+        else
+          return 1
+      makeKernel(x:%):K ==
+        --output("makeKernel: ",x::OutputForm)$OutputPackage
+        --if symbol? rep x then return kernel symbol rep x
+        k:Maybe K := retractIfCan(x)
+        if k case K then
+          return k
+        else
+          -- We must wrap up this term in a paren box for SMP.
+          return coerce kernel(oppren,[x],1)$K
+      smpTerm(x:%):SparseMultivariatePolynomial(R,K) ==
+        --output("smpTerm: ",x::OutputForm)$OutputPackage
+        t:=isTimes x
+        if t case List % then
+          return reduce("*",[smpTerm(i) for i in t])
+        t2:=isPower x
+        if t2 case Record(val:%,exponent:Integer) then
+          if t2.exponent > 0 then
+            return smpTerm(t2.val)^(t2.exponent::NonNegativeInteger)
+        -- this test is not quite adequate
+        if R is Integer and integer? rep x then
+          return coerce integer rep x
+        else
+          return coerce makeKernel(x)
+      numer(x:%):SparseMultivariatePolynomial(R,K) ==
+        --output("numer: ",x::OutputForm)$OutputPackage
+        r:=numerator(x)
+        s:=isPlus r
+        if s case List % then
+          return reduce("+",[smpTerm(i) for i in s])
+        else
+          return smpTerm(r)
+      denom(x:%):SparseMultivariatePolynomial(R,K) ==
+        --output("denom: ",x::OutputForm)$OutputPackage
+        r:=denominator(x)
+        s:=isPlus r
+        if s case List % then
+          return reduce("+",[smpTerm(i) for i in s])
+        else
+          return smpTerm(r)
+
+      -- WSP: replace univariate$QF id:104
+
+      (x:SMP / y:SMP):% == coerce(x) / coerce(y)
+      isPlusReversed(x:%):Maybe(List %) ==
+        r := isPlus2 rep x
+        if r case Pair SIN then
+          r1:=isPlus per(r.left)
+          r2:=isPlus per(r.right)
+          if r1 case List % then
+            if r2 case List % then
+              return concat(r1,r2)
+            else
+              return concat(r1, [per(r.right)])
+          else
+            if r2 case List % then
+              return concat([per(r.left)],r2)
+            else
+              return [per(r.left),per(r.right)]
+        else
+          ---- treat x - y as x + -y
+          --r := isMinus2 rep x
+          --if r case Pair SIN then
+          --  r1:=isPlus per(r.left)
+          --  r2:=isPlus per(r.right)
+          --  if r1 case List % then
+          --    if r2 case List % then
+          --      return concat(r1,[-ri for ri in r2])
+          --    else
+          --      return concat(r1, [per(-r.right)])
+          --  else
+          --    if r2 case List % then
+          --      return concat([per(r.left)],[-ri for ri in r2])
+          --    else
+          --      return [per(r.left),per(-r.right)]
+          --else
+            return "failed"
+      -- Make order compatible with Expression.
+      isPlus(x:%):Maybe(List %) ==
+        (r:=isPlusReversed(x)) case "failed" => "failed"
+        reverse(r::List %)
+
+      isMinus(x:%):Maybe(List %) ==
+        r := isMinus2 rep x
+        if r case Pair SIN then
+          r1:=isMinus per(r.left)
+          r2:=isMinus per(r.right)
+          if r1 case List % then
+            if r2 case List % then
+              concat(r1,r2)
+            else
+              concat(r1, [per(r.right)])
+          else
+            if r2 case List % then
+              concat([per(r.left)],r2)
+            else
+              [per(r.left),per(r.right)]
+        else
+          "failed"
+
+      factorials(x:%):%           == coerce factorials(coerce x)$CF
+      factorials(x:%, n:Symbol):% == coerce factorials(coerce x, n)$CF
+
+      -- AlgebraicallyClosedFunctionSpace exports RetractableTo AlgebraicNumber
+      -- when R has RetractableTo Integer (upstream 7a12330c); go via Expression R.
+      if R has RetractableTo Integer then
+        coerce(a:AlgebraicNumber):% == coerce(a::Expression(R))
+        retractIfCan(x:%):Maybe(AlgebraicNumber) ==
+          retractIfCan(coerce(x)@Expression(R))@Maybe(AlgebraicNumber)
+
+      if SMP has PolynomialFactorizationExplicit then
+        factor(x:%):% ==
+          (factor(numer x)::OutputForm pretend SIN /
+            factor(denom x)::OutputForm pretend SIN)$SIN
+
+      expand(x:%):% ==
+        n := isPlus numerator(x)
+        if n case List % then
+          d:% := denominator(x)
+          if d=1 then return reduce("+",[s for s in n])
+          return reduce("+",[s/d for s in n])
+        else
+          return x
+      --
+      if R has ConvertibleTo SIN then
+        coerce(x:SMP):% == eval per convert(x)$SMP
+        coerce(x:Polynomial R):% == eval per convert(x)$Polynomial(R)
+        coerce(x:Fraction R):% == eval per convert(x)$Fraction(R)
+      if R has RetractableTo Integer or R has RetractableTo Fraction Integer then
+        retractIfCan(x:%):Maybe(Fraction Integer) ==
+          if _$testingSystem$Lisp then
+            output("retractIfCan(x):Maybe(Fraction Integer) ",x::OutputForm)$OutputPackage
+          r:Maybe(R):=retractIfCan(x)
+          if r case R then
+            if R has RetractableTo Fraction Integer then
+              return retractIfCan(r::R)@Maybe(Fraction Integer)
+            if R has RetractableTo Integer then
+              r2:Maybe(Integer):=retractIfCan(r::R)
+              if r2 case Integer then
+                return r2::Integer::Fraction Integer
+          return "failed"
+      if R has PatternMatchable Integer then
+        patternMatch(x : %, p : Pattern Integer, l : PatternMatchResult(Integer, %)) ==
+          if _$testingSystem$Lisp then
+            output("patternMatch: ",paren [x::OutputForm,p::OutputForm,l::OutputForm])$OutputPackage
+          patternMatch(x, p, l)$PatternMatchFunctionSpace(Integer, R, %)
+
+      if R has PatternMatchable Float then
+        patternMatch(x : %, p : Pattern Float, l : PatternMatchResult(Float, %)) ==
+          patternMatch(x, p, l)$PatternMatchFunctionSpace(Float, R, %)
+
+      PMOPT   ==> '%pmoptional
+      PMMULT  ==> '%pmmultiple
+      PMCONST ==> '%pmconstant
+
+      if R has ConvertibleTo Pattern R then
+        convert(x:%):Pattern R ==
+          if (t:=isPlus(x)) case List % then
+            return reduce("+",[convert(i)@Pattern R for i in t])
+          --if (u:=isMinus1(rep x)) case SIN then
+          --  return convert(-1$R)*convert(per u)
+          --if (m:=isMinus2(rep x)) case Pair SIN then
+          --  return convert(per m.left)+convert(-1$R)*convert(per m.right)
+          if (q:=isQuotient2(rep x)) case Pair SIN then
+            return convert(per q.left)/convert(per q.right)
+          if (t:=isTimes(x)) case List % then
+            return reduce("*",[convert(i)@Pattern R for i in t])
+          if (e:=isPower(x)) case Record(val:%,exponent:Integer) then
+            if e.exponent >= 0 then
+              return convert(e.val)^(e.exponent::NonNegativeInteger)
+            else
+              return (1$Pattern(R))/(convert(e.val)^((-e.exponent)::NonNegativeInteger))
+          if (p:=isPower2(rep x)) case Pair SIN then
+            return convert(per p.left)^convert(per p.right)
+          if (r:=retractIfCan(x)@Maybe(R)) case R then
+            return coerce r
+          if (s:=retractIfCan(x)@Maybe(Symbol)) case Symbol then
+            return patternVariable(s, _
+              null? GET(s::Symbol,PMCONST,true)$Lisp,
+              null? GET(s::Symbol,PMOPT,true)$Lisp,
+              null? GET(s::Symbol,PMMULT,true)$Lisp)
+          k:=makeKernel(x)
+          return elt(operator(k),[convert i for i in argument(k)])
+
+    if R has SemiGroup then
+      isTimes(x:%):Maybe(List %) ==
+        r := isTimes2 rep x
+        if r case Pair SIN then
+          r1:=isTimes per(r.left)
+          r2:=isTimes per(r.right)
+          if r1 case List % then
+            if r2 case List % then
+              return concat(r1,r2)
+            else
+              return concat(r1, per(r.right))
+          else
+            if r2 case List % then
+              return concat(per(r.left),r2)
+            else
+              return [per(r.left),per(r.right)]
+        else
+          r := isQuotient2 rep x
+          if r case Pair SIN then
+            r1:=isTimes per(r.left)
+            r2:=isTimes per(r.right)
+            if r1 case List % then
+              if r2 case List % then
+                return concat(r1,[1/ri for ri in r2])
+              else
+                return concat(r1, per(1/r.right))
+            else
+              if r.left = 1 then return "failed"
+              if r2 case List % then
+                return concat(per(r.left),[1/ri for ri in r2])
+              else
+                return [per(r.left),per(1/r.right)]
+          else
+            return "failed"
+
+    coerce(x:PiDomain):% == per convert(x)$PiDomain
+    coerce(x:Symbol):% == per convert(x)$Symbol
+    -- WSP: We need to do something about properties! id:101
+    coerce(k:K):% ==
+      s := name operator k
+      props:List(Record(key: Symbol,entry: None)) := entries properties operator k
+      -- copy operator properties to symbol property list
+      for p in props repeat
+        FUNCALL('MAKEPROP,s,p.key,(p.entry) pretend SIN)$Lisp  -- see SINF rank
+      per convert(k)@Rep
+
+    coerceOutputForm1:(Rep,Boolean)->OutputForm
+    coerceOutputForm(x:Rep):OutputForm ==coerceOutputForm1(x,false)
+    coerceOutputForm1(x:Rep,topLevel:Boolean):OutputForm ==
+      if null? x then return empty()$OutputForm
+      if atom? x then return (x pretend OutputForm)
+      if list? x and symbol? car x then
+        s := symbol car x
+        -- scripted?
+        if #string(s)>2 and ord string(s).1 = 42 and digit? string(s).2 then
+          return coerce(x pretend Symbol)$Symbol
+        --if s='%paren then
+        --  return paren coerceOutputForm car cdr x
+        --if s='%box then
+        --  -- make box invisible (for now)
+        --  return coerceOutputForm car cdr x
+        --  return bracket coerceOutputForm car cdr x
+        if s='float then
+          return interpret(x)$InputFormFunctions1(Float)::OutputForm
+        if s='factorial then
+          if list? car(cdr x) then
+            return postfix(outputForm '_!, paren coerceOutputForm car cdr x)
+          else
+            return postfix(outputForm '_!, coerceOutputForm car cdr x)
+        if s='sum or s='summation then
+            return sum(coerceOutputForm car cdr x, coerceOutputForm car cdr cdr x)
+        if s='product then
+            return prod(coerceOutputForm car cdr x, coerceOutputForm car cdr cdr x)
+        if s='binomial then
+            return binomial(coerceOutputForm car cdr x, coerceOutputForm car cdr cdr x)
+        if s='sqrt then
+            return root coerceOutputForm car cdr x
+        if s='nthRoot then
+            return root(coerceOutputForm car cdr x, coerceOutputForm car cdr cdr x)
+        if s='_^ and (car cdr cdr x = convert((1/2)$Fraction(Integer))@Rep)$Rep then
+            return root(coerceOutputForm car cdr x)
+        if s='exp and car(cdr x)=1 then return outputForm '%e
+        if member?(s,['_+,'_-,'_*,'_/,'_^])$List(Symbol) and #cdr(x)>1 then
+          if s='_/ then -- assume )set output fraction vertical (should check flag?)
+            return infix(outputForm s, [coerceOutputForm1(i,true) for i in destruct cdr x])
+          else if AxiomList has AssociativeAxiom or topLevel then
+            return infix(outputForm s, [coerceOutputForm(i) for i in destruct cdr x])
+          else -- ( ) required if non-associative
+            return paren infix(outputForm s, [coerceOutputForm(i) for i in destruct cdr x])
+        else
+          if list? car(cdr x) or s ~= '_- then
+            return prefix(outputForm s,
+              [coerceOutputForm(i) for i in destruct cdr x])
+          else
+            return hconcat([outputForm s, hspace(1), coerceOutputForm car cdr x])
+      else
+        return hconcat(message("what is:")$OutputForm,x pretend OutputForm)
+    coerce(x:%):OutputForm == coerceOutputForm1(rep x,true)
+
+    coerce(x:%):Expression(R) ==
+      --output("coerce: Expression(R)",x::OutputForm)$OutputPackage
+      v:List Symbol := variables x
+      if #v = 0 then return interpret(coerceToType(rep x)$InputFormFunctions1(Expression(R)))$InputFormFunctions1(Expression(R))
+      -- we need to substitute variables with unknown modes
+      s:List Symbol := [new()$Symbol for vi in v]
+      ks:List Equation % := [equation(coerce(vi)$%, coerce(si)$%) for vi in v for si in s]
+      sk:List Equation Expression(R) := [equation(coerce(si)$Expression(R), coerce(vi)$Expression(R)) for vi in v for si in s]
+      return subst(interpret(coerceToType(rep subst(x,ks))$InputFormFunctions1(Expression(R)))$InputFormFunctions1(Expression(R)),sk)
+    if R has ConvertibleTo SIN then
+      coerce(x:Expression(R)):% == coerce convert x
+      coerce(x:R):% == per convert(x)$R
+    convert(x:%):SIN == rep x
+    coerce(sin:SIN):% ==
+      --output("coerce(sin:SIN):% ",sin::OutputForm)$OutputPackage
+      -- avoid interpreting some special cases
+      if atom? sin then return per sin
+      -- unary inverse
+      if list? sin and # sin = 2 and car sin = convert '_- and atom? car cdr sin then
+        return per sin
+      -- otherwise take a change and interpret it
+      return interpret(atType(sin)$InputFormFunctions1(%))$InputFormFunctions1(%)
+    --
+    factorial(x:%):%          == per convert([convert('factorial)@SIN,rep x])
+    binomial(n:%, m:%):%      == binary(convert('binomial),[n::Rep,m::Rep])$SIN
+    permutation(n:%, m:%):%   == binary(convert('permutation),[n::Rep,m::Rep])$SIN
+    --
+    sum(x : %, n : Symbol):%           == per binary(convert('sum),[rep x,convert(n)@SIN])$SIN
+    sum(x : %, s : SegmentBinding %):% == per binary(convert('sum),[rep x,convert(s)@SIN])$SIN
+    summation(x : %, n : Symbol):%           == per binary(convert('summation),[rep x,convert(n)@SIN])$SIN
+    summation(x : %, s : SegmentBinding %):% == per binary(convert('summation),[rep x,convert(s)@SIN])$SIN
+    product(x : %, n : Symbol):%             == per binary(convert('product),[rep x,convert(n)@SIN])$SIN
+    product(x : %, s : SegmentBinding %):%   == per binary(convert('product),[rep x,convert(s)@SIN])$SIN
+
+    -- We don't want the InputForm auto-simplifications because we may or
+    -- may not be doing our own simplifications.
+    nthRoot2(x:Rep,n:Rep):Rep ==
+      if n=1 then return x
+      return binary(convert('nthRoot),[x,n])$SIN
+    nthRoot(x:%, n:Integer):% == per nthRoot2(rep x,n::Rep)
+    nthRoot(x:%, n:%):% == per nthRoot2(rep x,n::Rep)
+    --
+    --power: (Rep,Rep) -> Rep
+    power(x:Rep,y:Rep):Rep == rep(per(x)^per(y))
+    --  sin:Rep:=binary(convert('_^),[x,y])
+    --  rin:Maybe Rep := "failed"
+    --  if _$testingSystem$Lisp then
+    --    output("power: ",message unparse sin)$OutputPackage
+    --  if (x = 0)$Rep then
+    --    if (y = 0)$Rep then
+    --      rin := rep 1
+    --    else
+    --      rin := rep 0
+    --  else
+    --    if (y = 0)$Rep then
+    --      rin := rep 1
+    --    else
+    --      if (y = 1)$Rep then
+    --        rin := x
+    --  if rin case Rep then
+    --    if _$testingSystem$Lisp then
+    --      output("power: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+    --    return rin
+    --  else
+    --    return sin
+    --
+    --(x:% ^ y:%):% == per power(rep x,rep y)
+    x : % ^ y : %                 == x ^$CF y
+
+    (x:% ^ y:PositiveInteger):% ==
+      if AxiomList has SquaresAxiom then
+        x ^ (y::%)
+      else
+        expt(x, y)$RepeatedSquaring(%)
+    (x:% ^ y:NonNegativeInteger):% ==
+      if y = 0 then x^0
+      else x ^ y::PositiveInteger
+    (x:% ^ y:Integer):% ==
+      if y < 0 then 1/(x ^ (-y)::PositiveInteger)
+      else x ^ y::NonNegativeInteger
+    (x:% ^ y:Fraction Integer):% == nthRoot(x,denom(y))^numer(y)
+    isPower(x:%):Maybe(Record(val:%,exponent:Integer)) ==
+      r:=isPower2(rep x)
+      if r case Pair SIN then
+        -- WSP: Should we convert unary minus to negative value here or perhaps in integer? id:105
+        if integer?(r.right) then
+          return [per r.left,integer(r.right)]
+      "failed"
+    --
+    plus: (Rep,Rep) -> Rep
+    minus: (Rep,Rep) -> Rep
+    minus1: Rep -> Rep
+    quotient: (Rep,Rep) -> Rep
+    inv1 : Rep -> Rep
+
+    times(x:Rep,y:Rep):Rep ==
+      sin:Rep:=binary(convert('_*),[x,y])
+      if _$testingSystem$Lisp then
+        output("times: ",message unparse sin)$OutputPackage
+      rin:Maybe Rep := "failed"
+      if R has AbelianSemiGroup then
+        if (x=0)$Rep or (y=0)$Rep then rin := rep 0
+      if AxiomList has DistributiveAxiom and rin case "failed" then
+        rin := rewriteDistributive(isPlus2,plus,times,sin)
+        if rin case "failed" then
+          rin := rewriteDistributive(isMinus2,minus,times,sin)
+      if AxiomList has AssociativeAxiomTimes and rin case "failed" then
+        rin := rewriteAssociative(isTimes2,times,sin)
+      if AxiomList has LeftIdentityAxiom and rin case "failed" then
+        rin := rewriteLeftIdentity(1,sin)
+      if AxiomList has RightIdentityAxiom and rin case "failed" then
+        rin := rewriteRightIdentity(1,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteRightInverse(inv1,quotient,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteLeftInverse(inv1,quotient,sin)
+      if AxiomList has AntiCommutativeAxiom and rin case "failed" then
+        rin := rewriteAntiCommutative(minus1,times,x,y)
+      if AxiomList has CommutativeAxiomTimes and rin case "failed" then
+        rin := rewriteCommutative(isTimes2,times,sin)
+      if AxiomList has SquaresAxiom and rin case "failed" then
+        rin := rewriteSquares(power,isPower2,times,isTimes2,sin)
+      if rin case Rep then
+        if _$testingSystem$Lisp then
+          output("times: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+        return rin
+      else
+        return sin
+    (x:% * y:%):% == per times(rep x,rep y)
+    --
+    (x:PositiveInteger * y:%):% ==
+      if AxiomList has DoublesAxiom then
+        (x::%) * y
+      else
+        double(x,y)$RepeatedDoubling(%)
+    (x:NonNegativeInteger * y:%):% == (x::%) * y
+    --  if x=0 then 0*y
+    --  else x::PositiveInteger * y
+    (x:Integer * y:%):% == (x::%) * y
+    --  if x < 0 then
+    --    (-x)::PositiveInteger * y
+    --  else
+    --    x::NonNegativeInteger * y
+    (x:% * y:Integer):% == x * (y::%)
+    --
+    plus(x:Rep,y:Rep):Rep ==
+      sin:Rep:=binary(convert('_+),[x,y])
+      rin:Maybe Rep := "failed"
+      if _$testingSystem$Lisp then
+        output("plus: ",message unparse sin)$OutputPackage
+      if AxiomList has AssociativeAxiomPlus then
+        rin := rewriteAssociative(isPlus2,plus,sin)
+      if AxiomList has LeftIdentityAxiom and rin case "failed" then
+        rin := rewriteLeftIdentity(0,sin)
+      if AxiomList has RightIdentityAxiom and rin case "failed" then
+        rin := rewriteRightIdentity(0,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteRightInverse(minus1,minus,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteLeftInverse(minus1,minus,sin)
+      if AxiomList has CommutativeAxiomPlus and rin case "failed" then
+        rin := rewriteCommutative(isPlus2,plus,sin)
+      if AxiomList has DoublesAxiom and rin case "failed" then
+        rin := rewriteDoubles(times,isTimes2,plus,isPlus2,sin)
+      if rin case Rep then
+        if _$testingSystem$Lisp then
+          output("plus: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+        return rin
+      else
+        return sin
+    (x:% + y:%):% == per plus(rep x,rep y)
+
+    minus(x:Rep,y:Rep):Rep ==
+      sin:Rep := binary(convert('_-),[x,y])
+      rin:Maybe Rep := "failed"
+      if _$testingSystem$Lisp then
+        output("minus: ",message unparse sin)$OutputPackage
+      if (x = 0)$Rep then
+        rin := minus1(y)
+      if AxiomList has RightIdentityAxiom and rin case "failed" then
+        rin := rewriteRightIdentity(0,sin)
+      if AxiomList has CancelsAxiom and rin case "failed" then
+        rin := rewriteCancels(times,isTimes2,isPlus2,minus,isMinus2,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteRightInverse(minus1,plus,sin)
+      if rin case Rep then
+        if _$testingSystem$Lisp then
+          output("minus: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+        return rin
+      else
+        return sin
+    (x:% - y:%):% == per minus(rep x,rep y)
+
+    -- WSP: Should unary minus x be -1 * x ? id:102
+    minus1(x:Rep):Rep ==
+      if _$testingSystem$Lisp then
+        output("minus1: ",coerce(x)@OutputForm)$OutputPackage
+      if AxiomList has LeftIdentityAxiom and (x = 0)$Rep then
+        return 0$Rep
+      --if AxiomList has CancelsAxiom and R has AbelianGroup then
+      --  if integer? x then return convert(-integer(x))
+      --  else
+      --    if float? x then return convert(-float(x))
+      if AxiomList has InverseAxiom then
+        returnIf rewriteInverseUnary(minus1,isMinus2,minus,x)
+      if (t:=isMinus2(x)) case Pair SIN then return minus(t.right,t.left)
+      if (t:=isPlus2(x)) case Pair SIN then return plus(minus1 t.left,minus1 t.right)
+      convert([convert('_-)@SIN,x])
+    _-(x:%):% == per minus1 rep x
+
+    quotient(x:Rep,y:Rep):Rep ==
+      sin:Rep:=binary(convert('_/),[x,y])
+      rin:Maybe Rep := "failed"
+      if _$testingSystem$Lisp then
+        output("quotient: ",message unparse sin)$OutputPackage
+      if (x = 1)$Rep then rin := inv1(y)
+      if AxiomList has RightIdentityAxiom and rin case "failed" then
+        rin := rewriteRightIdentity(1,sin)
+      if AxiomList has DividesAxiom and rin case "failed" then
+        rin := rewriteDivides(power,isPower2,isTimes2,quotient,isQuotient2,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteRightInverse(inv1,times,sin)
+      if AxiomList has InverseAxiom and rin case "failed" then
+        rin := rewriteLeftInverse(inv1,times,sin)
+      if rin case Rep then
+        if _$testingSystem$Lisp then
+          output("divide: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
+        return rin
+      else
+        return sin
+    (x:% / y:%):% == per quotient(rep x,rep y)
+
+    inv1(x:Rep):Rep ==
+      if _$testingSystem$Lisp then
+        output("inv1: ",coerce(x)@OutputForm)$OutputPackage
+      if AxiomList has LeftIdentityAxiom and (x = 1)$Rep then
+        return 1$Rep
+      if AxiomList has InverseAxiom then
+        returnIf rewriteInverseUnary(inv1,isQuotient2,quotient,x)
+      if (t:=isQuotient2(x)) case Pair SIN then return quotient(t.right,t.left)
+      binary(convert('_/),[1$SIN,x])
+
+    inv(x:%):% ==
+      if _$testingSystem$Lisp then
+        output("inv: ",x::OutputForm)$OutputPackage
+      per inv1 rep x
+
+    --elt(f:BasicOperator,x:List %):% ==
+    --  --output("elt: ", paren [f::OutputForm,x::OutputForm])$OutputPackage
+    --  if not property(f,'%symbol) case "failed" then
+    --    return per convert name f
+    --  else
+    --    -- Should we actually evaluate the operator??
+    --    return per convert(concat(convert(name f)@SIN,[rep i for i in x]))
+
+    retract(x:%):R == retract(coerce x)$Expression(R)
+
+    variables1(x:Rep):Set Symbol ==
+      if null? x then return empty()
+      if atom? x and symbol? x then return set [symbol x]
+      if list? x and symbol? car x then
+        if list? cdr x then
+          return reduce("union", [variables1(i) for i in destruct cdr x],empty())
+        else
+          return variables1 car cdr x
+      return empty()
+    variables(x:%):List Symbol == members variables1(rep x)
+
+    if Expression(R) has TranscendentalFunctionCategory and R has GcdDomain then
+      simplify(x:%):% ==
+        coerce(simplify(coerce(x)@Expression R)$TranscendentalManipulations(R,Expression R))
+    else
+      simplify(x:%):% ==
+       coerce(convert(coerce(x)@Expression R))
+
+    convert(eq:Equation %): Equation SIN == equation(convert lhs eq, convert rhs eq)
+    convert(eq:Equation SIN): Equation % == equation(convert lhs eq, convert rhs eq)
+
+)abbrev domain ALT AntiCommutative
+AntiCommutative():AntiCommutativeAxiom == add
+  x:Symbolic(Integer,%):=coerce 'x
+  y:Symbolic(Integer,%):=coerce 'y
+  z:Symbolic(Integer,%):=coerce 'z
+  assert("anticommutative *",y*x = -(x*y))
+
+)abbrev domain ASSOCP AssociativePlus
+AssociativePlus():AssociativeAxiomPlus == add
+  x:Symbolic(Integer,%):=coerce 'x
+  y:Symbolic(Integer,%):=coerce 'y
+  z:Symbolic(Integer,%):=coerce 'z
+  assert("associative +", x+(y+z) = (x+y)+z )
+
+)abbrev domain ASSOCT AssociativeTimes
+AssociativeTimes():AssociativeAxiomTimes == add
+  x:Symbolic(Integer,%):=coerce 'x
+  y:Symbolic(Integer,%):=coerce 'y
+  z:Symbolic(Integer,%):=coerce 'z
+  assert("associative *",x*(y*z)=(x*y)*z)
+
+)abbrev domain CAN Cancels
+Cancels():CancelsAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("cancels -",x-x = 0)
+
+)abbrev domain COMMUTP CommutativePlus
+CommutativePlus():CommutativeAxiomPlus == add
+  x:Symbolic(Integer,%) := coerce 'x
+  y:Symbolic(Integer,%) := coerce 'y
+  assert("commutative +",x+y = y+x)
+
+)abbrev domain COMMUTT CommutativeTimes
+CommutativeTimes():CommutativeAxiomTimes == add
+  x:Symbolic(Integer,%) := coerce 'x
+  y:Symbolic(Integer,%) := coerce 'y
+  assert("commutative *",x*y = y*x)
+
+)abbrev domain DBL Doubles
+Doubles():DoublesAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("doubles +",x+x = x*2 )
+
+)abbrev domain DIS Distributive
+Distributive():DistributiveAxiom == add
+    x:Symbolic(Integer,%) := coerce 'x
+    y:Symbolic(Integer,%) := coerce 'y
+    z:Symbolic(Integer,%) := coerce 'z
+    assert("distributive left +", x*(y+z)=(x*y)+(x*z) )
+    assert("distributive left -", x*(y-z)=(x*y)-(x*z) )
+    assert("distributive right +", (y+z)*x=(y*x)+(z*x) )
+    assert("distributive right -", (y-z)*x=(y*x)-(z*x) )
+
+)abbrev domain DIV Divides
+Divides():DividesAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("divides",x/x = 1)
+
+-- join(Inverse, Cancels) --> Identity
+-- So who needs inverse?
+)abbrev domain LID LeftIdentity
+LeftIdentity():LeftIdentityAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("LeftIdentity +", 0+x = x )
+  assert("LeftIdentity *", 1*x = x )
+
+)abbrev domain RID RightIdentity
+RightIdentity():RightIdentityAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("RightIdentity +", x+0 = x )
+  assert("RightIdentity *", x*1 = x )
+  assert("RightIdentity -", x-0 = x )
+  assert("RightIdentity /", x/1 = x )
+
+)abbrev domain INV Inverse
+Inverse():InverseAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  y:Symbolic(Integer,%) := coerce 'y
+  assert("inverse inverse -",-(-x) = x)
+  assert("inverse inverse /",1/(1/x) = x)
+  -- left
+  assert("LeftInverse +", (-x) + y = -(x - y) )
+  assert("LeftInverse *", (1/x) * y = 1/(x * (1/y)) )  -- y ~= 0
+  assert("LeftInverse /", (1/x) / y = 1/(x * y) )
+  -- right
+  assert("RightInverse +", x + (-y) = x - y )
+  assert("RightInverse -", x - (-y) = x + y )
+  assert("RightInverse *", x * (1/y) = x / y )
+  assert("RightInverse /", x / (1/y) = x * y )  -- x ~= 0
+
+)abbrev domain SQ Squares
+Squares():SquaresAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("squares *", x*x = x^2 )
+
+)abbrev domain JOIN join
+++ Conjunction of rules
+join(A:Axiom,B:Axiom):Axiom with
+    if A has CommutativeAxiomPlus then CommutativeAxiomPlus
+    if B has CommutativeAxiomPlus then CommutativeAxiomPlus
+    if A has CommutativeAxiomTimes then CommutativeAxiomTimes
+    if B has CommutativeAxiomTimes then CommutativeAxiomTimes
+    if A has AntiCommutativeAxiom then AntiCommutativeAxiom
+    if B has AntiCommutativeAxiom then AntiCommutativeAxiom
+    if A has DistributiveAxiom then DistributiveAxiom
+    if B has DistributiveAxiom then DistributiveAxiom
+    if A has AssociativeAxiom then AssociativeAxiom
+    if B has AssociativeAxiom then AssociativeAxiom
+    if A has AssociativeAxiomPlus then AssociativeAxiomPlus
+    if B has AssociativeAxiomPlus then AssociativeAxiomPlus
+    if A has AssociativeAxiomTimes then AssociativeAxiomTimes
+    if B has AssociativeAxiomTimes then AssociativeAxiomTimes
+    if A has IdentityAxiom then IdentityAxiom
+    if B has IdentityAxiom then IdentityAxiom
+    if A has RightIdentityAxiom then RightIdentityAxiom
+    if B has RightIdentityAxiom then RightIdentityAxiom
+    if A has LeftIdentityAxiom then LeftIdentityAxiom
+    if B has LeftIdentityAxiom then LeftIdentityAxiom
+    if A has InverseAxiom then InverseAxiom
+    if B has InverseAxiom then InverseAxiom
+    if A has DoublesAxiom then DoublesAxiom
+    if B has DoublesAxiom then DoublesAxiom
+    if A has CancelsAxiom then CancelsAxiom
+    if B has CancelsAxiom then CancelsAxiom
+    if A has SquaresAxiom then SquaresAxiom
+    if B has SquaresAxiom then SquaresAxiom
+    if A has DividesAxiom then DividesAxiom
+    if B has DividesAxiom then DividesAxiom
+  == add
+    x:Symbolic(Integer,%) := coerce 'x
+    y:Symbolic(Integer,%) := coerce 'y
+    z:Symbolic(Integer,%) := coerce 'z
+
+    if % has CommutativeAxiomTimes and % has AssociativeAxiomTimes then
+      assert("commutative-associative *",z*(x*y) = (x*z)*y )
+
+)abbrev domain ASSOC Associative
+Associative():AssociativeAxiom == join(AssociativePlus, AssociativeTimes)
+
+)abbrev domain COMMUT Commutative
+Commutative():CommutativeAxiom == join(CommutativePlus, CommutativeTimes)
+
+)abbrev domain ID Identities
+Identities():IdentityAxiom == join(LeftIdentity, RightIdentity)
+
+)abbrev domain SEXPR SymbolicExpression
+SIN ==> InputForm
+++ Description:
+++ SymbolicExpression is a Symbolic domain with automatic rewrite rules that
+++ approximate Expression itself.
+SymbolicExpression(R:Join(Comparable,ConvertibleTo SIN)) : SymbolicCategory(R) == Implementation where
+  --F ==> Expression R
+  Implementation ==> Symbolic(R, _
+    join(join(join(join(join(join(join(join(join( _
+    Squares, Inverse), Identities), _
+    Doubles), Divides), _
+    CommutativePlus), CommutativeTimes), Cancels),  _
+    AssociativePlus), AssociativeTimes)) add
+    -- use equality from Expression(R)
+    (x:% = y:%):Boolean ==
+      --output("=",paren [x::OutputForm,y::OutputForm])$OutputPackage
+      coerce(x)@Expression(R) = coerce(y)@Expression(R)
+
+)abbrev domain SDEXPR SymbolicDistributedExpression
+SIN ==> InputForm
+++ Description:
+++ SymbolicExpression is a Symbolic domain with automatic rewrite rules that
+++ approximate Expression itself.
+SymbolicDistributedExpression(R:Join(Comparable,ConvertibleTo SIN)) : SymbolicCategory(R) == Implementation where
+  --F ==> Expression R
+  Implementation ==> Symbolic(R, _
+    join(join(join(join(join(join(join(join(join(join( _
+    Squares, Inverse), Identities), _
+    Doubles), Divides), Distributive),  _
+    CommutativePlus), CommutativeTimes), Cancels),  _
+    AssociativePlus), AssociativeTimes)) add
+    -- use equality from Expression(R)
+    (x:% = y:%):Boolean ==
+      --output("=",paren [x::OutputForm,y::OutputForm])$OutputPackage
+      coerce(x)@Expression(R) = coerce(y)@Expression(R)
+
+)abbrev package SYMPKG1 SymbolicFunctions1
+SIN ==> InputForm
+++ Converting one Symbolic expression into another
+SymbolicFunctions1(R: Join(Comparable,ConvertibleTo SIN), A:SymbolicCategory R,
+  S: Join(Comparable,ConvertibleTo SIN), B:SymbolicCategory S): with
+    convert: B -> A
+  == add
+    -- +0 is a hack to avoid premature conversion
+    --hack(x:B):SIN == binary(convert('_+),[convert x,0::SIN])
+    convert(x:B):A ==
+      v:List Symbol := variables(x)
+      if #v = 0 then return interpret(coerceToType(convert x)$InputFormFunctions1(A))$InputFormFunctions1(A)
+      -- we need to substitute variables with unknown modes
+      s:List Symbol := [new()$Symbol for vi in v]
+      ks:List Equation B := [equation(coerce(vi)$B, coerce(si)$B) for vi in v for si in s]
+      sk:List Equation A := [equation(coerce(si)$A, coerce(vi)$A) for vi in v for si in s]
+      return subst(interpret(coerceToType(convert subst(x,ks))$InputFormFunctions1(A))$InputFormFunctions1(A),sk)
