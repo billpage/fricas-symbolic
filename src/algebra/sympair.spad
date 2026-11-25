@@ -387,18 +387,35 @@ SymbolicPair(R, A) : Exports == Implementation where
 
     -- display (spec section 5.4): built from the written tree; leaves and
     -- results of library algorithms show Expression's own output
+    -- Explicit parentheses: the 1-D formatter of FriCAS 1.4.0 prints
+    -- a-(b+c) as a-b+c, and OutputForm's unary minus cancels -(-a).
+    -- prec: 1 sums, differences, negations; 2 products, quotients;
+    -- 3 powers; 4 atoms and function applications.
+    precF(f : IF) : Integer ==
+        integer?(f)$IF => (integer(f)$IF < 0 => 1; 4)
+        atom?(f)$IF => 4
+        l := destruct(f)$IF
+        not symbol?(first l)$IF => 4
+        s := symbol(first l)$IF
+        s = '_+ or s = '_- => 1
+        s = '_* or s = '_/ => 2
+        s = '_^ => 3
+        4
+    pOut(x : %, p : Integer) : OutputForm ==
+        precF(form x) <= p => paren(x::OutputForm)
+        x::OutputForm
     coerce(x : %) : OutputForm ==
         h := hd x
         h = LIFT => (value x)::OutputForm
-        l := [a::OutputForm for a in kids x]
-        h = '_+ => first l + second l
+        l := kids x
+        h = '_+ => (first l)::OutputForm + pOut(second l, 1)
         h = '_- =>
-            #l = 1 => - first l
-            first l - second l
-        h = '_* => first l * second l
-        h = '_/ => first l / second l
-        h = '_^ => first l ^ second l
-        prefix(h::OutputForm, l)
+            #l = 1 => - pOut(first l, 1)
+            (first l)::OutputForm - pOut(second l, 1)
+        h = '_* => pOut(first l, 1) * pOut(second l, 1)
+        h = '_/ => (first l)::OutputForm / (second l)::OutputForm
+        h = '_^ => pOut(first l, 3) ^ (second l)::OutputForm
+        prefix(h::OutputForm, [a::OutputForm for a in l])
 
     -- structural evaluation of a written form in Expression R (no
     -- interpreter), for the invariant check

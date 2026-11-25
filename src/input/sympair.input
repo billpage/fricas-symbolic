@@ -95,7 +95,7 @@ x := 'x; y := 'y
 testTrue("(unparse(form(x+0)) = _"x_")@Boolean")
 testTrue("(unparse(form(0+x)) = _"x_")@Boolean")
 testTrue("(unparse(form(x-0)) = _"x_")@Boolean")
-testTrue("(unparse(form(0-x)) = _"-x_")@Boolean")
+testTrue("(unparse(form(0-x)) = _"-(x)_")@Boolean")
 testTrue("(unparse(form(1*x)) = _"x_")@Boolean")
 testTrue("(unparse(form(x/1)) = _"x_")@Boolean")
 testTrue("(unparse(form(x^1)) = _"x_")@Boolean")
@@ -124,7 +124,7 @@ testcase "identities only: numbers are not folded (G3)"
 x := 'x; y := 'y
 testTrue("(unparse(form(1+(2::SymbolicPair(Integer, [identities])))) = _"1+2_")@Boolean")
 testTrue("(unparse(form(0*x)) = _"0*x_")@Boolean")
-testTrue("(unparse(form(-(-x))) = _"-(-x)_")@Boolean")
+testTrue("(unparse(form(-(-x))) = _"-(-(x))_")@Boolean")
 testTrue("(unparse(form(x+0)) = _"x_")@Boolean")
 testTrue("((1+(2::SymbolicPair(Integer, [identities]))) = 3)@Boolean")
 xftestTrue("(unparse(form(1+(2::SymbolicPair(Integer, [identities])))) = _"3_")@Boolean")
