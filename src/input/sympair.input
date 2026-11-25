@@ -6,6 +6,8 @@
 --   )lib )dir <that run directory>  -- in a later session, then
 --   )read sympair.input
 -- Not run by CI: CI does not install FriCAS.
+-- testsuite and testcase clear macros as well as variables, so each test
+-- case names SymbolicPair(Integer) in full.
 --
 -- Each test case states a property that the 2017 SymbolicExpression domain
 -- violated (see claude/next-sexpr-port.md, defects D1, D7 and the Q2 note).
@@ -13,12 +15,10 @@
 )set break resume
 )expose UnittestCount UnittestAux Unittest
 
-SP ==> SymbolicPair Integer
-
 testsuite "SymbolicPair"
 
 testcase "written form is kept"
-(x, y) : SP
+(x, y) : SymbolicPair(Integer)
 x := 'x; y := 'y
 testTrue("(unparse(form((x+1)^2)) = _"(x+1)^2_")@Boolean")
 testTrue("(unparse(form(x+x)) = _"x+x_")@Boolean")
@@ -26,17 +26,17 @@ testTrue("(unparse(form(eval((x+1)^2, x = y+1))) = _"(y+1+1)^2_")@Boolean")
 testTrue("(unparse(form((x+1)^2-(x^2+2*x+1))) = _"(x+1)^2-(x^2+2*x+1)_")@Boolean")
 
 testcase "equality and zero test agree"
-(x, y) : SP
+(x, y) : SymbolicPair(Integer)
 x := 'x; y := 'y
 a := (x+1)^2 - (x^2+2*x+1)
 b := (x+1)^2 - x^2
 testTrue("zero? a")
 testTrue("(a = 0)@Boolean")
-testTrue("(zero? b) = ((b = 0)@Boolean)")
+testTrue("((zero? b) = ((b = 0)@Boolean))@Boolean")
 xftestTrue("zero? b")
 
 testcase "integration is correct"
-(x, y) : SP
+(x, y) : SymbolicPair(Integer)
 x := 'x; y := 'y
 F := integrate((x+1)^2, 'x)
 G := integrate(1/(x^2+1), 'x)
@@ -49,25 +49,25 @@ xftestTrue("(D(x*(x+1)^2, 'x) = (x+1)^2)@Boolean")
 xftestTrue("(G = 0)@Boolean")
 
 testcase "summation and limits are correct"
-(x, y) : SP
+(x, y) : SymbolicPair(Integer)
 x := 'x; y := 'y
 S := sum(x, 'x=1..10)
 A := sum(x, 'x)
 L := limit(sin(x)/x, x=0)
 testTrue("(retract(S)@Integer = 55)@Boolean")
 testTrue("(eval(A, x = x+1) - A = x)@Boolean")
-testTrue("(retract(L::OrderedCompletion(SP))@SP = 1)@Boolean")
+testTrue("(retract(L::OrderedCompletion(SymbolicPair(Integer)))@SymbolicPair(Integer) = 1)@Boolean")
 -- the 2017 domain returned 100
 xftestTrue("(retract(S)@Integer = 100)@Boolean")
 
 testcase "conversion from Expression does not read interpreter variables"
 z := 5
-e := (('z)::Expression(Integer) + 1)::SP
+e := (('z)::Expression(Integer) + 1)::SymbolicPair(Integer)
 testTrue("(value(e) = ('z)::Expression(Integer) + 1)@Boolean")
 testTrue("(unparse(form(e)) = _"z+1_")@Boolean")
 
 testcase "rewrite rules act on the expression as written"
-(x, y) : SP
+(x, y) : SymbolicPair(Integer)
 x := 'x; y := 'y
 t1 := cos(x)*sin(y) - cos(y)*sin(x)
 t2 := - sin(x)*sin(y) + cos(x)*cos(y)
