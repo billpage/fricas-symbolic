@@ -1,0 +1,357 @@
+)abbrev domain SYMPAIR SymbolicPair
+++ Author: Bill Page, Claude
+++ Date Created: 25 November 2026
+++ Description:
+++ Prototype for Option (c) of the sexpr design review: a FunctionSpace
+++ whose elements carry their written form together with their value in
+++ Expression R.  Each element is a node (head, operands) with its form
+++ and value.  Semantic primitives (=, zero?, numer, denom, kernels,
+++ differentiate, ...) use the value, so library algorithms (integrate,
+++ sum, limit, ...) see an honest FunctionSpace.  The structural
+++ primitives isPlus, isTimes, isPower and the kernel of an operator node
+++ follow the written tree, so rewrite rules act on the expression as
+++ written.  Elements produced by library algorithms carry the form of
+++ their value (head %lift) and decompose like Expression R.
+SymbolicPair(R) : Exports == Implementation where
+  R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
+           PolynomialFactorizationExplicit, RetractableTo Integer,
+           LinearlyExplicitOver Integer, ConvertibleTo InputForm,
+           PatternMatchable Integer, ConvertibleTo Pattern Integer)
+  E    ==> Expression R
+  K    ==> Kernel %
+  KE   ==> Kernel E
+  SMP  ==> SparseMultivariatePolynomial(R, K)
+  SMPE ==> SparseMultivariatePolynomial(R, KE)
+  IF   ==> InputForm
+  SY   ==> Symbol
+  OP   ==> BasicOperator
+  SUP  ==> SparseUnivariatePolynomial
+  PI   ==> Pattern Integer
+  PMR  ==> PatternMatchResult(Integer, %)
+  RN   ==> Fraction Integer
+  POW  ==> Record(val : %, exponent : Integer)
+  POWE ==> Record(val : E, exponent : Integer)
+
+  Exports ==> Join(AlgebraicallyClosedFunctionSpace R,
+                   TranscendentalFunctionCategory, PrimitiveFunctionCategory,
+                   CombinatorialOpsCategory, PatternMatchable Integer,
+                   ConvertibleTo PI, ConvertibleTo IF) with
+    value : % -> E
+      ++ value(x) is the element of Expression R that x denotes.
+    form : % -> IF
+      ++ form(x) is the written form of x.
+    coerce : E -> %
+      ++ coerce(e) takes e with its own form (built structurally,
+      ++ without calling the interpreter).
+
+  Implementation ==> add
+    -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
+    -- operator nodes (opr holds the operator); %lift for leaves and
+    -- elements made from a value.
+    Rep := Record(frm : IF, val : E, hd : SY, opr : List OP, kids : List %)
+
+    LIFT ==> '%lift
+    node(f : IF, v : E, h : SY, o : List OP, l : List %) : % ==
+        [f, v, h, o, l]$Rep pretend %
+    rp(x : %) : Rep == x pretend Rep
+    lift(e : E) : % == node(convert(e)@IF, e, LIFT, empty(), empty())
+    value x == rp(x).val
+    form x == rp(x).frm
+    hd(x : %) : SY == rp(x).hd
+    kids(x : %) : List % == rp(x).kids
+    coerce(e : E) : % == lift e
+    convert(x : %) : IF == form x
+    coerce(x : %) : OutputForm == message(unparse(form x)$IF)$OutputForm
+
+    fsym(s : SY) : IF == convert(s)@IF
+    app(s : SY, l : List %) : IF ==
+        empty? l => fsym s
+        convert(concat(fsym s, [form a for a in l])$List(IF))$IF
+    arith(s : SY, l : List %, v : E) : % == node(app(s, l), v, s, empty(), l)
+    opnode(op : OP, l : List %, v : E) : % ==
+        node(app(name op, l), v, name op, [op], l)
+    -- the operator as Expression R uses it in its kernels
+    eop(s : SY) : OP == operator(operator(s)$CommonOperators)$E
+    u1(s : SY, x : %, v : E) : % == opnode(eop s, [x], v)
+    b2(s : SY, x : %, y : %, v : E) : % == opnode(eop s, [x, y], v)
+
+    -- kernels of % correspond one to one with kernels of E
+    liftK(k : KE) : K ==
+        kernel(operator k, [lift a for a in argument k], height k)$K
+    lowerK(k : K) : KE ==
+        kernel(operator k, [value a for a in argument k], height k)$KE
+    liftP(p : SMPE) : SMP ==
+        map((k : KE) : SMP +-> liftK(k)::SMP, (r : R) : SMP +-> r::SMP,
+            p)$PolynomialCategoryLifting(IndexedExponents KE, KE, R, SMPE, SMP)
+    lowerP(p : SMP) : SMPE ==
+        map((k : K) : SMPE +-> lowerK(k)::SMPE, (r : R) : SMPE +-> r::SMPE,
+            p)$PolynomialCategoryLifting(IndexedExponents K, K, R, SMP, SMPE)
+
+    -- semantic primitives: always the value
+    0 == lift(0$E)
+    1 == lift(1$E)
+    zero? x == zero? value x
+    one? x == one? value x
+    x = y == value x = value y
+    smaller?(x : %, y : %) : Boolean == smaller?(value x, value y)$E
+    characteristic() == 0
+    belong? op == belong?(op)$E
+    operator op == operator(op)$E
+
+    coerce(n : Integer) : % == lift(n::E)
+    coerce(r : R) : % == lift(r::E)
+    coerce(q : RN) : % == lift(q::E)
+    coerce(s : SY) : % == lift(s::E)
+    coerce(k : K) : % == lift(lowerK(k)::E)
+    kernels x == [liftK k for k in kernels value x]
+    numer x == liftP numer value x
+    denom x == liftP denom value x
+    coerce(p : SMP) : % == lift(lowerP(p)::E)
+    (p : SMP) / (q : SMP) == lift((lowerP p)::E / (lowerP q)::E)
+    differentiate(x : %, s : SY) : % == lift differentiate(value x, s)
+    retractIfCan(x : %) : Union(R, "failed") == retractIfCan(value x)@Union(R, "failed")
+    retractIfCan(x : %) : Union(Integer, "failed") ==
+        retractIfCan(value x)@Union(Integer, "failed")
+    retractIfCan(x : %) : Union(RN, "failed") == retractIfCan(value x)@Union(RN, "failed")
+    retractIfCan(x : %) : Union(SY, "failed") == retractIfCan(value x)@Union(SY, "failed")
+
+    -- Operator evaluation must happen on the value side: the %eval
+    -- property of a shared operator holds a closure for Expression R.
+    -- op itself is passed on: it may be a copy carrying pattern-matching
+    -- assertions (FunctionSpaceAssertions), which must not be lost.
+    elt(op : OP, args : List %) : % ==
+        empty? args => lift elt(op, empty()$List(E))$E
+        opnode(op, args, elt(op, [value a for a in args])$E)
+    kernel(op : OP, args : List %) : % ==
+        empty? args => lift kernel(op, empty()$List(E))$E
+        opnode(op, args, kernel(op, [value a for a in args])$E)
+
+    -- arithmetic keeps the written form, dropping only the identities
+    -- 0+x, x+0, x-0, 1*x, x*1, x/1, x^1 (Identities in sexpr.spad)
+    lit?(x : %, n : Integer) : Boolean ==
+        f := form x
+        integer?(f)$IF and integer(f)$IF = n
+    x : % + y : % ==
+        lit?(x, 0) => y
+        lit?(y, 0) => x
+        arith('_+, [x, y], value x + value y)
+    x : % - y : % ==
+        lit?(y, 0) => x
+        arith('_-, [x, y], value x - value y)
+    - x : % ==
+        lit?(x, 0) => x
+        arith('_-, [x], - value x)
+    x : % * y : % ==
+        lit?(x, 1) => y
+        lit?(y, 1) => x
+        arith('_*, [x, y], value x * value y)
+    x : % / y : % ==
+        lit?(y, 1) => x
+        arith('_/, [x, y], value x / value y)
+    n : Integer * x : % ==
+        n = 1 => x
+        (n::%) * x
+    n : NonNegativeInteger * x : % == (n::Integer) * x
+    n : PositiveInteger * x : % == (n::Integer) * x
+    x : % ^ n : Integer ==
+        n = 1 => x
+        arith('_^, [x, n::%], value x ^ n)
+    x : % ^ n : NonNegativeInteger == x ^ (n::Integer)
+    x : % ^ n : PositiveInteger == x ^ (n::Integer)
+    x : % ^ q : RN == arith('_^, [x, q::%], value x ^ q)
+    x : % ^ y : % == arith('_^, [x, y], value x ^ value y)
+    nthRoot(x : %, n : Integer) == b2('nthRoot, x, n::%, nthRoot(value x, n))
+    sqrt x == u1('sqrt, x, sqrt value x)
+
+    -- structural primitives: the written tree
+    plusTerms(x : %) : List % ==
+        h := hd x
+        h = '_+ => concat([plusTerms a for a in kids x])
+        h = '_- and #(kids x) = 2 =>
+            concat(plusTerms first kids x, plusTerms(- second kids x))
+        [x]
+    -- Each node is classified by its written shape: a sum, a product
+    -- (a/b counts as a*b^(-1)), an integer power, a kernel (an operator
+    -- node whose value is that kernel), or none of these (also any node
+    -- whose value is a constant).  A node answers
+    -- only the question matching its class; a node of no class (leaves,
+    -- results of library algorithms, operator nodes whose value
+    -- simplified) answers like its value in Expression R.
+    intpow?(x : %) : Boolean ==
+        hd x = '_^ and
+          (retractIfCan(second kids x)@Union(Integer, "failed") case Integer)
+    opkernel?(x : %) : Boolean ==
+        empty?(rp(x).opr) => false
+        (k := retractIfCan(value x)@Union(KE, "failed")) case "failed" => false
+        name(operator(k::KE)) = hd x and #(argument(k::KE)) = #(kids x)
+    cls(x : %) : SY ==
+        -- constants never decompose by their written shape
+        retractIfCan(value x)@Union(R, "failed") case R => 'none
+        h := hd x
+        h = '_+ or (h = '_- and #(kids x) = 2) => 'plus
+        h = '_* or h = '_/ or (h = '_- and #(kids x) = 1) => 'times
+        intpow? x => 'power
+        opkernel? x => 'kernel
+        'none
+    timesFactors(x : %) : List % ==
+        h := hd x
+        h = '_* => concat([timesFactors a for a in kids x])
+        h = '_/ =>
+            m1 : Integer := -1
+            concat(timesFactors first kids x, [(second kids x) ^ m1])
+        h = '_- and #(kids x) = 1 =>
+            concat(lift(-(1$E)), timesFactors first kids x)
+        [x]
+    isPlus x ==
+        c := cls x
+        c = 'plus => plusTerms x
+        c ~= 'none => "failed"
+        (u := isPlus(value x)$E) case "failed" => "failed"
+        [lift t for t in u::List(E)]
+    isTimes x ==
+        c := cls x
+        c = 'times => timesFactors x
+        c ~= 'none => "failed"
+        (u := isTimes(value x)$E) case "failed" => "failed"
+        [lift t for t in u::List(E)]
+    isPower x ==
+        c := cls x
+        c = 'power =>
+            n := retractIfCan(second kids x)@Union(Integer, "failed")
+            [first kids x, n::Integer]$POW
+        c ~= 'none => "failed"
+        (u := isPower(value x)$E) case "failed" => "failed"
+        r := u::POWE
+        [lift r.val, r.exponent]$POW
+    retractIfCan(x : %) : Union(K, "failed") ==
+        (k := retractIfCan(value x)@Union(KE, "failed")) case "failed" =>
+            "failed"
+        ke := k::KE
+        -- an operator node keeps its written operands in its kernel
+        opkernel? x => kernel(operator ke, kids x, height ke)$K
+        liftK ke
+
+    -- rebuild an operator node through this domain's own function, so
+    -- that Expression R evaluates it (elt only evaluates operators that
+    -- carry an %eval property, and nthRoot or sqrt carry none)
+    reapply(x : %, l : List %) : % ==
+        s := hd x
+        a := first l
+        s = 'exp => exp a
+        s = 'log => log a
+        s = 'sin => sin a
+        s = 'cos => cos a
+        s = 'tan => tan a
+        s = 'cot => cot a
+        s = 'sec => sec a
+        s = 'csc => csc a
+        s = 'asin => asin a
+        s = 'acos => acos a
+        s = 'atan => atan a
+        s = 'acot => acot a
+        s = 'asec => asec a
+        s = 'acsc => acsc a
+        s = 'sinh => sinh a
+        s = 'cosh => cosh a
+        s = 'tanh => tanh a
+        s = 'coth => coth a
+        s = 'sech => sech a
+        s = 'csch => csch a
+        s = 'asinh => asinh a
+        s = 'acosh => acosh a
+        s = 'atanh => atanh a
+        s = 'acoth => acoth a
+        s = 'asech => asech a
+        s = 'acsch => acsch a
+        s = 'sqrt => sqrt a
+        s = 'factorial => factorial a
+        s = 'nthRoot => nthRoot(a, retract(second l)@Integer)
+        s = 'binomial => binomial(a, second l)
+        s = 'permutation => permutation(a, second l)
+        elt(first(rp(x).opr), l)
+
+    -- substitution rebuilds the written tree
+    substT(x : %, ls : List SY, lv : List %) : % ==
+        h := hd x
+        h = LIFT =>
+            (s := retractIfCan(value x)@Union(SY, "failed")) case SY =>
+                (p := position(s::SY, ls)) >= minIndex(ls) => lv.p
+                x
+            lift eval(value x, [kernel(t)$KE for t in ls],
+                      [value w for w in lv])$E
+        l := [substT(a, ls, lv) for a in kids x]
+        h = '_+ => first l + second l
+        h = '_- =>
+            #l = 1 => - first l
+            first l - second l
+        h = '_* => first l * second l
+        h = '_/ => first l / second l
+        h = '_^ => first l ^ second l
+        reapply(x, l)
+    subst(x : %, lk : List K, lv : List %) : % ==
+        empty? lk => x
+        ls : List SY := empty()
+        for k in lk repeat
+            u := symbolIfCan k
+            if u case "failed" then
+                return lift eval(value x, [lowerK j for j in lk],
+                                 [value w for w in lv])$E
+            ls := concat(ls, u::SY)
+        substT(x, ls, lv)
+    eval(x : %, lk : List K, lv : List %) : % == subst(x, lk, lv)
+
+    -- elementary functions
+    pi() == lift(pi()$E)
+    exp x == u1('exp, x, exp value x)
+    log x == u1('log, x, log value x)
+    sin x == u1('sin, x, sin value x)
+    cos x == u1('cos, x, cos value x)
+    tan x == u1('tan, x, tan value x)
+    cot x == u1('cot, x, cot value x)
+    sec x == u1('sec, x, sec value x)
+    csc x == u1('csc, x, csc value x)
+    asin x == u1('asin, x, asin value x)
+    acos x == u1('acos, x, acos value x)
+    atan x == u1('atan, x, atan value x)
+    acot x == u1('acot, x, acot value x)
+    asec x == u1('asec, x, asec value x)
+    acsc x == u1('acsc, x, acsc value x)
+    sinh x == u1('sinh, x, sinh value x)
+    cosh x == u1('cosh, x, cosh value x)
+    tanh x == u1('tanh, x, tanh value x)
+    coth x == u1('coth, x, coth value x)
+    sech x == u1('sech, x, sech value x)
+    csch x == u1('csch, x, csch value x)
+    asinh x == u1('asinh, x, asinh value x)
+    acosh x == u1('acosh, x, acosh value x)
+    atanh x == u1('atanh, x, atanh value x)
+    acoth x == u1('acoth, x, acoth value x)
+    asech x == u1('asech, x, asech value x)
+    acsch x == u1('acsch, x, acsch value x)
+
+    -- algebraic functions
+    supv(p : SUP %) : SUP E == map(value, p)$SparseUnivariatePolynomialFunctions2(%, E)
+    rootOf(p : SUP %, y : SY) : % == lift rootOf(supv p, y)$E
+    rootsOf(p : SUP %, y : SY) : List % == [lift r for r in rootsOf(supv p, y)$E]
+    zeroOf(p : SUP %, y : SY) : % == lift zeroOf(supv p, y)$E
+    zerosOf(p : SUP %, y : SY) : List % == [lift r for r in zerosOf(supv p, y)$E]
+
+    -- combinatorial and primitive functions
+    sbv(s : SegmentBinding %) : SegmentBinding E ==
+        map(value, s)$SegmentBindingFunctions2(%, E)
+    factorial x == u1('factorial, x, factorial value x)
+    binomial(x, y) == b2('binomial, x, y, binomial(value x, value y))
+    permutation(x, y) == b2('permutation, x, y, permutation(value x, value y))
+    factorials x == lift factorials value x
+    factorials(x, s) == lift factorials(value x, s)
+    summation(x : %, s : SY) : % == lift summation(value x, s)
+    summation(x : %, s : SegmentBinding %) : % == lift summation(value x, sbv s)
+    product(x : %, s : SY) : % == lift product(value x, s)
+    product(x : %, s : SegmentBinding %) : % == lift product(value x, sbv s)
+    integral(x : %, s : SY) : % == lift integral(value x, s)
+    integral(x : %, s : SegmentBinding %) : % == lift integral(value x, sbv s)
+
+    -- pattern matching
+    convert(x : %) : PI == convert(value x)@PI
+    patternMatch(x : %, p : PI, l : PMR) : PMR ==
+        patternMatch(x, p, l)$PatternMatchFunctionSpace(Integer, R, %)
