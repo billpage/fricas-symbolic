@@ -1,8 +1,8 @@
 -- Unit tests for sexpr.spad (Symbolic, SymbolicExpression, ...).
--- Kurt Pagani's 2017 suite, updated for FriCAS 1.4.0 (claude/sexpr-port).
+-- Kurt Pagani's 2017 suite, updated for FriCAS 1.4.0 (2026).
 --
--- sexpr.spad is not part of the FriCAS build, so compile and load it first:
---   )compile sexpr.spad
+-- Run with `make check` (also run by CI). In a FriCAS session, compile first:
+--   )compile src/algebra/sexpr.spad
 -- or, in a fresh session, load the compiled libraries TWICE:
 --   )lib )dir <directory with the NRLIBs>
 --   )lib )dir <directory with the NRLIBs>
@@ -12,10 +12,11 @@
 -- SymbolicCategory and get wrong COSIGs (types then print as "Bad value").
 --
 -- Judge the run by statistics(): "unexpected failures: 0" and
--- "unexpected passes: 0". CI cannot run this file (no FriCAS in CI).
+-- "unexpected passes: 0".
 --
--- History: from github billpage/fricas, branch symbolic-expressions
--- (now billpage/fricas-dev), commit 933c5bb2f514d85249c87a0965ba4d6a144f01b8.
+-- History: from branch symbolic-expressions of billpage/fricas-dev (formerly
+-- billpage/fricas), commit 933c5bb2f514d85249c87a0965ba4d6a144f01b8; the
+-- history of this file in this repository was carried over from there.
 
 )set break resume
 )expose UnittestCount UnittestAux Unittest
@@ -279,6 +280,23 @@ testEquals("rc t2","cos(y+x)")
 rc rs expr
 )set mess time off
 --testEquals("rc rs expr","")
+
+-------------------------------------------
+testcase "Doubles: coefficient on either side"
+-------------------------------------------
+-- CommutativeTimes sorts x*n to n*x; Doubles used to see only x*n, so
+-- 2*x+3*x stayed as 3*x+2*x.
+(x, y) : SymbolicExpression(Integer)
+x := 'x; y := 'y
+testTrue("(unparse(convert(2*x+3*x)@InputForm) = _"5*x_")@Boolean")
+testTrue("(unparse(convert(x*2+x*3)@InputForm) = _"5*x_")@Boolean")
+testTrue("(unparse(convert(x+(x+y))@InputForm) = _"2*x+y_")@Boolean")
+testTrue("(unparse(convert((y+x)+x)@InputForm) = _"2*x+y_")@Boolean")
+xftestTrue("(unparse(convert(2*x+3*x)@InputForm) = _"3*x+2*x_")@Boolean")
+-- Symbolic(Integer, Doubles) alone keeps the coefficient on the right
+(u, v) : Symbolic(Integer, Doubles)
+u := 'u
+testTrue("(unparse(convert(u*2+u*3)@InputForm) = _"u*5_")@Boolean")
 
 -------------
 -- Results --

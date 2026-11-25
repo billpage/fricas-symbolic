@@ -1,0 +1,49 @@
+name: check
+
+# Runs the unit tests against the FriCAS 1.4.0 release binary, and checks the
+# math in the markdown documents.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  fricas:
+    runs-on: ubuntu-latest
+    env:
+      FRICAS_VERSION: "1.4.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FriCAS ${{ env.FRICAS_VERSION }} (release binary)
+        run: |
+          curl -sSfL -o fricas.tar.bz2 \
+            "https://github.com/fricas/fricas/releases/download/${FRICAS_VERSION}/fricas-${FRICAS_VERSION}.amd64.tar.bz2"
+          sudo tar -xjf fricas.tar.bz2 -C /
+          echo ')lisp |$build_version|' | fricas -nosman | grep 'Value ='
+
+      - name: make check
+        run: make check
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fricas-logs
+          path: build/*/run.log
+
+  markdown-math:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install --no-save katex mathjax-full
+      - run: make lint

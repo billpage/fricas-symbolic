@@ -2,7 +2,11 @@
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
 ++ Description:
-++ Prototype for Option (c) of the sexpr design review: a FunctionSpace
+++ Prototype of design (I) in the specification docs/spec/sexpr-spec.md
+++ of fricas-symbolic: SymbolicPair(R, A) is a presentation of Expression R.
+++ A lists the groups of presentation axioms applied when a node is built
+++ (spec section 4.1): identities, annihilation, involutions, numerals.
+++ From Option (c) of the sexpr design review: a FunctionSpace
 ++ whose elements carry their written form together with their value in
 ++ Expression R.  Each element is a node (head, operands) with its form
 ++ and value.  Semantic primitives (=, zero?, numer, denom, kernels,
@@ -12,7 +16,8 @@
 ++ follow the written tree, so rewrite rules act on the expression as
 ++ written.  Elements produced by library algorithms carry the form of
 ++ their value (head %lift) and decompose like Expression R.
-SymbolicPair(R) : Exports == Implementation where
+SymbolicPair(R, A) : Exports == Implementation where
+  A : List Symbol
   R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
            PolynomialFactorizationExplicit, RetractableTo Integer,
            LinearlyExplicitOver Integer, ConvertibleTo InputForm,
@@ -43,6 +48,10 @@ SymbolicPair(R) : Exports == Implementation where
     coerce : E -> %
       ++ coerce(e) takes e with its own form (built structurally,
       ++ without calling the interpreter).
+    check : % -> Boolean
+      ++ check(x) tests the invariant of the specification: the written
+      ++ form of x, evaluated structurally in Expression R, equals the
+      ++ value of x.
 
   Implementation ==> add
     -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
@@ -61,7 +70,6 @@ SymbolicPair(R) : Exports == Implementation where
     kids(x : %) : List % == rp(x).kids
     coerce(e : E) : % == lift e
     convert(x : %) : IF == form x
-    coerce(x : %) : OutputForm == message(unparse(form x)$IF)$OutputForm
 
     fsym(s : SY) : IF == convert(s)@IF
     app(s : SY, l : List %) : IF ==
@@ -126,40 +134,66 @@ SymbolicPair(R) : Exports == Implementation where
         empty? args => lift kernel(op, empty()$List(E))$E
         opnode(op, args, kernel(op, [value a for a in args])$E)
 
-    -- arithmetic keeps the written form, dropping only the identities
-    -- 0+x, x+0, x-0, 1*x, x*1, x/1, x^1 (Identities in sexpr.spad)
+    -- Presentation axioms (spec section 4.1), applied at the root of a new
+    -- node.  Every rule returns an operand, a numeral or -x, so the stored
+    -- operands of a node are never restructured.
+    ID  ==> member?('identities, A)
+    ANN ==> member?('annihilation, A)
+    INV ==> member?('involutions, A)
+    NUM ==> member?('numerals, A)
     lit?(x : %, n : Integer) : Boolean ==
         f := form x
         integer?(f)$IF and integer(f)$IF = n
+    -- a numeral is a leaf whose value is a constant of Fraction Integer
+    numeral?(x : %) : Boolean ==
+        hd x = LIFT and (retractIfCan(value x)@Union(RN, "failed") case RN)
     x : % + y : % ==
-        lit?(x, 0) => y
-        lit?(y, 0) => x
-        arith('_+, [x, y], value x + value y)
-    x : % - y : % ==
-        lit?(y, 0) => x
-        arith('_-, [x, y], value x - value y)
+        v := value x + value y
+        NUM and numeral? x and numeral? y => lift v
+        ID and lit?(x, 0) => y
+        ID and lit?(y, 0) => x
+        arith('_+, [x, y], v)
     - x : % ==
-        lit?(x, 0) => x
-        arith('_-, [x], - value x)
+        v := - value x
+        NUM and numeral? x => lift v
+        INV and hd x = '_- and #(kids x) = 1 => first kids x
+        arith('_-, [x], v)
+    x : % - y : % ==
+        v := value x - value y
+        NUM and numeral? x and numeral? y => lift v
+        ID and lit?(y, 0) => x
+        ID and lit?(x, 0) => - y
+        arith('_-, [x, y], v)
     x : % * y : % ==
-        lit?(x, 1) => y
-        lit?(y, 1) => x
-        arith('_*, [x, y], value x * value y)
+        v := value x * value y
+        NUM and numeral? x and numeral? y => lift v
+        ANN and (lit?(x, 0) or lit?(y, 0)) => lift(0$E)
+        ID and lit?(x, 1) => y
+        ID and lit?(y, 1) => x
+        arith('_*, [x, y], v)
     x : % / y : % ==
-        lit?(y, 1) => x
-        arith('_/, [x, y], value x / value y)
-    n : Integer * x : % ==
-        n = 1 => x
-        (n::%) * x
+        v := value x / value y
+        NUM and numeral? x and numeral? y => lift v
+        ID and lit?(y, 1) => x
+        INV and lit?(x, 1) and hd y = '_/ and lit?(first kids y, 1) =>
+            second kids y
+        arith('_/, [x, y], v)
+    n : Integer * x : % == (n::%) * x
     n : NonNegativeInteger * x : % == (n::Integer) * x
     n : PositiveInteger * x : % == (n::Integer) * x
     x : % ^ n : Integer ==
-        n = 1 => x
-        arith('_^, [x, n::%], value x ^ n)
+        v := value x ^ n
+        NUM and numeral? x => lift v
+        ID and n = 1 => x
+        ID and n = 0 => lift(1$E)
+        arith('_^, [x, n::%], v)
     x : % ^ n : NonNegativeInteger == x ^ (n::Integer)
     x : % ^ n : PositiveInteger == x ^ (n::Integer)
     x : % ^ q : RN == arith('_^, [x, q::%], value x ^ q)
-    x : % ^ y : % == arith('_^, [x, y], value x ^ value y)
+    x : % ^ y : % ==
+        (n := retractIfCan(value y)@Union(Integer, "failed")) case Integer
+          and numeral? y => x ^ (n::Integer)
+        arith('_^, [x, y], value x ^ value y)
     nthRoot(x : %, n : Integer) == b2('nthRoot, x, n::%, nthRoot(value x, n))
     sqrt x == u1('sqrt, x, sqrt value x)
 
@@ -350,6 +384,91 @@ SymbolicPair(R) : Exports == Implementation where
     product(x : %, s : SegmentBinding %) : % == lift product(value x, sbv s)
     integral(x : %, s : SY) : % == lift integral(value x, s)
     integral(x : %, s : SegmentBinding %) : % == lift integral(value x, sbv s)
+
+    -- display (spec section 5.4): built from the written tree; leaves and
+    -- results of library algorithms show Expression's own output
+    -- Explicit parentheses: the 1-D formatter of FriCAS 1.4.0 prints
+    -- a-(b+c) as a-b+c, and OutputForm's unary minus cancels -(-a).
+    -- prec: 1 sums, differences, negations; 2 products, quotients;
+    -- 3 powers; 4 atoms and function applications.
+    precF(f : IF) : Integer ==
+        integer?(f)$IF => (integer(f)$IF < 0 => 1; 4)
+        atom?(f)$IF => 4
+        l := destruct(f)$IF
+        not symbol?(first l)$IF => 4
+        s := symbol(first l)$IF
+        s = '_+ or s = '_- => 1
+        s = '_* or s = '_/ => 2
+        s = '_^ => 3
+        4
+    pOut(x : %, p : Integer) : OutputForm ==
+        precF(form x) <= p => paren(x::OutputForm)
+        x::OutputForm
+    coerce(x : %) : OutputForm ==
+        h := hd x
+        h = LIFT => (value x)::OutputForm
+        l := kids x
+        h = '_+ => (first l)::OutputForm + pOut(second l, 1)
+        h = '_- =>
+            #l = 1 => - pOut(first l, 1)
+            (first l)::OutputForm - pOut(second l, 1)
+        h = '_* => pOut(first l, 1) * pOut(second l, 1)
+        h = '_/ => (first l)::OutputForm / (second l)::OutputForm
+        h = '_^ => pOut(first l, 3) ^ (second l)::OutputForm
+        prefix(h::OutputForm, [a::OutputForm for a in l])
+
+    -- structural evaluation of a written form in Expression R (no
+    -- interpreter), for the invariant check
+    evalF(f : IF) : E ==
+        integer?(f)$IF => integer(f)$IF :: E
+        symbol?(f)$IF => symbol(f)$IF :: E
+        l := destruct(f)$IF
+        s := symbol(first l)$IF
+        a := [evalF g for g in rest l]
+        s = '_+ => reduce(_+, a)
+        s = '_- =>
+            #a = 1 => - first a
+            first a - second a
+        s = '_* => reduce(_*, a)
+        s = '_/ => first a / second a
+        s = '_^ =>
+            (n := retractIfCan(second a)@Union(Integer, "failed")) case Integer =>
+                first a ^ (n::Integer)
+            first a ^ second a
+        s = 'nthRoot =>
+            nthRoot(first a, retract(second a)@Integer)
+        s = 'exp => exp(first a)$E
+        s = 'log => log(first a)$E
+        s = 'sin => sin(first a)$E
+        s = 'cos => cos(first a)$E
+        s = 'tan => tan(first a)$E
+        s = 'cot => cot(first a)$E
+        s = 'sec => sec(first a)$E
+        s = 'csc => csc(first a)$E
+        s = 'asin => asin(first a)$E
+        s = 'acos => acos(first a)$E
+        s = 'atan => atan(first a)$E
+        s = 'acot => acot(first a)$E
+        s = 'asec => asec(first a)$E
+        s = 'acsc => acsc(first a)$E
+        s = 'sinh => sinh(first a)$E
+        s = 'cosh => cosh(first a)$E
+        s = 'tanh => tanh(first a)$E
+        s = 'coth => coth(first a)$E
+        s = 'sech => sech(first a)$E
+        s = 'csch => csch(first a)$E
+        s = 'asinh => asinh(first a)$E
+        s = 'acosh => acosh(first a)$E
+        s = 'atanh => atanh(first a)$E
+        s = 'acoth => acoth(first a)$E
+        s = 'asech => asech(first a)$E
+        s = 'acsch => acsch(first a)$E
+        s = 'sqrt => sqrt(first a)$E
+        s = 'factorial => factorial(first a)$E
+        s = 'binomial => binomial(first a, second a)$E
+        s = 'permutation => permutation(first a, second a)$E
+        elt(operator(operator(s)$CommonOperators)$E, a)$E
+    check x == evalF(form x) = value x
 
     -- pattern matching
     convert(x : %) : PI == convert(value x)@PI
