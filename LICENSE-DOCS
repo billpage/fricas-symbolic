@@ -1,0 +1,25 @@
+Documentation licence
+=====================
+
+This licence covers the documentation of this repository: everything under
+docs/ and references/, and the top-level markdown files (README.md,
+ORIENTATION.md, CONTRIBUTING.md, GLOSSARY.md, AGENTS.md, AI-USE.md).
+Code under src/ and tools/, and the Makefile, are licensed under LICENSE.
+
+    Copyright (c) 2016-2026, Bill Page and contributors
+
+The documentation is licensed under the Creative Commons Attribution 4.0
+International License (SPDX: CC-BY-4.0). The legally operative text is at
+
+    https://creativecommons.org/licenses/by/4.0/legalcode
+
+Alternatively, at your option, you may use, copy, modify and redistribute the
+documentation under the BSD 3-clause terms in LICENSE (SPDX: BSD-3-Clause).
+This option exists so that FriCAS, whose code and documentation are under
+one BSD licence, can include any part of this documentation under its own
+terms.
+
+Contributions to the documentation are accepted under both licences.
+
+Quotations from fricas-devel messages and from published papers remain the
+work of their authors and are used for comment and citation.

@@ -1,0 +1,133 @@
+-- Tests for SymbolicPair(R, A) (src/algebra/sympair.spad): design (I) of the
+-- specification docs/spec/sexpr-spec.md.  A_P below is the default
+-- presentation axiom set [identities, annihilation, involutions, numerals]
+-- of spec section 4.1; check(x) is the invariant test (Val), V1 in spec 6.
+--
+-- Run with `make check` (also run by CI), or in a FriCAS session:
+--   )compile src/algebra/sympair.spad
+--   )read src/input/sympair.input
+-- Judge the run by statistics(): "unexpected failures: 0" and
+-- "unexpected passes: 0".
+-- testsuite and testcase clear macros as well as variables, so each test
+-- case names SymbolicPair(Integer, [identities, annihilation, involutions, numerals]) in full.
+--
+-- Each test case states a property that the 2017 SymbolicExpression domain
+-- violated (docs/notes/2026-11-24-design-review.md, defects D1, D7, and
+-- docs/notes/2026-11-25-q2-functionspace.md).
+
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "SymbolicPair"
+
+testcase "written form is kept"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+testTrue("(unparse(form((x+1)^2)) = _"(x+1)^2_")@Boolean")
+testTrue("(unparse(form(x+x)) = _"x+x_")@Boolean")
+testTrue("(unparse(form(eval((x+1)^2, x = y+1))) = _"(y+1+1)^2_")@Boolean")
+testTrue("(unparse(form((x+1)^2-(x^2+2*x+1))) = _"(x+1)^2-(x^2+2*x+1)_")@Boolean")
+
+testcase "equality and zero test agree"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+a := (x+1)^2 - (x^2+2*x+1)
+b := (x+1)^2 - x^2
+testTrue("zero? a")
+testTrue("(a = 0)@Boolean")
+testTrue("((zero? b) = ((b = 0)@Boolean))@Boolean")
+xftestTrue("zero? b")
+
+testcase "integration is correct"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+F := integrate((x+1)^2, 'x)
+G := integrate(1/(x^2+1), 'x)
+H := integrate(sin(x)*cos(x), 'x)
+testTrue("(D(F, 'x) = (x+1)^2)@Boolean")
+testTrue("(D(G, 'x) = 1/(x^2+1))@Boolean")
+testTrue("(D(H, 'x) = sin(x)*cos(x))@Boolean")
+testTrue("check(F) and check(G) and check(H)")
+-- the 2017 domain returned x*(x+1)^2 and 0 for the first two integrals
+xftestTrue("(D(x*(x+1)^2, 'x) = (x+1)^2)@Boolean")
+xftestTrue("(G = 0)@Boolean")
+
+testcase "summation and limits are correct"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+S := sum(x, 'x=1..10)
+A := sum(x, 'x)
+L := limit(sin(x)/x, x=0)
+testTrue("(retract(S)@Integer = 55)@Boolean")
+testTrue("(unparse(form(S)) = _"55_")@Boolean")
+testTrue("check(S) and check(A)")
+testTrue("(eval(A, x = x+1) - A = x)@Boolean")
+testTrue("(retract(L::OrderedCompletion(SymbolicPair(Integer, [identities, annihilation, involutions, numerals])))@SymbolicPair(Integer, [identities, annihilation, involutions, numerals]) = 1)@Boolean")
+-- the 2017 domain returned 100
+xftestTrue("(retract(S)@Integer = 100)@Boolean")
+
+testcase "conversion from Expression does not read interpreter variables"
+z := 5
+e := (('z)::Expression(Integer) + 1)::SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+testTrue("(value(e) = ('z)::Expression(Integer) + 1)@Boolean")
+testTrue("(unparse(form(e)) = _"z+1_")@Boolean")
+
+testcase "rewrite rules act on the expression as written"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+t1 := cos(x)*sin(y) - cos(y)*sin(x)
+t2 := - sin(x)*sin(y) + cos(x)*cos(y)
+rs := _rule(cos(x)*sin(y)-sin(x)*cos(y), sin(y-x))
+rc := _rule(cos(x)*cos(y)-sin(x)*sin(y), cos(x+y))
+expr := tan(q)*tan(w) + t1*cos(x3) + t2*w*cos(a) + r3*t1*t2 + 5
+testTrue("(rs t1 = sin(y-x))@Boolean")
+testTrue("(rc t2 = cos(x+y))@Boolean")
+testTrue("(rc rs expr = sin(y-x)*cos(x3) + cos(x+y)*w*cos(a) + r3*sin(y-x)*cos(x+y) + tan(q)*tan(w) + 5)@Boolean")
+-- Expression R does not identify sin(y-x) with its expansion, so a rule
+-- that did not fire would leave these false
+xftestTrue("(t1 = sin(y-x))@Boolean")
+xftestTrue("(rs t2 = cos(x+y))@Boolean")
+testTrue("check(rc rs expr)")
+
+testcase "presentation axioms A_P (spec 4.1)"
+(x, y) : SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+-- identities
+testTrue("(unparse(form(x+0)) = _"x_")@Boolean")
+testTrue("(unparse(form(0+x)) = _"x_")@Boolean")
+testTrue("(unparse(form(x-0)) = _"x_")@Boolean")
+testTrue("(unparse(form(0-x)) = _"-(x)_")@Boolean")
+testTrue("(unparse(form(1*x)) = _"x_")@Boolean")
+testTrue("(unparse(form(x/1)) = _"x_")@Boolean")
+testTrue("(unparse(form(x^1)) = _"x_")@Boolean")
+testTrue("(unparse(form(x^0)) = _"1_")@Boolean")
+-- annihilation
+testTrue("(unparse(form(0*x)) = _"0_")@Boolean")
+testTrue("(unparse(form(x*0)) = _"0_")@Boolean")
+-- involutions
+testTrue("(unparse(form(-(-x))) = _"x_")@Boolean")
+testTrue("(unparse(form(1/(1/x))) = _"x_")@Boolean")
+-- numerals
+testTrue("(unparse(form(1+(2::SymbolicPair(Integer, [identities, annihilation, involutions, numerals])))) = _"3_")@Boolean")
+testTrue("(unparse(form((1::SymbolicPair(Integer, [identities, annihilation, involutions, numerals]))/2+5)) = _"11/2_")@Boolean")
+testTrue("(unparse(form((2::SymbolicPair(Integer, [identities, annihilation, involutions, numerals]))^10)) = _"1024_")@Boolean")
+-- nothing else is rewritten (G1): near misses keep their form
+testTrue("(unparse(form(x+x)) = _"x+x_")@Boolean")
+testTrue("(unparse(form(x-x)) = _"x-x_")@Boolean")
+testTrue("(unparse(form(y+x)) = _"y+x_")@Boolean")
+testTrue("(unparse(form(x*(y+1))) = _"x*(y+1)_")@Boolean")
+xftestTrue("(unparse(form(x+x)) = _"2*x_")@Boolean")
+-- invariant V1 on rule results
+testTrue("check(0-x) and check(1/(1/x)) and check(x^0) and check((1::SymbolicPair(Integer, [identities, annihilation, involutions, numerals]))/2+5)")
+
+testcase "identities only: numbers are not folded (G3)"
+(x, y) : SymbolicPair(Integer, [identities])
+x := 'x; y := 'y
+testTrue("(unparse(form(1+(2::SymbolicPair(Integer, [identities])))) = _"1+2_")@Boolean")
+testTrue("(unparse(form(0*x)) = _"0*x_")@Boolean")
+testTrue("(unparse(form(-(-x))) = _"-(-(x))_")@Boolean")
+testTrue("(unparse(form(x+0)) = _"x_")@Boolean")
+testTrue("((1+(2::SymbolicPair(Integer, [identities]))) = 3)@Boolean")
+xftestTrue("(unparse(form(1+(2::SymbolicPair(Integer, [identities])))) = _"3_")@Boolean")
+
+statistics()
