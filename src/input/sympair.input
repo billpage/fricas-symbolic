@@ -1,18 +1,19 @@
 -- Tests for SymbolicPair(R, A) (src/algebra/sympair.spad): design (I) of the
--- specification claude/sexpr-spec.md (FriCAS project).  A_P below is the
--- default presentation axiom set [identities, annihilation, involutions,
--- numerals] of spec section 4.1; check(x) is the invariant test V1.
+-- specification docs/spec/sexpr-spec.md.  A_P below is the default
+-- presentation axiom set [identities, annihilation, involutions, numerals]
+-- of spec section 4.1; check(x) is the invariant test (Val), V1 in spec 6.
 --
--- How to run (FriCAS 1.4.0 release; this file is not part of the build):
---   )compile sympair.spad          -- in a run directory
---   )lib )dir <that run directory>  -- in a later session, then
---   )read sympair.input
--- Not run by CI: CI does not install FriCAS.
+-- Run with `make check` (also run by CI), or in a FriCAS session:
+--   )compile src/algebra/sympair.spad
+--   )read src/input/sympair.input
+-- Judge the run by statistics(): "unexpected failures: 0" and
+-- "unexpected passes: 0".
 -- testsuite and testcase clear macros as well as variables, so each test
 -- case names SymbolicPair(Integer, [identities, annihilation, involutions, numerals]) in full.
 --
 -- Each test case states a property that the 2017 SymbolicExpression domain
--- violated (see claude/next-sexpr-port.md, defects D1, D7 and the Q2 note).
+-- violated (docs/notes/2026-11-24-design-review.md, defects D1, D7, and
+-- docs/notes/2026-11-25-q2-functionspace.md).
 
 )set break resume
 )expose UnittestCount UnittestAux Unittest

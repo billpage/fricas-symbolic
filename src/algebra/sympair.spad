@@ -2,8 +2,8 @@
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
 ++ Description:
-++ Prototype of design (I) in the specification claude/sexpr-spec.md
-++ (FriCAS project): SymbolicPair(R, A) is a presentation of Expression R.
+++ Prototype of design (I) in the specification docs/spec/sexpr-spec.md
+++ of fricas-symbolic: SymbolicPair(R, A) is a presentation of Expression R.
 ++ A lists the groups of presentation axioms applied when a node is built
 ++ (spec section 4.1): identities, annihilation, involutions, numerals.
 ++ From Option (c) of the sexpr design review: a FunctionSpace
