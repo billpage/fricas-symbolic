@@ -3,3 +3,4 @@ import FricasSymbolic.Eval
 import FricasSymbolic.Normalize
 import FricasSymbolic.Form
 import FricasSymbolic.CrossCheck
+import FricasSymbolic.Soundness
