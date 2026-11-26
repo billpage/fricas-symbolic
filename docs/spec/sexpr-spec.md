@@ -131,6 +131,8 @@ Note that **(I) needs only (S) and (T), not (CR)**. Equality comes from the valu
 
 ### 4.1 The presentation axioms $`A_P`$
 
+The subscript stands for *presentation* (§3.3): these are the axioms a presentation of `Expression` may apply without changing the written form beyond recognition. Each rule removes something (an identity element, a double negation or reciprocal, a factor beside zero) or evaluates pure numerals; none reorders or regroups what was written, and each right side is a variable of its left side, a numeral or $`-x`$ (root-collapsing). Commutativity and collecting like terms are sound but fail this test.
+
 $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applied at the root of a newly built node.
 
 | Group | Rules | Sound in $`E`$ | Size $`\lvert l\rvert \to \lvert r\rvert`$ |
@@ -156,7 +158,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 **Effect on the open questions.**
 - With $`A_P`$, `sum(x, 'x=1..10)` folds to `55`: the algorithm's arithmetic happens on numerals and on zero products.
-- `1+2` becomes `3` under Num. The choice is per domain: `SymbolicPair(R, Id)` keeps `1+2`, serving G1 and G3.
+- `1+2` becomes `3` under Num. The choice is per domain: `SymbolicPair(R, Id)` keeps `1+2`, serving G1 and G3. `SymbolicExpression(R)` uses $`A_P`$ (decision 0002).
 - No rule in $`A_P`$ reorders or regroups what the user wrote, so G1 holds up to the removal of identities and the evaluation of pure numerals.
 
 ### 4.2 The 2017 axioms, assessed against (S), (T), (CR) and G1
@@ -204,7 +206,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 ## 7. Decisions for Bill
 
 1. Accept the two-constructor specification (§5) as the reference design.
-2. $`A_P`$ as the default for `SymbolicExpression(R)`, in particular Num (so `1+2` displays `3`). The alternatives are `SymbolicPair(R, Id)` or `Id ∪ Ann ∪ Inv`.
+2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
 3. Whether (I) also flattens associative chains (display-neutral regrouping).
 4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
 5. Clean-up of `Symbolic(R, A)` for (II): remove the hidden rewrites (§4.2), fix Doubles, and decide the AC strategy (design review, Q4).
