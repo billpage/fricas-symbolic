@@ -1,4 +1,5 @@
 import FricasSymbolic.Rewriting
+import Mathlib.Tactic.NormNum
 
 /-!
 # Part 1: regressions
@@ -22,18 +23,23 @@ open Term
 /-- `A_P` with associativity: the groups of the regression. -/
 def AP : Ax := {id := true, ann := true, inv := true, num := true, assoc := true}
 
+theorem sAdd_num (A : Ax) (h : A.num = true) (p q : ℚ) :
+    sAdd A (.num p) (.num q) = .num (p + q) := by
+  rw [sAdd]; simp [h, isNum, nv]
+
 /-- L7: without (AN), a single (A) step separates two normal forms. -/
 theorem L7_without_AN :
     let A : Ax := {AP with an := false}
     let s := Term.add (.var "x") (.add (.num 1) (.num 2))
     let t := Term.add (.add (.var "x") (.num 1)) (.num 2)
     Step A s t ∧ nf A s = .add (.var "x") (.num 3) ∧ nf A t = t := by
+  intro A s t
+  have h12 : sAdd A (.num 1) (.num 2) = .num 3 := by rw [sAdd_num A rfl]; norm_num
   refine ⟨Step.root (Root.assoc_add _ _ _ rfl), ?_, ?_⟩
-  · simp only [nf]
-    rw [sAdd]; simp [AP, isNum, nv]; norm_num
-    rw [sAdd]; simp [isNum, isLit, nv, isAdd]
-  · simp only [nf]
-    rw [sAdd]; simp [AP, isNum, isLit, nv, isAdd]
+  · simp only [s, nf, h12]
+    rw [sAdd]; simp [A, AP, isNum, isLit, nv, isAdd]
+  · simp only [t, nf]
+    rw [sAdd]; simp [A, AP, isNum, isLit, nv, isAdd]
     rw [sAdd]; simp [isNum, isLit, nv, isAdd, snd]
 
 /-- L7, the other half: with (AN), both sides of the step normalise to `x+3`. -/
@@ -41,13 +47,15 @@ theorem L7_with_AN :
     let s := Term.add (.var "x") (.add (.num 1) (.num 2))
     let t := Term.add (.add (.var "x") (.num 1)) (.num 2)
     nf AP s = .add (.var "x") (.num 3) ∧ nf AP t = .add (.var "x") (.num 3) := by
+  intro s t
+  have h12 : sAdd AP (.num 1) (.num 2) = .num 3 := by rw [sAdd_num AP rfl]; norm_num
   constructor
-  · simp only [nf]
-    rw [sAdd]; simp [AP, isNum, nv]; norm_num
-    rw [sAdd]; simp [isNum, isLit, nv, isAdd]
-  · simp only [nf]
+  · simp only [s, nf, h12]
     rw [sAdd]; simp [AP, isNum, isLit, nv, isAdd]
-    rw [sAdd]; simp [isNum, isLit, nv, isAdd, snd, fst]; norm_num
+  · simp only [t, nf]
+    have h1 : sAdd AP (.var "x") (.num 1) = .add (.var "x") (.num 1) := by
+      rw [sAdd]; simp [AP, isNum, isLit, nv, isAdd]
+    rw [h1, sAdd]; simp [AP, isNum, isLit, nv, isAdd, snd, fst]; norm_num
     rw [sAdd]; simp [isNum, isLit, nv, isAdd]
 
 theorem isNF_num (A : Ax) (q : ℚ) : IsNF A (.num q) := by
