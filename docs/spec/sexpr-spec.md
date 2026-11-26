@@ -87,8 +87,8 @@ FriCAS's `Ring` and `FunctionSpace` promise that $`=`$, `zero?`, `numer`, `denom
 
 - **Carrier:** $`T/{=_A}`$, represented by normal forms $`\mathrm{nf}_A`$.
 - **Equality:** $`=_A`$, decided by comparing normal forms. This requires a normaliser with (N1) and (N2) (§3.4). A terminating and confluent rewrite system modulo $`B`$ is one way to obtain one (§2.4); the ladder of §3.4 builds canonical forms of free algebras directly.
-- **Categories:** exactly those whose axioms follow from $`A`$, e.g. $`A \supseteq \{\text{assoc}, \text{comm}, 0\}`$ for `+` gives `AbelianMonoid`. Never `Ring` or `FunctionSpace` unless $`A`$ contains the ring axioms (§3.1).
-- **Soundness for $`E`$** is required only for the conversion to `Expression`. $`A`$ may describe a different algebra, e.g. graded-commutative (§4.2); then no conversion to $`E`$ is offered.
+- **Categories and conversions** (decision [0011](../decisions/0011-bridge-by-evaluation.md), proposed): no categories that depend on $`A`$; Spad cannot export them from one constructor. Instead, $`T/{=_A}`$ is the free algebra over the symbols in the variety of $`\Sigma`$-algebras satisfying $`A`$, so for every $`\Sigma`$-algebra $`D`$ satisfying $`A`$ and every $`\varphi : X \to D`$ there is exactly one homomorphism $`\mathrm{eval}_\varphi : T/{=_A} \to D`$ extending $`\varphi`$. The value map of §2.2 is the case $`D = E`$. *(Until decision 0011: categories exactly those whose axioms follow from $`A`$, e.g. `AbelianMonoid` for `+` with assoc, comm and $`0`$; never `Ring` or `FunctionSpace` unless $`A`$ contains the ring axioms, §3.1.)*
+- **Soundness for $`E`$** is required only for the conversion to `Expression`, i.e. for $`\mathrm{eval}`$ into $`D = E`$. $`A`$ may describe a different algebra, e.g. graded-commutative (§4.2); then no conversion to $`E`$ is offered, and $`\mathrm{eval}`$ goes to a $`D`$ that satisfies $`A`$.
 - **G3:** `Symbolic(R, None)` applies no rewriting at all; $`=_\emptyset`$ is syntactic identity of terms.
 
 ### 3.3 Design (I): `GeneralSymbolicExpression(R, A)`, a presentation of `Expression`
