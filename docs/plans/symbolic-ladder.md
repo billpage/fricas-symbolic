@@ -27,4 +27,5 @@ Each step is one pull request: code, tests named by spec label, and the status u
 - Categories: which FriCAS categories each admissible $`A`$ may claim (spec §3.2): for example `AbelianMonoid` at P3 with Id, `CommutativeRing` at Ring.
 - Floats as numerals: `Float` has no exact arithmetic, so is Num sound for them? Probably restrict Num to exact numerals.
 - Display of P4/M4 forms: settled in step 4 (spec §3.4, "Trees of P4, M4 and M5"): the constant last in a sum, the numeral first in a product. Review with examples.
+- Order of terms and factors, for wider review (Bill, 2026-11-26: acceptable for now). Terms and factors follow $`\prec`$, which compares compounds by head before degree, so $`(x-y)^3`$ has form `3*x*y^2-3*y*x^2+x^3-y^3` and $`x(x+1)`$ has form `x+x^2`. A possible extension or change: a degree order for the terms of a sum and the factors of a product, as polynomials are usually written. It changes only which canonical tree is chosen, so (N1)–(N3) are unaffected, but it is a change to spec §3.4 and needs a decision record.
 - Whether the user-rule AC matcher (note §2.3, item 5) is wanted at all for design (II).
