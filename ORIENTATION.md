@@ -38,7 +38,9 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 | The display shows the stored structure exactly, property (Disp) | Decided by Bill Page, 2026-11-26 | [decision 0004](docs/decisions/0004-display-shows-structure.md), spec §5 |
 | Associativity: an optional axiom group, not in $`A_P`$ | Decided by Bill Page, 2026-11-26; implemented with its completion rule | [decision 0005](docs/decisions/0005-associativity-group.md), spec §4.1.1 |
 | The 2017 axioms (commutativity, doubles, distributivity, …) in `Symbolic(R, A)` | Open: need AC-compatible ordering and a confluence check | spec §4.2 |
-| Rewrites the 2017 code applies outside its axiom system | To be removed or made axioms | spec §4.2 |
+| Rewrites the 2017 code applied outside its axiom system | Removed or tied to axioms, 2026-11-26 | [decision 0007](docs/decisions/0007-symbolic-hidden-rewrites.md), spec §4.2 |
+| `SymbolicExpression(R)` = `GeneralSymbolicExpression(R, A_P)` | Implemented, 2026-11-26 | decision 0007 |
+| `Symbolic(R, A)` rebuilt on canonical forms (the ladder of axiom sets) | Proposed | [note of 2026-11-26](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md) |
 | 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `GeneralSymbolicExpression` | [design review](docs/notes/2026-11-24-design-review.md) |
 
 ## 4. Where to start

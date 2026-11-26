@@ -35,3 +35,4 @@ What this commits the package to, and what it rules out.
 | [0004](0004-display-shows-structure.md) | The display shows the stored structure | Accepted, 2026-11-26 |
 | [0005](0005-associativity-group.md) | Associativity is an optional axiom group, not in $`A_P`$ | Accepted, 2026-11-26 |
 | [0006](0006-name.md) | The name `GeneralSymbolicExpression(R, A)` | Accepted, 2026-11-26 |
+| [0007](0007-symbolic-hidden-rewrites.md) | `SymbolicExpression` is rebuilt; `Symbolic` rewrites only by its axioms | Accepted, 2026-11-26 |

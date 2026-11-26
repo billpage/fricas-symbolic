@@ -228,7 +228,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 | Distributive | yes | expansion terminates only with a suitable RPO | interacts with all of the above | destroys factored forms | on request only (`expand`) |
 | AntiCommutative (graded) | **no**: $`E`$ is commutative | — | — | — | (II) only, with a graded semantics and no conversion to $`E`$ |
 
-**Rewrites outside the axiom system** (applied even in `Symbolic(R, None)`; rechecked 2026-11-26 on `main`, which corrected the 2026-11-25 list: `1/y` is *not* changed, and $`x^{-n}`$ was missing). Each must become an axiom or be removed, for G3. Their assessment is in [`docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md`](../notes/2026-11-26-commutativity-and-hidden-rewrites.md) §3.
+**Rewrites outside the axiom system** (applied even in `Symbolic(R, None)`; rechecked 2026-11-26 on `main`, which corrected the 2026-11-25 list: `1/y` is *not* changed, and $`x^{-n}`$ was missing). Each must become an axiom or be removed, for G3; **done 2026-11-26** (decision [0007](../decisions/0007-symbolic-hidden-rewrites.md)): the doubling, squaring and power rewrites are removed, the others apply only with an axiom, and $`x^1 \to x`$, $`x^0 \to 1`$, also found hidden, apply only with `RightIdentity`. Their assessment is in [`docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md`](../notes/2026-11-26-commutativity-and-hidden-rewrites.md) §3.
 
 - $`0\cdot x\to0`$ and $`x \cdot 0 \to 0`$ (Ann);
 - $`0-y\to-y`$ (Id);
@@ -244,7 +244,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 
 1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$. It requires (T) and (CR), modulo AC where C is present. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
 2. **`GeneralSymbolicExpression(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
-3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
+3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** (implemented in `src/algebra/gsexpr.spad`, decision 0007) with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
 4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy
 
    **(Disp)** for every element $`p`$ built by the domain's own operations, reading back the one-line display gives the stored form: $`\mathrm{parse}(\mathrm{display}_{1D}(p)) = \mathrm{form}(p)`$,

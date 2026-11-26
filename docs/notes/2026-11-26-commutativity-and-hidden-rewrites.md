@@ -112,7 +112,7 @@ None needs AC matching.
 
 ## 4. Proposed order of work
 
-1. Remove rewrites 6–9 and make 1–2 conditional. These are small changes to the existing code, with tests that `Symbolic(R, None)` keeps every one of the inputs above as written (G3).
+1. **Done 2026-11-26** (decision [0007](../decisions/0007-symbolic-hidden-rewrites.md)), with 3–5 tied to `Inverse` for now. Remove rewrites 6–9 and make 1–2 conditional. These are small changes to the existing code, with tests that `Symbolic(R, None)` keeps every one of the inputs above as written (G3).
 2. Decide the ladder of §2.2 as the design of `Symbolic(R, A)` (a decision record). Fix $`\prec`$ in the spec.
 3. Rebuild the core of `Symbolic` on canonical forms, one row at a time, with exhaustive tests: all orders and groupings of small sums must give one form.
 4. Groups 3 and 4 if wanted.
