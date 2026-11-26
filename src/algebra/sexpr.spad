@@ -515,6 +515,11 @@ RightIdentityAxiom(): Category == Axiom with
 ++ Identity
 IdentityAxiom(): Category == Join(LeftIdentityAxiom,RightIdentityAxiom)
 
+)abbrev category ANNAX AnnihilationAxiom
+++ Annihilation: 0*x = 0 and x*0 = 0 (spec 4.1, group Ann).  Until
+++ 2026-11-26 Symbolic applied this rewrite unconditionally.
+AnnihilationAxiom(): Category == Axiom
+
 )abbrev category SQAX SquaresAxiom
 Maybe(S) ==> Union(S,"failed")
 SIN ==> InputForm
@@ -1116,10 +1121,17 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       if n=1 then return x
       return binary(convert('nthRoot),[x,n])$SIN
     nthRoot(x:%, n:Integer):% == per nthRoot2(rep x,n::Rep)
+    -- sqrt is nthRoot(x, 2), as before 2026-11-26, not the power x^(1/2)
+    sqrt(x:%):% == nthRoot(x, 2)
     nthRoot(x:%, n:%):% == per nthRoot2(rep x,n::Rep)
     --
     --power: (Rep,Rep) -> Rep
-    power(x:Rep,y:Rep):Rep == rep(per(x)^per(y))
+    -- power is the constructor the axiom rewrites (Divides, Squares) use for
+    -- their exponent arithmetic; it writes x^1 as x and x^0 as 1
+    power(x:Rep,y:Rep):Rep ==
+      (y = 0)$Rep => 1$Rep
+      (y = 1)$Rep => x
+      rep(per(x)^per(y))
     --  sin:Rep:=binary(convert('_^),[x,y])
     --  rin:Maybe Rep := "failed"
     --  if _$testingSystem$Lisp then
@@ -1145,18 +1157,20 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
     --(x:% ^ y:%):% == per power(rep x,rep y)
     x : % ^ y : %                 == x ^$CF y
 
-    (x:% ^ y:PositiveInteger):% ==
-      if AxiomList has SquaresAxiom then
-        x ^ (y::%)
-      else
-        expt(x, y)$RepeatedSquaring(%)
-    (x:% ^ y:NonNegativeInteger):% ==
-      if y = 0 then x^0
-      else x ^ y::PositiveInteger
+    -- integer and rational powers build the power node; until 2026-11-26
+    -- x^p used repeated squaring, x^(-n) became 1/x^n and x^(p/q) became
+    -- nthRoot(x,q)^p, depending on which signature was chosen
+    pownode(x:%, e:SIN):% == per binary(convert('_^), [rep x, e])
     (x:% ^ y:Integer):% ==
-      if y < 0 then 1/(x ^ (-y)::PositiveInteger)
-      else x ^ y::NonNegativeInteger
-    (x:% ^ y:Fraction Integer):% == nthRoot(x,denom(y))^numer(y)
+      -- x^1 -> x and x^0 -> 1 (spec 4.1, Id) only with the identity axiom
+      AxiomList has RightIdentityAxiom and y = 1 => x
+      AxiomList has RightIdentityAxiom and y = 0 => 1
+      pownode(x, convert(y)@SIN)
+    (x:% ^ y:PositiveInteger):% == x ^ (y::Integer)
+    (x:% ^ y:NonNegativeInteger):% == x ^ (y::Integer)
+    (x:% ^ y:Fraction Integer):% ==
+      denom y = 1 => x ^ numer(y)
+      pownode(x, binary(convert('_/), [convert(numer y)@SIN, convert(denom y)@SIN]))
     isPower(x:%):Maybe(Record(val:%,exponent:Integer)) ==
       r:=isPower2(rep x)
       if r case Pair SIN then
@@ -1176,7 +1190,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       if _$testingSystem$Lisp then
         output("times: ",message unparse sin)$OutputPackage
       rin:Maybe Rep := "failed"
-      if R has AbelianSemiGroup then
+      if AxiomList has AnnihilationAxiom then
         if (x=0)$Rep or (y=0)$Rep then rin := rep 0
       if AxiomList has DistributiveAxiom and rin case "failed" then
         rin := rewriteDistributive(isPlus2,plus,times,sin)
@@ -1205,12 +1219,16 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       else
         return sin
     (x:% * y:%):% == per times(rep x,rep y)
+    -- scale is the constructor the axiom rewrites (Cancels, Doubles) use
+    -- for their coefficient arithmetic; it writes x*0 as 0 and x*1 as x
+    scale(x:Rep,n:Rep):Rep ==
+      (n = 0)$Rep => 0$Rep
+      (n = 1)$Rep => x
+      times(x,n)
     --
-    (x:PositiveInteger * y:%):% ==
-      if AxiomList has DoublesAxiom then
-        (x::%) * y
-      else
-        double(x,y)$RepeatedDoubling(%)
+    -- an integer multiple is the product node n*y (until 2026-11-26 a
+    -- PositiveInteger multiple was expanded by repeated doubling)
+    (x:PositiveInteger * y:%):% == (x::Integer::%) * y
     (x:NonNegativeInteger * y:%):% == (x::%) * y
     --  if x=0 then 0*y
     --  else x::PositiveInteger * y
@@ -1239,7 +1257,7 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       if AxiomList has CommutativeAxiomPlus and rin case "failed" then
         rin := rewriteCommutative(isPlus2,plus,sin)
       if AxiomList has DoublesAxiom and rin case "failed" then
-        rin := rewriteDoubles(times,isTimes2,plus,isPlus2,sin)
+        rin := rewriteDoubles(scale,isTimes2,plus,isPlus2,sin)
       if rin case Rep then
         if _$testingSystem$Lisp then
           output("plus: ",infix(message " --> ", message unparse sin,message unparse rin))$OutputPackage
@@ -1253,12 +1271,12 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       rin:Maybe Rep := "failed"
       if _$testingSystem$Lisp then
         output("minus: ",message unparse sin)$OutputPackage
-      if (x = 0)$Rep then
+      if AxiomList has LeftIdentityAxiom and (x = 0)$Rep then
         rin := minus1(y)
       if AxiomList has RightIdentityAxiom and rin case "failed" then
         rin := rewriteRightIdentity(0,sin)
       if AxiomList has CancelsAxiom and rin case "failed" then
-        rin := rewriteCancels(times,isTimes2,isPlus2,minus,isMinus2,sin)
+        rin := rewriteCancels(scale,isTimes2,isPlus2,minus,isMinus2,sin)
       if AxiomList has InverseAxiom and rin case "failed" then
         rin := rewriteRightInverse(minus1,plus,sin)
       if rin case Rep then
@@ -1281,8 +1299,11 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
       --    if float? x then return convert(-float(x))
       if AxiomList has InverseAxiom then
         returnIf rewriteInverseUnary(minus1,isMinus2,minus,x)
-      if (t:=isMinus2(x)) case Pair SIN then return minus(t.right,t.left)
-      if (t:=isPlus2(x)) case Pair SIN then return plus(minus1 t.left,minus1 t.right)
+      -- -(x-y) -> y-x and -(x+y) -> (-x)+(-y): applied only with the
+      -- Inverse axiom (until 2026-11-26 always; see the notes of that date)
+      if AxiomList has InverseAxiom then
+        if (t:=isMinus2(x)) case Pair SIN then return minus(t.right,t.left)
+        if (t:=isPlus2(x)) case Pair SIN then return plus(minus1 t.left,minus1 t.right)
       convert([convert('_-)@SIN,x])
     _-(x:%):% == per minus1 rep x
 
@@ -1315,7 +1336,8 @@ Symbolic(R:Join(Comparable,ConvertibleTo SIN), AxiomList:Type):SymbolicCategory(
         return 1$Rep
       if AxiomList has InverseAxiom then
         returnIf rewriteInverseUnary(inv1,isQuotient2,quotient,x)
-      if (t:=isQuotient2(x)) case Pair SIN then return quotient(t.right,t.left)
+      if AxiomList has InverseAxiom then
+        if (t:=isQuotient2(x)) case Pair SIN then return quotient(t.right,t.left)
       binary(convert('_/),[1$SIN,x])
 
     inv(x:%):% ==
@@ -1482,6 +1504,8 @@ join(A:Axiom,B:Axiom):Axiom with
     if B has SquaresAxiom then SquaresAxiom
     if A has DividesAxiom then DividesAxiom
     if B has DividesAxiom then DividesAxiom
+    if A has AnnihilationAxiom then AnnihilationAxiom
+    if B has AnnihilationAxiom then AnnihilationAxiom
   == add
     x:Symbolic(Integer,%) := coerce 'x
     y:Symbolic(Integer,%) := coerce 'y
@@ -1499,23 +1523,10 @@ Commutative():CommutativeAxiom == join(CommutativePlus, CommutativeTimes)
 )abbrev domain ID Identities
 Identities():IdentityAxiom == join(LeftIdentity, RightIdentity)
 
-)abbrev domain SEXPR SymbolicExpression
-SIN ==> InputForm
-++ Description:
-++ SymbolicExpression is a Symbolic domain with automatic rewrite rules that
-++ approximate Expression itself.
-SymbolicExpression(R:Join(Comparable,ConvertibleTo SIN)) : SymbolicCategory(R) == Implementation where
-  --F ==> Expression R
-  Implementation ==> Symbolic(R, _
-    join(join(join(join(join(join(join(join(join( _
-    Squares, Inverse), Identities), _
-    Doubles), Divides), _
-    CommutativePlus), CommutativeTimes), Cancels),  _
-    AssociativePlus), AssociativeTimes)) add
-    -- use equality from Expression(R)
-    (x:% = y:%):Boolean ==
-      --output("=",paren [x::OutputForm,y::OutputForm])$OutputPackage
-      coerce(x)@Expression(R) = coerce(y)@Expression(R)
+)abbrev domain ANN Annihilation
+Annihilation():AnnihilationAxiom == add
+  x:Symbolic(Integer,%) := coerce 'x
+  assert("annihilation *", x*0 = 0)
 
 )abbrev domain SDEXPR SymbolicDistributedExpression
 SIN ==> InputForm

@@ -10,7 +10,7 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 |---|---|---|---|---|
 | G1 | §1 | Display as entered; what you see is what you get | Goal; made precise as (Disp) | gsexpr: "written form is kept"; "presentation axioms A_P" (near misses); "Disp: …" |
 | G2 | §1 | Same meaning as `Expression` | Goal | gsexpr: "equality and zero test agree" |
-| G3 | §1 | Purely syntactic work, $`1+2 \ne 3`$ | Goal | gsexpr: "identities only: numbers are not folded (G3)"; sexpr2: "ex1" |
+| G3 | §1 | Purely syntactic work, $`1+2 \ne 3`$ | Goal | gsexpr: "identities only: numbers are not folded (G3)"; sexpr2: "ex1"; "G3: Symbolic(Integer, None) keeps the written form" |
 | G4 | §1 | Rewrite rules act on the written structure | Goal | gsexpr: "rewrite rules act on the expression as written"; sexpr2: "ex4" |
 | G5 | §1 | Axioms selectable per domain | Goal | gsexpr: the two A_P test cases (two parameter values) |
 | G6 | §1 | Library algorithms correct | Goal | gsexpr: "integration is correct"; "summation and limits are correct" |

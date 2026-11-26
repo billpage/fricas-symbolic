@@ -1,3 +1,25 @@
+-- The requirements on R and the exports are shared by
+-- GeneralSymbolicExpression and SymbolicExpression.
+GSEXPRRING ==> Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
+                    PolynomialFactorizationExplicit, RetractableTo Integer,
+                    LinearlyExplicitOver Integer, ConvertibleTo InputForm,
+                    PatternMatchable Integer, ConvertibleTo Pattern Integer)
+GSEXPRCAT ==> Join(AlgebraicallyClosedFunctionSpace R,
+                 TranscendentalFunctionCategory, PrimitiveFunctionCategory,
+                 CombinatorialOpsCategory, PatternMatchable Integer,
+                 ConvertibleTo Pattern Integer, ConvertibleTo InputForm) with
+  value : % -> Expression R
+    ++ value(x) is the element of Expression R that x denotes.
+  form : % -> InputForm
+    ++ form(x) is the written form of x.
+  coerce : Expression R -> %
+    ++ coerce(e) takes e with its own form (built structurally,
+    ++ without calling the interpreter).
+  check : % -> Boolean
+    ++ check(x) tests the invariant of the specification: the written
+    ++ form of x, evaluated structurally in Expression R, equals the
+    ++ value of x.
+
 )abbrev domain GSEXPR GeneralSymbolicExpression
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
@@ -19,10 +41,7 @@
 ++ their value (head %lift) and decompose like Expression R.
 GeneralSymbolicExpression(R, A) : Exports == Implementation where
   A : List Symbol
-  R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
-           PolynomialFactorizationExplicit, RetractableTo Integer,
-           LinearlyExplicitOver Integer, ConvertibleTo InputForm,
-           PatternMatchable Integer, ConvertibleTo Pattern Integer)
+  R : GSEXPRRING
   E    ==> Expression R
   K    ==> Kernel %
   KE   ==> Kernel E
@@ -38,21 +57,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
   POW  ==> Record(val : %, exponent : Integer)
   POWE ==> Record(val : E, exponent : Integer)
 
-  Exports ==> Join(AlgebraicallyClosedFunctionSpace R,
-                   TranscendentalFunctionCategory, PrimitiveFunctionCategory,
-                   CombinatorialOpsCategory, PatternMatchable Integer,
-                   ConvertibleTo PI, ConvertibleTo IF) with
-    value : % -> E
-      ++ value(x) is the element of Expression R that x denotes.
-    form : % -> IF
-      ++ form(x) is the written form of x.
-    coerce : E -> %
-      ++ coerce(e) takes e with its own form (built structurally,
-      ++ without calling the interpreter).
-    check : % -> Boolean
-      ++ check(x) tests the invariant of the specification: the written
-      ++ form of x, evaluated structurally in Expression R, equals the
-      ++ value of x.
+  Exports ==> GSEXPRCAT
 
   Implementation ==> add
     -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
@@ -497,3 +502,17 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     convert(x : %) : PI == convert(value x)@PI
     patternMatch(x : %, p : PI, l : PMR) : PMR ==
         patternMatch(x, p, l)$PatternMatchFunctionSpace(Integer, R, %)
+
+)abbrev domain SEXPR SymbolicExpression
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ SymbolicExpression(R) is GeneralSymbolicExpression(R, A) with A the
+++ presentation axioms [identities, annihilation, involutions, numerals]:
+++ expressions that keep their written form, apart from identity elements,
+++ products with zero, double negations and reciprocals, and arithmetic on
+++ numerals, and whose equality is that of Expression R.
+SymbolicExpression(R) : Exports == Implementation where
+  R : GSEXPRRING
+  Exports ==> GSEXPRCAT
+  Implementation ==> GeneralSymbolicExpression(R, ['identities, 'annihilation, 'involutions, 'numerals])

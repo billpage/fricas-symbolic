@@ -228,22 +228,23 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 | Distributive | yes | expansion terminates only with a suitable RPO | interacts with all of the above | destroys factored forms | on request only (`expand`) |
 | AntiCommutative (graded) | **no**: $`E`$ is commutative | — | — | — | (II) only, with a graded semantics and no conversion to $`E`$ |
 
-**Rewrites outside the axiom system** (applied even in `Symbolic(R, None)`, run `…-160222-axioms-forms-table`). Each must become an axiom or be removed, for G3:
+**Rewrites outside the axiom system** (applied even in `Symbolic(R, None)`; rechecked 2026-11-26 on `main`, which corrected the 2026-11-25 list: `1/y` is *not* changed, and $`x^{-n}`$ was missing). Each must become an axiom or be removed, for G3; **done 2026-11-26** (decision [0007](../decisions/0007-symbolic-hidden-rewrites.md)): the doubling, squaring and power rewrites are removed, the others apply only with an axiom, and $`x^1 \to x`$, $`x^0 \to 1`$, also found hidden, apply only with `RightIdentity`. Their assessment is in [`docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md`](../notes/2026-11-26-commutativity-and-hidden-rewrites.md) §3.
 
-- $`0\cdot x\to0`$ (Ann);
+- $`0\cdot x\to0`$ and $`x \cdot 0 \to 0`$ (Ann);
 - $`0-y\to-y`$ (Id);
-- $`1/y\mapsto`$ inverse node, and $`1/(x/y)\to y/x`$;
+- $`1/(x/y)\to y/x`$;
 - $`-(x-y)\to y-x`$;
 - $`-(x+y)\to(-x)+(-y)`$ (size-increasing);
-- $`n\cdot x\mapsto`$ repeated doubling ($`2x+3x \mapsto (x+x)+(x+(x+x))`$);
-- $`x^n\mapsto`$ repeated squaring;
+- $`n\cdot x \mapsto`$ repeated doubling when $`n`$ is a `PositiveInteger` (`2*x` gives `x+x`, while an `Integer` 2 gives `2*x`);
+- $`x^n\mapsto`$ repeated squaring when $`n`$ is a `PositiveInteger` (`x^3` gives `x*(x*x)`, while an `Integer` 3 gives `x^3`);
+- $`x^{-n}\to 1/x^n`$;
 - $`x^{p/q}\to \mathrm{nthRoot}(x,q)^p`$.
 
 ## 5. Specification summary
 
 1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$. It requires (T) and (CR), modulo AC where C is present. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
 2. **`GeneralSymbolicExpression(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
-3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
+3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** (implemented in `src/algebra/gsexpr.spad`, decision 0007) with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
 4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy
 
    **(Disp)** for every element $`p`$ built by the domain's own operations, reading back the one-line display gives the stored form: $`\mathrm{parse}(\mathrm{display}_{1D}(p)) = \mathrm{form}(p)`$,
@@ -258,7 +259,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 | V2 rules | each rule of $`A`$ fires where it should and nowhere else | `testEquals` on forms, plus `xftest…` for near misses |
 | V3 algorithms | integrals verified by differentiating back, sums against closed forms, limits, linear algebra | as in `gsexpr.input` |
 | V4 properties | for random terms $`t`$: $`[\![\mathrm{nf}_A t]\!] = [\![t]\!]`$, $`\mathrm{nf}_A(\mathrm{nf}_A t) = \mathrm{nf}_A t`$, and confluence (normal form independent of construction order) | a random term generator in a FriCAS `.input` file |
-| V5 formal, (I) | Lean 4 with Mathlib: `inductive Term`; `eval : Term → K` into a field; `nf : Term → Term`. Prove (a) each rule of $`A_P`$ sound, (b) termination of `nf` (structural or size measure), (c) `eval (nf t) = eval t`, i.e. (Val), (d) `nf (nf t) = nf t`. | Mathlib's total division ($`x/0 = 0`$) differs from $`E`$'s partiality, so soundness lemmas must carry side conditions (e.g. $`1/(1/x) = x`$ holds in Mathlib for all $`x`$, but Cancels' $`x/x = 1`$ needs $`x \ne 0`$). This makes the partiality explicit. |
+| V5 formal, (I) | Planned in [`docs/plans/lean-presentation-axioms.md`](../plans/lean-presentation-axioms.md). Lean 4 with Mathlib: `inductive Term`; `eval : Term → K` into a field; `nf : Term → Term`. Prove (a) each rule of $`A_P`$ sound, (b) termination of `nf` (structural or size measure), (c) `eval (nf t) = eval t`, i.e. (Val), (d) `nf (nf t) = nf t`. | Mathlib's total division ($`x/0 = 0`$) differs from $`E`$'s partiality, so soundness lemmas must carry side conditions (e.g. $`1/(1/x) = x`$ holds in Mathlib for all $`x`$, but Cancels' $`x/x = 1`$ needs $`x \ne 0`$). This makes the partiality explicit. |
 | V5 formal, (II) | termination and confluence modulo AC of larger axiom sets | rewriting tools: Maude (Church–Rosser checker, AC), AProVE or TTT2 (termination), CSI with CeTA (certified confluence). Not installed yet; would be added to the container if wanted. |
 
 ## 7. Decisions for Bill
