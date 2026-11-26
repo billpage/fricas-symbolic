@@ -190,6 +190,11 @@ M5 is sound where defined: $`x \cdot x^{-1} \to 1`$ holds wherever $`x \ne 0`$, 
 - *Products (M4, M5).* The factors with $`e_i > 0`$ in $`\prec`$ order form the numerator, $`a_i^{e_i}`$ or $`a_i`$ if $`e_i = 1`$; the numeral $`c`$ leads it if $`c \ne 1`$. If some $`e_i < 0`$, the factors $`a_i^{-e_i}`$ form a denominator and the tree is numerator `/` denominator. Examples: $`x/(2y)`$ has form `((1/2)*x)/y`, and $`x/(y x^2)`$ has form `1/(x*y)`. Under M4 alone a power with a negative exponent is an atom.
 - *Both (P4 with M4 or M5).* The atoms of $`+`$ are the products. A numeral factor of a product is its coefficient, so $`2xy + 3yx`$ has form `5*x*y`.
 
+- *Ring.* A polynomial is a P4 sum whose atoms are M4 monomials; the atoms of the polynomial are the normal forms whose head is none of $`+, -, \cdot`$, a division by a numeral, or a power with exponent in $`\mathbb{N}`$. Examples: $`x(x+1)`$ has form `x+x^2`, and $`(x+1)(x-1)`$ has form `x^2-1`.
+- *Field.* A fraction $`p/q`$ with $`\gcd(p, q) = 1`$ (now also over divisions and powers with exponent in $`\mathbb{Z}`$). A constant $`q`$ is divided into $`p`$, which gives a Ring form. Otherwise $`p`$ and $`q`$ are scaled to integer coefficients with no common factor, and the first term of $`q`$ positive, as in `Fraction Polynomial Integer`; the tree is `p/q`, with a leading unary minus of $`p`$ in parentheses (Disp). Examples: $`(2x+2)/(4x-4)`$ has form `(x+1)/(2*x-2)`, and $`x/(2y)`$ has form `x/(2*y)`, where M5 gives `((1/2)*x)/y`.
+
+The implementation computes Ring and Field in `Fraction Polynomial Fraction Integer`, with a fresh symbol for each atom, and rebuilds the result as above; (N2) for Field rests on FriCAS's polynomial gcd.
+
 In P4 a numeral times a sum is scalar multiplication, so $`2(x+y) = 2x + 2y`$ and $`0 \cdot x = 0`$ without `annihilation`. Other products of sums are distributivity, the Ring rung: $`x(y+1)`$ stays a product.
 
 **Linking axioms**, which relate $`+`$ and $`\cdot`$:
@@ -218,7 +223,7 @@ The Ring and Field rungs are not `Expression`. Their equality is polynomial (rat
 | `ring` | distributivity: polynomials in the atoms | `linear`, `powers` | Ring |
 | `field` | reduced fractions | `ring`, `quotients` | Field |
 
-$`A`$ is **admissible** if every name in it is a group of this table, and the groups it requires are in $`A`$ too. Requirements are listed, not implied, so the list shows everything that applies. A constructor rejects an inadmissible $`A`$ when it is instantiated, with an error naming the unknown group or the missing requirement. `GeneralSymbolicExpression` also rejects groups it does not implement yet (plan step 7). The empty list is rungs P0/M0: no rewriting. $`A_P`$, with or without `associativity`, is admissible (Theorem 3). AntiCommutative of 2017 is not a group: it is unsound for $`E`$ (§4.2) and has no rung yet.
+$`A`$ is **admissible** if every name in it is a group of this table, and the groups it requires are in $`A`$ too; moreover `ring` and `quotients` together require `field` (decision 0009, amended: without `field`, $`(y+1)^{-1}(y+1)`$ would distribute to $`(y+1)^{-1}y + (y+1)^{-1}`$ instead of becoming $`1`$). Requirements are listed, not implied, so the list shows everything that applies. A constructor rejects an inadmissible $`A`$ when it is instantiated, with an error naming the unknown group or the missing requirement. Both constructors implement every group (plan steps 3–5). The empty list is rungs P0/M0: no rewriting. $`A_P`$, with or without `associativity`, is admissible (Theorem 3). AntiCommutative of 2017 is not a group: it is unsound for $`E`$ (§4.2) and has no rung yet.
 
 ### 3.5 The structural term order $`\prec`$
 
