@@ -2,7 +2,7 @@
 
 Every labelled goal, condition, axiom group and result in the [specification](spec/sexpr-spec.md), with its section, its standing and the tests that check it. A row identifies a label; it does not carry its hypotheses, so read the section before relying on it.
 
-Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `sexpr2` is `src/input/sexpr2.input`. "—" means not yet tested.
+Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `symterm` is `src/input/symterm.input`. The 2017 `sexpr2.input` was retired with `Symbolic(R, A)` ([note](notes/2026-11-26-retiring-symbolic.md)). "—" means not yet tested.
 
 ## Goals
 
@@ -10,8 +10,8 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 |---|---|---|---|---|
 | G1 | §1 | Display as entered; what you see is what you get | Goal; made precise as (Disp) | gsexpr: "written form is kept"; "presentation axioms A_P" (near misses); "Disp: …" |
 | G2 | §1 | Same meaning as `Expression` | Goal | gsexpr: "equality and zero test agree" |
-| G3 | §1 | Purely syntactic work, $`1+2 \ne 3`$ | Goal | gsexpr: "identities only: numbers are not folded (G3)"; sexpr2: "ex1"; "G3: Symbolic(Integer, None) keeps the written form" |
-| G4 | §1 | Rewrite rules act on the written structure | Goal | gsexpr: "rewrite rules act on the expression as written"; sexpr2: "ex4" |
+| G3 | §1 | Purely syntactic work, $`1+2 \ne 3`$ | Goal | gsexpr: "identities only: numbers are not folded (G3)"; symterm: "ported from sexpr2 ex1"; "ported from sexpr2: G3, no groups keep the written form" |
+| G4 | §1 | Rewrite rules act on the written structure | Goal | gsexpr: "rewrite rules act on the expression as written"; for `SymbolicTerm`, open (plan §4) |
 | G5 | §1 | Axioms selectable per domain | Goal | gsexpr: the two A_P test cases (two parameter values) |
 | G6 | §1 | Library algorithms correct | Goal | gsexpr: "integration is correct"; "summation and limits are correct" |
 | G7 | §1 | Rewriting terminates and is deterministic | Goal | — (V4) |
@@ -27,7 +27,7 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | (Disp) | §5 | The one-line display reads back as the stored form | Required (Bill, 2026-11-26); holds for the 28 shapes and 12 mixed integer cases tested | gsexpr: "Disp: the displayed text reads back as the stored form" |
 | (Val) | §3.3 | Invariant: value = evaluation of form | Required of design (I) | gsexpr: `check` in "integration is correct", "summation and limits are correct", "rewrite rules …", "presentation axioms A_P" |
 | (N1), (N2), (N3) | §3.4 | A normaliser is correct and canonical, and preserves values when $`A`$ is sound | Required of every rung (decision 0008) | (N1), (N2): the rung tests below; (N3): gsexpr "linear, powers, quotients: (N3) on random terms" |
-| Rungs P0–P4, M0–M5, Ann, Ring, Field | §3.4 | The ladder of admissible axiom sets and their normal forms | All rungs in both constructors (P4: `linear`; M4: `powers`; M5: `quotients`; Ring: `ring`; Field: `field`) | symterm: "no groups: P0/M0"; "A_P groups"; "A_P with associativity"; "commutativity alone"; "commutativity with associativity" and "A_P with commutativity and associativity" (exhaustive: 4,200 and 8,400 terms); symterm: "linear: P4", "powers and quotients: M4, M5" (random property tests, 150 trials each), "powers without quotients", "linear with powers and quotients", "ring: polynomials over the atoms", "field: reduced fractions over the atoms" (property tests against `Polynomial Integer` and `Fraction Polynomial Integer`), "display reads back … under linear, powers, quotients"; gsexpr: "commutativity as a presentation group" (exhaustive, with (Val)), "linear, powers, quotients in GeneralSymbolicExpression"; sexpr2: "G3: …" (2017 `Symbolic`, P0/M0) |
+| Rungs P0–P4, M0–M5, Ann, Ring, Field | §3.4 | The ladder of admissible axiom sets and their normal forms | All rungs in both constructors (P4: `linear`; M4: `powers`; M5: `quotients`; Ring: `ring`; Field: `field`) | symterm: "no groups: P0/M0"; "A_P groups"; "A_P with associativity"; "commutativity alone"; "commutativity with associativity" and "A_P with commutativity and associativity" (exhaustive: 4,200 and 8,400 terms); symterm: "linear: P4", "powers and quotients: M4, M5" (random property tests, 150 trials each), "powers without quotients", "linear with powers and quotients", "ring: polynomials over the atoms", "field: reduced fractions over the atoms" (property tests against `Polynomial Integer` and `Fraction Polynomial Integer`), "display reads back … under linear, powers, quotients"; gsexpr: "commutativity as a presentation group" (exhaustive, with (Val)), "linear, powers, quotients in GeneralSymbolicExpression" |
 | Admissibility | §3.4 | Unknown groups, unimplemented groups, missing requirements, and `ring` with `quotients` but without `field`, are rejected at instantiation | Implemented (`SymbolicAxiomGroups`) in both constructors | symterm: "admissibility" |
 | Prop. 4, (Ord) | §3.5 | $`\prec`$ is a strict total order | Proved; implemented as `SymbolicTermOrder` (in `gsexpr.spad`) | gsexpr: "Ord: the term order is a strict total order" (37 terms, all pairs and triples) |
 | Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved | via (Val) |
@@ -46,5 +46,5 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | `linear` | §3.4 | Doubles, Cancels, signed sums, numeral times sum (rung P4) | Implemented (2026-11-26) | symterm: "linear: P4", "linear with powers and quotients"; gsexpr: "linear, powers, quotients …" |
 | `powers`, `quotients` | §3.4 | Squares; Divides with $`x/y \approx x \cdot y^{-1}`$ (rungs M4, M5) | Implemented (2026-11-26) | symterm: "powers and quotients: M4, M5", "powers without quotients"; gsexpr: "linear, powers, quotients …" |
 | `ring`, `field` | §3.4 | Distributivity: polynomials, and reduced fractions, over the atoms (rungs Ring, Field) | Implemented (2026-11-26); `ring` with `quotients` requires `field` | symterm: "ring: polynomials over the atoms", "field: reduced fractions over the atoms"; gsexpr: "ring and field in GeneralSymbolicExpression", "ring and field: (N3) on random terms" |
-| Doubles (2017) | §4.2 | Collect like terms | Coefficient-side bug fixed (2026-11-25); superseded by `linear` for design (II) | sexpr2: "Doubles: coefficient on either side" |
-| Commutative, Associative, Distributive, Cancels, Divides, Inverse, AntiCommutative (2017) | §4.2 | See the table in §4.2 | Under review for design (II) | sexpr2: "ex2" |
+| Doubles (2017) | §4.2 | Collect like terms | Superseded by `linear`; 2017 domain retired 2026-11-26 | symterm: "ported from sexpr2: Doubles, coefficient on either side" |
+| Commutative, Associative, Distributive, Cancels, Divides, Inverse, AntiCommutative (2017) | §4.2 | See the table in §4.2 | Retired 2026-11-26; mapped to groups in the [note](notes/2026-11-26-retiring-symbolic.md) | symterm: "ported from sexpr2 ex2, ex3" |

@@ -1,7 +1,7 @@
 # fricas-symbolic: build and test against an installed FriCAS (1.4.0 or later).
 #
 #   make check        compile each package and run its unit tests
-#   make check-gsexpr / make check-symterm / make check-sexpr   one package only
+#   make check-gsexpr / make check-symterm   one package only
 #   make lint         check the math in the markdown documents
 #   make clean
 #
@@ -15,9 +15,9 @@ FRICAS ?= fricas
 BUILD  := build
 TOP    := $(CURDIR)
 
-.PHONY: check check-gsexpr check-symterm check-sexpr lint clean
+.PHONY: check check-gsexpr check-symterm lint clean
 
-check: check-gsexpr check-symterm check-sexpr
+check: check-gsexpr check-symterm
 
 # $(1) = name, $(2) = spad files (compiled in order), $(3) = test file
 define fricas_check
@@ -34,8 +34,6 @@ check-gsexpr:
 check-symterm:
 	$(call fricas_check,symterm,src/algebra/gsexpr.spad src/algebra/symterm.spad,src/input/symterm.input)
 
-check-sexpr:
-	$(call fricas_check,sexpr,src/algebra/sexpr.spad,src/input/sexpr2.input)
 
 lint:
 	python3 tools/check_md_math.py docs/ references/ README.md ORIENTATION.md \
