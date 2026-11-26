@@ -24,7 +24,7 @@ Message numbers $`[n]`$ refer to the fricas-devel thread "Symbolic (unevaluated)
 
 | # | Goal | Source |
 |---|---|---|
-| G1 | **Display as entered.** "Unevaluated … with no automatic simplifications"; keep "the similarity of its input form". | Bill [0], Qian [3] |
+| G1 | **Display as entered.** "Unevaluated … with no automatic simplifications"; keep "the similarity of its input form". What the user sees is the stored structure ("what you see is what you get"); any change of structure is made by an axiom, never by the display. Made precise as (Disp), §5. | Bill [0], Qian [3]; Bill, 2026-11-26 |
 | G2 | **Same meaning as `Expression`.** Expressions "may be simplified, compared as and/or converted to fully evaluated expressions in the appropriate Expression domain"; `test(a = b)` decides equality of meaning. | Bill [0] |
 | G3 | **Purely syntactic work without an autonomous simplifier**, e.g. syntactic unification, where $`1+2 \neq 3`$. | Kurt [2], [32]; Bill [33] |
 | G4 | **Rewrite rules act on the written structure**, e.g. the SandBoxSymbolicTrig example. | Kurt (trig thread), Frangos |
@@ -89,7 +89,9 @@ FriCAS's `Ring` and `FunctionSpace` promise that $`=`$, `zero?`, `numer`, `denom
 - **Soundness for $`E`$** is required only for the conversion to `Expression`. $`A`$ may describe a different algebra, e.g. graded-commutative (§4.2); then no conversion to $`E`$ is offered.
 - **G3:** `Symbolic(R, None)` applies no rewriting at all; $`=_\emptyset`$ is syntactic identity of terms.
 
-### 3.3 Design (I): `SymbolicPair(R, A)`, a presentation of `Expression`
+### 3.3 Design (I): `GeneralSymbolicExpression(R, A)`, a presentation of `Expression`
+
+*Named `SymbolicPair` until 2026-11-26 (decision [0006](../decisions/0006-name.md)); older records and notes use that name.*
 
 **Carrier:**
 
@@ -158,8 +160,60 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 **Effect on the open questions.**
 - With $`A_P`$, `sum(x, 'x=1..10)` folds to `55`: the algorithm's arithmetic happens on numerals and on zero products.
-- `1+2` becomes `3` under Num. The choice is per domain: `SymbolicPair(R, Id)` keeps `1+2`, serving G1 and G3. `SymbolicExpression(R)` uses $`A_P`$ (decision 0002).
+- `1+2` becomes `3` under Num. The choice is per domain: `GeneralSymbolicExpression(R, Id)` keeps `1+2`, serving G1 and G3. `SymbolicExpression(R)` uses $`A_P`$ (decision 0002).
 - No rule in $`A_P`$ reorders or regroups what the user wrote, so G1 holds up to the removal of identities and the evaluation of pure numerals.
+
+### 4.1.1 The associativity group (Assoc), optional
+
+Not part of $`A_P`$ (decision [0005](../decisions/0005-associativity-group.md)): it regroups what was written, which $`A_P`$ never does. It is available as the axiom group `associativity`, to be added to $`A`$ by a user who wants chains flattened. Under (Disp) a flattened chain is then *stored* left-nested and displayed as `a+b+c`; the display itself never regroups.
+
+**Rules.** For $`\circ \in \{+, \cdot\}`$, applied at the root of a newly built node,
+
+```math
+\text{(A}_\circ\text{)}\qquad x \circ (y \circ z) \;\to\; (x \circ y) \circ z ,
+```
+
+```math
+\text{(AN}_\circ\text{)}\qquad (x \circ n) \circ m \;\to\; x \circ k, \qquad k = [\![\, n \circ m \,]\!] ,
+```
+
+where $`n, m`$ are numerals. (AN) is the completion of (A) with Num (Knuth–Bendix): without it, $`x+(1+2)`$ has two normal forms, $`x+3`$ (Num inside first) and $`(x+1)+2`$ (A at the root first), which are equal under the axioms. The group `associativity` consists of (A) and, when Num is also present, (AN).
+
+Only $`+`$ and $`\cdot`$ are associative; $`-`$, $`/`$ and $`\hat{}`$ get no rule, so $`a+(b-c)`$ and $`a\cdot(b/c)`$ keep their grouping.
+
+**Soundness.** $`E`$ is a field, so (A) holds for all values, with no side condition (neither side divides); (AN) is (A) read right to left followed by Num.
+
+**Termination.** The rules keep the size, so the size order of §4.1 does not apply. Let $`r(u)`$ be the right operand of a node $`u`$ and define
+
+```math
+\mu(t) \;=\; \sum_{u \in t,\ \mathrm{head}(u) \in \{+,\cdot\}} \lvert r(u) \rvert .
+```
+
+A step $`x \circ (y \circ z) \to (x \circ y) \circ z`$ changes only the root and its right child. Before, they contribute $`\lvert y \circ z\rvert + \lvert z\rvert = \lvert y\rvert + 2\lvert z\rvert + 1`$; after, the root and its new left child contribute $`\lvert z\rvert + \lvert y\rvert`$. So $`\mu`$ falls by $`\lvert z\rvert + 1 \ge 2`$, for every instance of $`x, y, z`$. The size is unchanged, so the contributions of all enclosing nodes are unchanged, and $`\mu`$ also falls in every context. Combined with §4.1, every rule of $`A_P \cup \mathrm{Assoc}`$ decreases the pair $`(\lvert t\rvert, \mu(t))`$ in the lexicographic order: the rules of $`A_P`$ and (AN) decrease $`\lvert t\rvert`$ (AN: from 5 to 3), and (A) keeps $`\lvert t\rvert`$ and decreases $`\mu`$. Every rule is linear and non-duplicating (each variable occurs once on each side), so this order is closed under contexts and substitutions and is well founded. Hence $`A_P \cup \mathrm{Assoc}`$ terminates.
+
+**Critical pairs.** All left sides stay linear, so it suffices to join the overlaps.
+
+| Overlap | One way | Other way |
+|---|---|---|
+| Assoc with itself: $`x \circ (y \circ (z \circ w))`$ | root first: $`(x \circ y) \circ (z \circ w) \to ((x \circ y) \circ z) \circ w`$ | inner first: $`x \circ ((y \circ z) \circ w) \to (x \circ (y \circ z)) \circ w \to ((x \circ y) \circ z) \circ w`$ |
+| with Id at the root: $`0 + (y+z)`$ | Id: $`y+z`$ | Assoc: $`(0+y)+z \to y+z`$ |
+| with Id inside: $`x + (0+z)`$, $`x+(y+0)`$ | Id: $`x+z`$, $`x+y`$ | Assoc: $`(x+0)+z \to x+z`$; $`(x+y)+0 \to x+y`$ |
+| the same for $`1`$ and $`\cdot`$ | | |
+| with Ann: $`0 \cdot (y \cdot z)`$, $`x \cdot (0 \cdot z)`$, $`x \cdot (y \cdot 0)`$ | Ann: $`0`$ | Assoc then Ann: $`(0\cdot y)\cdot z \to 0 \cdot z \to 0`$, and likewise |
+| (A) with Num at the root: $`n + (m+z)`$ | Num cannot fire at the root | (A): $`(n+m)+z \to k+z`$ with $`k = n+m`$ |
+| (A) with Num inside: $`x + (n+m)`$ | Num inside: $`x+k`$ | (A): $`(x+n)+m \to x+k`$ by (AN) — this pair is why (AN) is needed |
+| (AN) with (A): $`w + ((x+n)+m)`$ | (AN) inside: $`w+(x+k) \to (w+x)+k`$ | (A): $`(w+(x+n))+m \to ((w+x)+n)+m \to (w+x)+k`$ |
+| (AN) with itself: $`((x+p)+n)+m`$ | outer: $`(x+p)+k' \to x+k''`$ | inner: $`(x+k)+m \to x+k''`$, with $`k'' = p+n+m`$ either way |
+| (AN) with Num: $`(p+n)+m`$ | Num inside: $`q+m \to k''`$ | (AN): $`p+k \to k''`$ |
+| (AN) with Id: $`(x+0)+m`$, $`(x+n)+0`$ | Id: $`x+m`$, $`x+n`$ | (AN): $`x+m`$, $`x+n`$ |
+
+The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rewrites unary $`-`$ and $`/`$, which Assoc never matches, so there is no overlap. All pairs are joinable, so $`A_P \cup \mathrm{Assoc}`$ is confluent (Newman's lemma), and so is every union of its groups.
+
+**Remarks.**
+- The rule is not root-collapsing (§3.3): it builds a new inner node $`x \circ y`$, which must itself be normalised. Since the right operand of a normal $`\circ`$-node is never a $`\circ`$-node, the implementation is the recursion $`x \circ (y_1 \circ y_2) := (x \circ y_1) \circ y_2`$ through the domain's own operations, and it terminates by the measure above.
+- Numerals next to each other in a chain are folded, whatever the grouping: $`1+(2+x) \to 3+x`$, $`(x+1)+2 \to x+3`$. Numerals separated by another term, as in $`(1+x)+2`$, are not: joining them needs commutativity, which reorders what was written.
+- Check: for chains of four leaves, every bracketing must give the same form (test case "Assoc: all bracketings agree").
+- `isPlus` already gives the pattern matcher every term of a nested sum, so rewrite rules match either grouping with or without Assoc.
 
 ### 4.2 The 2017 axioms, assessed against (S), (T), (CR) and G1
 
@@ -188,9 +242,13 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 ## 5. Specification summary
 
 1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$. It requires (T) and (CR), modulo AC where C is present. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
-2. **`SymbolicPair(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
-3. **`SymbolicExpression(R)` $`:=`$ `SymbolicPair(R, A_P)`** with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
-4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value.
+2. **`GeneralSymbolicExpression(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
+3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
+4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy
+
+   **(Disp)** for every element $`p`$ built by the domain's own operations, reading back the one-line display gives the stored form: $`\mathrm{parse}(\mathrm{display}_{1D}(p)) = \mathrm{form}(p)`$,
+
+   where $`\mathrm{display}_{1D}`$ is the text the interpreter prints (`Format1D` after `precondition$OutputFormTools`) and $`\mathrm{parse}`$ is `parse$InputForm`. So the display may not regroup, drop or add structure: grouping that the reading conventions would not restore (e.g. $`a\cdot(b\cdot c)`$, $`a/(b/c)`$, $`a-(b+c)`$) is shown with parentheses, and flattening, if wanted, is an axiom (§4). Known exception: a negative integer literal is stored as one numeral and reads back as the negation of a positive one. The 2-D display is checked by eye against the same requirement.
 
 ## 6. Verification plan
 
@@ -198,7 +256,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 |---|---|---|
 | V1 invariant | (Val) $`[\![\mathrm{form}(p)]\!] = \mathrm{val}(p)`$ for every result in the test suite | an exported `check(p)`, a structural evaluator $`T \to E`$ with no interpreter; called on every test result |
 | V2 rules | each rule of $`A`$ fires where it should and nowhere else | `testEquals` on forms, plus `xftest…` for near misses |
-| V3 algorithms | integrals verified by differentiating back, sums against closed forms, limits, linear algebra | as in `sympair.input` |
+| V3 algorithms | integrals verified by differentiating back, sums against closed forms, limits, linear algebra | as in `gsexpr.input` |
 | V4 properties | for random terms $`t`$: $`[\![\mathrm{nf}_A t]\!] = [\![t]\!]`$, $`\mathrm{nf}_A(\mathrm{nf}_A t) = \mathrm{nf}_A t`$, and confluence (normal form independent of construction order) | a random term generator in a FriCAS `.input` file |
 | V5 formal, (I) | Lean 4 with Mathlib: `inductive Term`; `eval : Term → K` into a field; `nf : Term → Term`. Prove (a) each rule of $`A_P`$ sound, (b) termination of `nf` (structural or size measure), (c) `eval (nf t) = eval t`, i.e. (Val), (d) `nf (nf t) = nf t`. | Mathlib's total division ($`x/0 = 0`$) differs from $`E`$'s partiality, so soundness lemmas must carry side conditions (e.g. $`1/(1/x) = x`$ holds in Mathlib for all $`x`$, but Cancels' $`x/x = 1`$ needs $`x \ne 0`$). This makes the partiality explicit. |
 | V5 formal, (II) | termination and confluence modulo AC of larger axiom sets | rewriting tools: Maude (Church–Rosser checker, AC), AProVE or TTT2 (termination), CSI with CeTA (certified confluence). Not installed yet; would be added to the container if wanted. |
@@ -207,7 +265,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 1. Accept the two-constructor specification (§5) as the reference design.
 2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
-3. Whether (I) also flattens associative chains (display-neutral regrouping).
+3. ~~Whether $`A_P`$ should include an associativity axiom~~ Decided: no; it is the optional group Assoc, §4.1.1 (decision [0005](../decisions/0005-associativity-group.md)).
 4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
 5. Clean-up of `Symbolic(R, A)` for (II): remove the hidden rewrites (§4.2), fix Doubles, and decide the AC strategy (design review, Q4).
 
@@ -217,12 +275,12 @@ The runs named below were made on the project's FriCAS server before this reposi
 
 | Item | Branch / run | Result |
 |---|---|---|
-| `SymbolicPair(R, A)` with `A` any subset of `[identities, annihilation, involutions, numerals]`; `check` (V1); display from the tree | commit `f634bde`; run `ASUS-20261125-163109-sympair-axioms-recorded2` | 55 tests: 0 unexpected failures, 8 expected failures, 0 unexpected passes |
+| `GeneralSymbolicExpression(R, A)` with `A` any subset of `[identities, annihilation, involutions, numerals]`; `check` (V1); display from the tree | commit `f634bde`; run `ASUS-20261125-163109-sympair-axioms-recorded2` | 55 tests: 0 unexpected failures, 8 expected failures, 0 unexpected passes |
 | `sum(x, 'x=1..10)` with $`A_P`$ | same | form `55` |
-| `SymbolicPair(Integer, [identities])` keeps `1+2`, `0*x`, `-(-x)` (G3) | same | as specified |
+| `GeneralSymbolicExpression(Integer, [identities])` keeps `1+2`, `0*x`, `-(-x)` (G3) | same | as specified |
 | Doubles: coefficient on either side (§4.2) | commit `b4dff36`; run `ASUS-20261125-163304-sexpr-doubles-recorded` | `2*x+3*x` → `5*x`; 53 tests, 0 unexpected failures |
 
-Display (§5.4) needed explicit parentheses for two reasons. First, FriCAS 1.4.0's 1-D formatter prints `a-(b+c)` as `a-b+c` (run `ASUS-20261125-163021-format1d-minus-paren`); 2-D output is correct. Second, `OutputForm`'s unary minus cancels `-(-a)`, which would hide the written form in `SymbolicPair(R, [identities])`.
+Display (§5.4) needed explicit parentheses for two reasons. First, FriCAS 1.4.0's 1-D formatter prints `a-(b+c)` as `a-b+c` (run `ASUS-20261125-163021-format1d-minus-paren`); 2-D output is correct. Second, `OutputForm`'s unary minus cancels `-(-a)`, which would hide the written form in `GeneralSymbolicExpression(R, [identities])`.
 
 The form of `sum(x, 'x)` is `(x-1)*(1/2+1/2*(x-1))`, the construction of FriCAS's summation algorithm. $`A_P`$ does not and should not tidy it further; its value is correct (`check` holds).
 

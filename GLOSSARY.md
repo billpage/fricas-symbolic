@@ -13,7 +13,7 @@ Terms as used in this repository, with where each is defined. Section numbers re
 | **sound** (S) | Every instance of every axiom holds in `Expression` where defined. | §2.3 |
 | **normal form** $`\mathrm{nf}_A`$ | The result of rewriting with $`A`$ oriented left to right until no rule applies. | §2.4 |
 | **terminating** (T), **confluent** (CR) | Rewriting always stops; and the normal form does not depend on the order of rewriting. | §2.4 |
-| **design (I)**, **presentation** | `SymbolicPair(R, A)`: pairs (form, value); equality is semantic. | §3.3 |
+| **design (I)**, **presentation** | `GeneralSymbolicExpression(R, A)`: pairs (form, value); equality is semantic. | §3.3 |
 | **design (II)** | `Symbolic(R, A)`: terms modulo $`A`$; equality is $`=_A`$. | §3.2 |
 | **invariant (Val)** | In design (I), the stored value equals the evaluation of the stored form. `check(x)` tests it. | §3.3 |
 | **structural / semantic primitives** | In design (I), `isPlus`, `isTimes`, `isPower` and operator kernels read the form; `=`, `zero?`, `numer`, `denom`, `kernels` read the value. | §3.3 |

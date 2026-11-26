@@ -1,11 +1,12 @@
-)abbrev domain SYMPAIR SymbolicPair
+)abbrev domain GSEXPR GeneralSymbolicExpression
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
 ++ Description:
 ++ Prototype of design (I) in the specification docs/spec/sexpr-spec.md
-++ of fricas-symbolic: SymbolicPair(R, A) is a presentation of Expression R.
+++ of fricas-symbolic: GeneralSymbolicExpression(R, A) is a presentation of Expression R.
 ++ A lists the groups of presentation axioms applied when a node is built
-++ (spec section 4.1): identities, annihilation, involutions, numerals.
+++ (spec section 4.1): identities, annihilation, involutions, numerals,
+++ and optionally associativity (spec section 4.1.1).
 ++ From Option (c) of the sexpr design review: a FunctionSpace
 ++ whose elements carry their written form together with their value in
 ++ Expression R.  Each element is a node (head, operands) with its form
@@ -16,7 +17,7 @@
 ++ follow the written tree, so rewrite rules act on the expression as
 ++ written.  Elements produced by library algorithms carry the form of
 ++ their value (head %lift) and decompose like Expression R.
-SymbolicPair(R, A) : Exports == Implementation where
+GeneralSymbolicExpression(R, A) : Exports == Implementation where
   A : List Symbol
   R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
            PolynomialFactorizationExplicit, RetractableTo Integer,
@@ -141,6 +142,7 @@ SymbolicPair(R, A) : Exports == Implementation where
     ANN ==> member?('annihilation, A)
     INV ==> member?('involutions, A)
     NUM ==> member?('numerals, A)
+    ASSOC ==> member?('associativity, A)
     lit?(x : %, n : Integer) : Boolean ==
         f := form x
         integer?(f)$IF and integer(f)$IF = n
@@ -152,6 +154,12 @@ SymbolicPair(R, A) : Exports == Implementation where
         NUM and numeral? x and numeral? y => lift v
         ID and lit?(x, 0) => y
         ID and lit?(y, 0) => x
+        -- Assoc (spec 4.1.1): (A) x+(y1+y2) -> (x+y1)+y2, and its completion
+        -- with Num, (AN) (x1+n)+m -> x1+(n+m), through + itself, so the new
+        -- inner node is normalised too
+        ASSOC and hd y = '_+ => (x + first kids y) + second kids y
+        ASSOC and NUM and numeral? y and hd x = '_+ and
+          numeral? second kids x => first kids x + (second kids x + y)
         arith('_+, [x, y], v)
     - x : % ==
         v := - value x
@@ -170,6 +178,9 @@ SymbolicPair(R, A) : Exports == Implementation where
         ANN and (lit?(x, 0) or lit?(y, 0)) => lift(0$E)
         ID and lit?(x, 1) => y
         ID and lit?(y, 1) => x
+        ASSOC and hd y = '_* => (x * first kids y) * second kids y
+        ASSOC and NUM and numeral? y and hd x = '_* and
+          numeral? second kids x => first kids x * (second kids x * y)
         arith('_*, [x, y], v)
     x : % / y : % ==
         v := value x / value y
@@ -181,6 +192,13 @@ SymbolicPair(R, A) : Exports == Implementation where
     n : Integer * x : % == (n::%) * x
     n : NonNegativeInteger * x : % == (n::Integer) * x
     n : PositiveInteger * x : % == (n::Integer) * x
+    -- right multiplication keeps the written order (G1, Disp): the
+    -- category defaults would compute x*n as n*x
+    x : % * n : Integer == x * (n::%)
+    x : % * r : R == x * (r::%)
+    r : R * x : % == (r::%) * x
+    x : % * q : RN == x * (q::%)
+    q : RN * x : % == (q::%) * x
     x : % ^ n : Integer ==
         v := value x ^ n
         NUM and numeral? x => lift v
@@ -387,8 +405,10 @@ SymbolicPair(R, A) : Exports == Implementation where
 
     -- display (spec section 5.4): built from the written tree; leaves and
     -- results of library algorithms show Expression's own output
-    -- Explicit parentheses: the 1-D formatter of FriCAS 1.4.0 prints
-    -- a-(b+c) as a-b+c, and OutputForm's unary minus cancels -(-a).
+    -- Explicit parentheses, so that the displayed text reads back as the
+    -- stored form (spec property Disp): the 1-D formatter of FriCAS 1.4.0
+    -- prints a-(b+c) as a-b+c, a*(b*c) as a*b*c and a/(b/c) as a/b/c, and
+    -- OutputForm's unary minus cancels -(-a).
     -- prec: 1 sums, differences, negations; 2 products, quotients;
     -- 3 powers; 4 atoms and function applications.
     precF(f : IF) : Integer ==
@@ -412,8 +432,11 @@ SymbolicPair(R, A) : Exports == Implementation where
         h = '_- =>
             #l = 1 => - pOut(first l, 1)
             (first l)::OutputForm - pOut(second l, 1)
-        h = '_* => pOut(first l, 1) * pOut(second l, 1)
-        h = '_/ => (first l)::OutputForm / (second l)::OutputForm
+        h = '_* => pOut(first l, 1) * pOut(second l, 2)
+        h = '_/ =>
+            r := second l
+            hd r = '_/ => (first l)::OutputForm / paren(r::OutputForm)
+            (first l)::OutputForm / r::OutputForm
         h = '_^ => pOut(first l, 3) ^ (second l)::OutputForm
         prefix(h::OutputForm, [a::OutputForm for a in l])
 
