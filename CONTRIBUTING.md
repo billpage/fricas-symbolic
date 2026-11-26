@@ -33,7 +33,7 @@ Contributions of every size are welcome: a question, a counterexample, a test, a
 ## Conventions
 
 - **Spad** follows FriCAS's own style: `++` documentation on every export, upstream naming, no project-specific comments in code that may go upstream.
-- **Tests** use `)expose UnittestCount UnittestAux Unittest`, `testsuite`/`testcase`/`testTrue`/`testEquals`, and end with `statistics()`. `testsuite` and `testcase` clear macros as well as variables, so write domain names in full inside each test case.
+- **Tests** live in `src/input/`, one file per package (`gsexpr.input`, `symterm.input`, `sexpr2.input`), each run by a `make check-…` target. They use `)expose UnittestCount UnittestAux Unittest`, `testsuite`/`testcase`/`testTrue`/`testEquals`, and end with `statistics()`. `testsuite` and `testcase` clear macros as well as variables, so write domain names in full inside each test case.
 - **Math in markdown** uses GitHub's forms: inline $`…`$ in backtick-dollar form, display math in fenced `math` blocks. `make lint` checks it (needs `npm install --no-save katex mathjax-full` once for the rendering checks). CI runs it too.
 - **Commits:** one topic per branch and pull request; messages say what and why.
 

@@ -20,6 +20,42 @@ GSEXPRCAT ==> Join(AlgebraicallyClosedFunctionSpace R,
     ++ form of x, evaluated structurally in Expression R, equals the
     ++ value of x.
 
+)abbrev package SYMGRP SymbolicAxiomGroups
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ The axiom groups of fricas-symbolic (spec section 3.4, decision 0009):
+++ their names, the groups each requires, and the admissibility check that
+++ GeneralSymbolicExpression and SymbolicTerm run when instantiated.
+SymbolicAxiomGroups() : with
+    groups : () -> List Symbol
+      ++ groups() lists all known axiom groups.
+    requires : Symbol -> List Symbol
+      ++ requires(g) lists the groups that must accompany g.
+    checkGroups : (String, List Symbol, List Symbol) -> Void
+      ++ checkGroups(who, a, impl) signals an error, naming who, if a
+      ++ contains an unknown group, a group not in impl (not implemented
+      ++ by who), or a group without one of the groups it requires.
+  == add
+    groups() == ['identities, 'annihilation, 'involutions, 'numerals, 'associativity, 'commutativity, 'linear, 'powers, 'quotients, 'ring, 'field]
+    requires(g : Symbol) : List Symbol ==
+        g = 'linear or g = 'powers =>
+            ['commutativity, 'associativity, 'identities, 'numerals]
+        g = 'quotients => ['powers]
+        g = 'ring => ['linear, 'powers]
+        g = 'field => ['ring, 'quotients]
+        empty()
+    checkGroups(who : String, a : List Symbol, impl : List Symbol) : Void ==
+        known := groups()
+        for g in a repeat
+            if not member?(g, known) then
+                error concat([who, ": unknown axiom group ", string g])
+            if not member?(g, impl) then
+                error concat([who, ": axiom group ", string g, " is not implemented yet"])
+            for r in requires g repeat
+                if not member?(r, a) then
+                    error concat([who, ": axiom group ", string g, " requires ", string r])
+
 )abbrev domain GSEXPR GeneralSymbolicExpression
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
@@ -60,6 +96,9 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
   Exports ==> GSEXPRCAT
 
   Implementation ==> add
+    -- admissibility of A (spec 3.4, decision 0009), at instantiation
+    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity]
+    checkGroups("GeneralSymbolicExpression", A, IMPL)$SymbolicAxiomGroups
     -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
     -- operator nodes (opr holds the operator); %lift for leaves and
     -- elements made from a value.

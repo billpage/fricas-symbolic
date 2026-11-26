@@ -12,7 +12,7 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 |---|---|---|---|
 | `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
 | `SymbolicExpression(R)` | `src/algebra/gsexpr.spad` | `GeneralSymbolicExpression(R, A)` with the default axioms $`A_P`$ (decision 0002) | Passes its tests |
-| `SymbolicTerm(R, A)` | (planned) | Design (II): terms modulo the axiom groups $`A`$, on the ladder of normal forms (decisions 0008, 0009) | Planned; step 1 (term order) done |
+| `SymbolicTerm(R, A)` | `src/algebra/symterm.spad` | Design (II): terms modulo the axiom groups $`A`$, equality by identity of normal forms (decisions 0008, 0009) | Groups of $`A_P`$ and `associativity` (plan step 2); higher rungs to come |
 | `Symbolic(R, A)` and the axiom domains | `src/algebra/sexpr.spad` | Bill Page's 2016–17 implementation, to be retired by `SymbolicTerm` (plan step 6), ported to FriCAS 1.4.0; equality modulo the axioms $`A`$. Spec §3.2, design (II), to be rebuilt on canonical forms ([note](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md)). | Ported; rewrites only by its axioms since 2026-11-26 |
 
 [`ORIENTATION.md`](ORIENTATION.md) explains the goals, what is settled and what is open, and where to start reading.
@@ -48,7 +48,7 @@ integrate(sin(x)*cos(x), 'x)   -- correct, unlike the 2017 domain
 | `docs/decisions/` | Numbered decision records: what was decided, by whom, why, and what it rules out. |
 | `docs/notes/` | Analyses and design notes. Not normative; the specification wins where they differ. |
 | `docs/INDEX.md` | Every labelled goal, axiom and result in the specification, with its section, its standing and the tests that check it. |
-| `src/algebra/` | Spad source, as in FriCAS. |
+| `src/algebra/` | Spad source, as in FriCAS: `gsexpr.spad` (`GeneralSymbolicExpression`, `SymbolicExpression`, `SymbolicAxiomGroups`), `symterm.spad` (`SymbolicTerm`, needs `gsexpr.spad` compiled first), `sexpr.spad` (the 2017 `Symbolic` and `SymbolicTermOrder`). |
 | `src/input/` | Tests, written with FriCAS's unit-test package, as in FriCAS's `src/input`. |
 | `references/` | Bibliography. |
 | `tools/` | `check_summary.py` (judges a test log) and `check_md_math.py` (checks math in the markdown). |

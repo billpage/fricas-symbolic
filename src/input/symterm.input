@@ -1,0 +1,87 @@
+-- Tests for SymbolicTerm(R, A) (src/algebra/symterm.spad): design (II) of
+-- the specification docs/spec/sexpr-spec.md, sections 3.2 and 3.4, with
+-- axiom groups named in a list (decision 0009).  Equality is equality
+-- modulo A: identity of normal forms.
+--
+-- Run with `make check` (also run by CI), or in a FriCAS session:
+--   )compile src/algebra/gsexpr.spad
+--   )compile src/algebra/symterm.spad
+--   )read src/input/symterm.input
+-- testsuite and testcase clear macros as well as variables, so each test
+-- case writes the domain in full.
+
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "SymbolicTerm"
+
+testcase "no groups: P0/M0, nothing is rewritten (spec 3.4, G3)"
+(x, y) : SymbolicTerm(Integer, [])
+x := 'x; y := 'y
+testTrue("not (x+0 = x)@Boolean")
+testTrue("not (0*x = 0)@Boolean")
+testTrue("not ((1::SymbolicTerm(Integer, []))+2 = 3)@Boolean")
+testTrue("not (-(-x) = x)@Boolean")
+testTrue("not (x+y = y+x)@Boolean")
+testTrue("(x+y = x+y)@Boolean")
+testTrue("(unparse(form(x+0)) = _"x+0_")@Boolean")
+xftestTrue("(x+0 = x)@Boolean")
+
+testcase "A_P groups: equality modulo identities, annihilation, involutions, numerals"
+(x, y) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y
+testTrue("(x+0 = x)@Boolean")
+testTrue("(1*x = x)@Boolean")
+testTrue("(x^1 = x)@Boolean")
+testTrue("(0*x = 0)@Boolean")
+testTrue("(-(-x) = x)@Boolean")
+testTrue("(1/(1/x) = x)@Boolean")
+testTrue("((1::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals]))+2 = 3)@Boolean")
+-- no commutativity or associativity: these stay different
+testTrue("not (x+y = y+x)@Boolean")
+testTrue("not ((x+1)+2 = x+3)@Boolean")
+testTrue("not (x+(y+1) = (x+y)+1)@Boolean")
+-- equality modulo A is not equality of value
+testTrue("not ((x+1)^2 - (x^2+2*x+1) = 0)@Boolean")
+testTrue("zero?((((x+1)^2 - (x^2+2*x+1))::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals]))::Expression(Integer))")
+xftestTrue("(x+y = y+x)@Boolean")
+
+testcase "A_P with associativity (spec 4.1.1)"
+(w, x, y) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])
+w := 'w; x := 'x; y := 'y
+testTrue("(x+(y+w) = (x+y)+w)@Boolean")
+testTrue("(x*(y*w) = (x*y)*w)@Boolean")
+testTrue("((x+1)+2 = x+3)@Boolean")
+testTrue("(x+(1+2) = x+3)@Boolean")
+testTrue("not ((1+x)+2 = x+3)@Boolean")
+testTrue("not (x+y = y+x)@Boolean")
+
+testcase "conversion to Expression keeps the value (spec 3.4, N3)"
+(x, y) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])
+x := 'x; y := 'y
+testTrue("(((x+y)+0)::Expression(Integer) = (y+x)::Expression(Integer))@Boolean")
+testTrue("((x*(y*1))::Expression(Integer) = (y*x)::Expression(Integer))@Boolean")
+testTrue("((sin(x)^2)::Expression(Integer) = sin(('x)::Expression(Integer))^2)@Boolean")
+
+testcase "display reads back as the normal form (Disp)"
+(x, y) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])
+x := 'x; y := 'y
+rt(t : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
+testTrue("rt(x+(y+1)) and rt(x-(y-1)) and rt(x*(y/2)) and rt(sin(x+y)^2)")
+
+testcase "admissibility (spec 3.4, decision 0009)"
+-- unknown group, not yet implemented group, both constructors
+testLibraryError("('x)::SymbolicTerm(Integer, [identity])")
+testLibraryError("('x)::SymbolicTerm(Integer, [commutativity])")
+testLibraryError("('x)::GeneralSymbolicExpression(Integer, [identity])")
+testLibraryError("('x)::GeneralSymbolicExpression(Integer, [commutativity])")
+-- requirements, checked with every group taken as implemented
+testLibraryError("checkGroups(_"test_", [linear], groups())$SymbolicAxiomGroups")
+testLibraryError("checkGroups(_"test_", [quotients, commutativity, associativity, identities, numerals], groups())$SymbolicAxiomGroups")
+testTrue("(checkGroups(_"test_", [linear, commutativity, associativity, identities, numerals], groups())$SymbolicAxiomGroups; true)")
+testTrue("(checkGroups(_"test_", [field, ring, quotients, powers, linear, commutativity, associativity, identities, numerals], groups())$SymbolicAxiomGroups; true)")
+-- admissible lists are accepted
+testTrue("(unparse(form(('x)::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity]))) = _"x_")@Boolean")
+testTrue("(unparse(form(('x)::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]))) = _"x_")@Boolean")
+
+statistics()
