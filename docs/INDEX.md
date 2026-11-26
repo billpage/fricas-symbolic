@@ -8,7 +8,7 @@ Tests are named by file and `testcase`: `sympair` is `src/input/sympair.input`, 
 
 | Label | Section | Says | Standing | Tests |
 |---|---|---|---|---|
-| G1 | §1 | Display as entered | Goal | sympair: "written form is kept"; "presentation axioms A_P" (near misses) |
+| G1 | §1 | Display as entered; what you see is what you get | Goal; made precise as (Disp) | sympair: "written form is kept"; "presentation axioms A_P" (near misses); "Disp: …" |
 | G2 | §1 | Same meaning as `Expression` | Goal | sympair: "equality and zero test agree" |
 | G3 | §1 | Purely syntactic work, $`1+2 \ne 3`$ | Goal | sympair: "identities only: numbers are not folded (G3)"; sexpr2: "ex1" |
 | G4 | §1 | Rewrite rules act on the written structure | Goal | sympair: "rewrite rules act on the expression as written"; sexpr2: "ex4" |
@@ -24,6 +24,7 @@ Tests are named by file and `testcase`: `sympair` is `src/input/sympair.input`, 
 | (S) | §2.3 | Soundness of an axiom set for `Expression` | Definition | — |
 | Lemma 1 | §2.3 | (S) implies $`=_A \subseteq \equiv`$ | Proved | — |
 | (T), (CR) | §2.4 | Termination; confluence | Definitions | — |
+| (Disp) | §5 | The one-line display reads back as the stored form | Required (Bill, 2026-11-26); holds for the 28 shapes tested | sympair: "Disp: the displayed text reads back as the stored form" |
 | (Val) | §3.3 | Invariant: value = evaluation of form | Required of design (I) | sympair: `check` in "integration is correct", "summation and limits are correct", "rewrite rules …", "presentation axioms A_P" |
 | Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved | via (Val) |
 | Theorem 3 | §4.1 | $`A_P`$ sound, terminating, confluent | Proved (sketch: critical pairs listed) | — (V4: confluence by construction order; V5: Lean) |

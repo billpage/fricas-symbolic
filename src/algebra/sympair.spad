@@ -387,8 +387,10 @@ SymbolicPair(R, A) : Exports == Implementation where
 
     -- display (spec section 5.4): built from the written tree; leaves and
     -- results of library algorithms show Expression's own output
-    -- Explicit parentheses: the 1-D formatter of FriCAS 1.4.0 prints
-    -- a-(b+c) as a-b+c, and OutputForm's unary minus cancels -(-a).
+    -- Explicit parentheses, so that the displayed text reads back as the
+    -- stored form (spec property Disp): the 1-D formatter of FriCAS 1.4.0
+    -- prints a-(b+c) as a-b+c, a*(b*c) as a*b*c and a/(b/c) as a/b/c, and
+    -- OutputForm's unary minus cancels -(-a).
     -- prec: 1 sums, differences, negations; 2 products, quotients;
     -- 3 powers; 4 atoms and function applications.
     precF(f : IF) : Integer ==
@@ -412,8 +414,11 @@ SymbolicPair(R, A) : Exports == Implementation where
         h = '_- =>
             #l = 1 => - pOut(first l, 1)
             (first l)::OutputForm - pOut(second l, 1)
-        h = '_* => pOut(first l, 1) * pOut(second l, 1)
-        h = '_/ => (first l)::OutputForm / (second l)::OutputForm
+        h = '_* => pOut(first l, 1) * pOut(second l, 2)
+        h = '_/ =>
+            r := second l
+            hd r = '_/ => (first l)::OutputForm / paren(r::OutputForm)
+            (first l)::OutputForm / r::OutputForm
         h = '_^ => pOut(first l, 3) ^ (second l)::OutputForm
         prefix(h::OutputForm, [a::OutputForm for a in l])
 

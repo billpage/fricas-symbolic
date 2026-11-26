@@ -24,7 +24,7 @@ Message numbers $`[n]`$ refer to the fricas-devel thread "Symbolic (unevaluated)
 
 | # | Goal | Source |
 |---|---|---|
-| G1 | **Display as entered.** "Unevaluated … with no automatic simplifications"; keep "the similarity of its input form". | Bill [0], Qian [3] |
+| G1 | **Display as entered.** "Unevaluated … with no automatic simplifications"; keep "the similarity of its input form". What the user sees is the stored structure ("what you see is what you get"); any change of structure is made by an axiom, never by the display. Made precise as (Disp), §5. | Bill [0], Qian [3]; Bill, 2026-11-26 |
 | G2 | **Same meaning as `Expression`.** Expressions "may be simplified, compared as and/or converted to fully evaluated expressions in the appropriate Expression domain"; `test(a = b)` decides equality of meaning. | Bill [0] |
 | G3 | **Purely syntactic work without an autonomous simplifier**, e.g. syntactic unification, where $`1+2 \neq 3`$. | Kurt [2], [32]; Bill [33] |
 | G4 | **Rewrite rules act on the written structure**, e.g. the SandBoxSymbolicTrig example. | Kurt (trig thread), Frangos |
@@ -190,7 +190,11 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$. It requires (T) and (CR), modulo AC where C is present. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
 2. **`SymbolicPair(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
 3. **`SymbolicExpression(R)` $`:=`$ `SymbolicPair(R, A_P)`** with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
-4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value.
+4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy
+
+   **(Disp)** for every element $`p`$ built by the domain's own operations, reading back the one-line display gives the stored form: $`\mathrm{parse}(\mathrm{display}_{1D}(p)) = \mathrm{form}(p)`$,
+
+   where $`\mathrm{display}_{1D}`$ is the text the interpreter prints (`Format1D` after `precondition$OutputFormTools`) and $`\mathrm{parse}`$ is `parse$InputForm`. So the display may not regroup, drop or add structure: grouping that the reading conventions would not restore (e.g. $`a\cdot(b\cdot c)`$, $`a/(b/c)`$, $`a-(b+c)`$) is shown with parentheses, and flattening, if wanted, is an axiom (§4). Known exception: a negative integer literal is stored as one numeral and reads back as the negation of a positive one. The 2-D display is checked by eye against the same requirement.
 
 ## 6. Verification plan
 
@@ -207,7 +211,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 1. Accept the two-constructor specification (§5) as the reference design.
 2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
-3. Whether (I) also flattens associative chains (display-neutral regrouping).
+3. Whether $`A_P`$ should include an associativity axiom (flattening is an axiom, not a display choice: decision [0004](../decisions/0004-display-shows-structure.md)).
 4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
 5. Clean-up of `Symbolic(R, A)` for (II): remove the hidden rewrites (§4.2), fix Doubles, and decide the AC strategy (design review, Q4).
 

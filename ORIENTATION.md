@@ -35,7 +35,8 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 |---|---|---|
 | Two constructors, one equality each (Option (c)) | Decided by Bill Page, 2026-11-25 | [decision 0001](docs/decisions/0001-two-constructors.md) |
 | Presentation axioms $`A_P`$ = identities, annihilation, involutions, numerals, the default for `SymbolicExpression(R)` | Decided by Bill Page, 2026-11-25; sound, terminating and confluent (spec Theorem 3); implemented in `SymbolicPair` | [decision 0002](docs/decisions/0002-presentation-axioms.md), spec §4.1 |
-| Whether display flattens associative chains | Open | spec §7 |
+| The display shows the stored structure exactly, property (Disp) | Decided by Bill Page, 2026-11-26 | [decision 0004](docs/decisions/0004-display-shows-structure.md), spec §5 |
+| Whether $`A_P`$ includes an associativity axiom | Open | spec §7 |
 | The 2017 axioms (commutativity, doubles, distributivity, …) in `Symbolic(R, A)` | Open: need AC-compatible ordering and a confluence check | spec §4.2 |
 | Rewrites the 2017 code applies outside its axiom system | To be removed or made axioms | spec §4.2 |
 | 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `SymbolicPair` | [design review](docs/notes/2026-11-24-design-review.md) |
