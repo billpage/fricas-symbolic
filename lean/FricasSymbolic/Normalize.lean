@@ -79,16 +79,16 @@ def snd : Term → Term
   | t => t
 
 theorem size_fst_lt_of_isAdd {t : Term} (h : t.isAdd = true) : t.fst.size < t.size := by
-  cases t <;> simp_all [isAdd, fst, size] <;> omega
+  cases t <;> simp_all [isAdd, fst, size]; omega
 
 theorem size_snd_lt_of_isAdd {t : Term} (h : t.isAdd = true) : t.snd.size < t.size := by
-  cases t <;> simp_all [isAdd, snd, size] <;> omega
+  cases t <;> simp_all [isAdd, snd, size]; omega
 
 theorem size_fst_lt_of_isMul {t : Term} (h : t.isMul = true) : t.fst.size < t.size := by
-  cases t <;> simp_all [isMul, fst, size] <;> omega
+  cases t <;> simp_all [isMul, fst, size]; omega
 
 theorem size_snd_lt_of_isMul {t : Term} (h : t.isMul = true) : t.snd.size < t.size := by
-  cases t <;> simp_all [isMul, snd, size] <;> omega
+  cases t <;> simp_all [isMul, snd, size]; omega
 
 theorem size_of_isNum {t : Term} (h : t.isNum = true) : t.size = 1 := by
   cases t <;> simp_all [isNum, size]

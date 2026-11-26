@@ -2,3 +2,4 @@ import FricasSymbolic.Term
 import FricasSymbolic.Eval
 import FricasSymbolic.Normalize
 import FricasSymbolic.Form
+import FricasSymbolic.CrossCheck
