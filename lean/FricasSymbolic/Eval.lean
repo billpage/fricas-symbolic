@@ -1,5 +1,4 @@
 import FricasSymbolic.Term
-import Mathlib.Algebra.CharZero.Lemmas
 import Mathlib.Algebra.Field.Rat
 
 /-!
