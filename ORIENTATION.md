@@ -40,7 +40,7 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 | The 2017 axioms (commutativity, doubles, distributivity, …) in `Symbolic(R, A)` | Open: need AC-compatible ordering and a confluence check | spec §4.2 |
 | Rewrites the 2017 code applied outside its axiom system | Removed or tied to axioms, 2026-11-26 | [decision 0007](docs/decisions/0007-symbolic-hidden-rewrites.md), spec §4.2 |
 | `SymbolicExpression(R)` = `GeneralSymbolicExpression(R, A_P)` | Implemented, 2026-11-26 | decision 0007 |
-| `Symbolic(R, A)` rebuilt on canonical forms (the ladder of axiom sets) | Proposed | [note of 2026-11-26](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md) |
+| `Symbolic(R, A)` rebuilt on canonical forms: one library of normalisers shared by both constructors, the ladder of axiom sets, the term order | Decided by Bill Page, 2026-11-26; [plan](docs/plans/symbolic-ladder.md) not started | [decision 0008](docs/decisions/0008-ladder-of-normalisers.md), spec §3.4–3.5 |
 | 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `GeneralSymbolicExpression` | [design review](docs/notes/2026-11-24-design-review.md) |
 
 ## 4. Where to start

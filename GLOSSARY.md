@@ -15,6 +15,10 @@ Terms as used in this repository, with where each is defined. Section numbers re
 | **terminating** (T), **confluent** (CR) | Rewriting always stops; and the normal form does not depend on the order of rewriting. | §2.4 |
 | **design (I)**, **presentation** | `GeneralSymbolicExpression(R, A)`: pairs (form, value); equality is semantic. | §3.3 |
 | **design (II)** | `Symbolic(R, A)`: terms modulo $`A`$; equality is $`=_A`$. | §3.2 |
+| **normaliser** $`N_A`$ | A function on terms that is correct ($`N_A(t) =_A t`$) and canonical (equal under $`A`$ ⇒ identical results): (N1), (N2). | §3.4 |
+| **rung**, **ladder** | An admissible axiom set for one operator (P0–P4 for $`+`$, M0–M5 for $`\cdot`$), with its canonical form; the rungs and linking axioms form a lattice. | §3.4 |
+| **atom** | A normal form whose head is not the operator under consideration: an operand that a rung treats as indivisible. | §3.4 |
+| **term order** $`\prec`$ | The structural strict total order used to sort atoms. | §3.5 |
 | **invariant (Val)** | In design (I), the stored value equals the evaluation of the stored form. `check(x)` tests it. | §3.3 |
 | **structural / semantic primitives** | In design (I), `isPlus`, `isTimes`, `isPower` and operator kernels read the form; `=`, `zero?`, `numer`, `denom`, `kernels` read the value. | §3.3 |
 | **root-collapsing rule** | A rule whose right side is a variable of its left side, a numeral or $`-x`$; normalising a new node then never restructures its children. | §3.3 |
