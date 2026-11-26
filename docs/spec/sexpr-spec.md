@@ -184,6 +184,14 @@ P4 takes Doubles and Cancels together: with numeral coefficients, a sum of coeff
 
 M5 is sound where defined: $`x \cdot x^{-1} \to 1`$ holds wherever $`x \ne 0`$, which is where the left side is defined.
 
+**Trees of P4, M4 and M5.** The normal forms of the tables are stored as `InputForm` trees, built so that (Disp) holds:
+
+- *Sums (P4).* The terms $`c_i\, a_i`$ in $`\prec`$ order of their atoms, then the constant $`c`$ if $`c \ne 0`$. A term is $`a_i`$ if $`c_i = 1`$, otherwise $`c_i \cdot a_i`$. The first term is negated with unary minus if $`c_i < 0`$; each later term is added, or subtracted with $`\lvert c_i\rvert`$ if $`c_i < 0`$. Examples: $`y - 2x + 1`$ has form `(-(2*x))+y+1`, and $`3 - x`$ has form `(-x)+3`. The constant comes last, unlike in P3, where numerals come first in $`\prec`$.
+- *Products (M4, M5).* The factors with $`e_i > 0`$ in $`\prec`$ order form the numerator, $`a_i^{e_i}`$ or $`a_i`$ if $`e_i = 1`$; the numeral $`c`$ leads it if $`c \ne 1`$. If some $`e_i < 0`$, the factors $`a_i^{-e_i}`$ form a denominator and the tree is numerator `/` denominator. Examples: $`x/(2y)`$ has form `((1/2)*x)/y`, and $`x/(y x^2)`$ has form `1/(x*y)`. Under M4 alone a power with a negative exponent is an atom.
+- *Both (P4 with M4 or M5).* The atoms of $`+`$ are the products. A numeral factor of a product is its coefficient, so $`2xy + 3yx`$ has form `5*x*y`.
+
+In P4 a numeral times a sum is scalar multiplication, so $`2(x+y) = 2x + 2y`$ and $`0 \cdot x = 0`$ without `annihilation`. Other products of sums are distributivity, the Ring rung: $`x(y+1)`$ stays a product.
+
 **Linking axioms**, which relate $`+`$ and $`\cdot`$:
 
 | Axioms | Requires | Normal form | FriCAS container |

@@ -303,4 +303,29 @@ testTrue("(nms = 35)@Boolean")
 testTrue("(nbad = 0)@Boolean")
 testTrue("(nchk = 0)@Boolean")
 
+testcase "linear, powers, quotients in GeneralSymbolicExpression (spec 3.4): normal form, value kept (Val)"
+(x, y) : GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients])
+x := 'x; y := 'y
+testTrue("(unparse(form(x+x)) = _"2*x_")@Boolean")
+testTrue("(unparse(form(x*x)) = _"x^2_")@Boolean")
+testTrue("(unparse(form(x*y/x)) = _"y_")@Boolean")
+testTrue("(unparse(form(2*x*y+3*y*x)) = _"5*x*y_")@Boolean")
+testTrue("check(x+x) and check(x-x) and check(2*(x+y)) and check(x*x) and check((x*y)^2) and check(x/(2*y)) and check(x^(-1)*x) and check(2*x*y+3*y*x)")
+testTrue("((value(2*x*(y+1))) = 2*('x::Expression(Integer))*('y::Expression(Integer)) + 2*('x::Expression(Integer)))@Boolean")
+testTrue("((value(x/(2*y))) = ('x::Expression(Integer))/(2*('y::Expression(Integer))))@Boolean")
+testTrue("(x+x = 2*x)@Boolean")
+xftestTrue("(unparse(form(x+x)) = _"x+x_")@Boolean")
+
+testcase "linear, powers, quotients: (N3) on random terms, value kept (Val)"
+atl : List GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients]) := [('x)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients]), ('y)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients]), sin(('x)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients])), 2::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients]), (-1)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients])]
+rt(d : Integer) : GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients]) == (d <= 0 => atl.(random(#atl)$Integer + 1); a := rt(d - 1); b := rt(d - 1); r := random(5)$Integer; r = 0 => a + b; r = 1 => a - b; r = 2 => a * b; r = 3 and not zero? value b => a / b; n := random(5)$Integer - 2; zero? value a => a ^ abs(n); a ^ n)
+ntr : Integer := 0
+nbad : Integer := 0
+for trial in 1..300 repeat
+  t := rt(3)
+  ntr := ntr + 1
+  if not check(t) then nbad := nbad + 1
+testTrue("(ntr = 300)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+
 statistics()

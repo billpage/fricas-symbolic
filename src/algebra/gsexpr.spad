@@ -167,7 +167,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
 
   Implementation ==> add
     -- admissibility of A (spec 3.4, decision 0009), at instantiation
-    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity, 'commutativity]
+    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity, 'commutativity, 'linear, 'powers, 'quotients]
     checkGroups("GeneralSymbolicExpression", A, IMPL)$SymbolicAxiomGroups
     -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
     -- operator nodes (opr holds the operator); %lift for leaves and
@@ -258,6 +258,9 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     NUM ==> member?('numerals, A)
     ASSOC ==> member?('associativity, A)
     COMM ==> member?('commutativity, A)
+    LINR ==> member?('linear, A)
+    POWR ==> member?('powers, A)
+    QUOR ==> member?('quotients, A)
     lit?(x : %, n : Integer) : Boolean ==
         f := form x
         integer?(f)$IF and integer(f)$IF = n
@@ -283,7 +286,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
                     if s = '_+ then c := c + value t else c := c * value t
                 l := concat(lift c, [t for t in l | not numeral? t])
         unit : Integer := if s = '_+ then 0 else 1
-        if s = '_* and ANN and any?((t : %) : Boolean +-> lit?(t, 0), l) then
+        if s = '_* and (ANN or LINR) and any?((t : %) : Boolean +-> lit?(t, 0), l) then
             return lift(0$E)
         if ID then l := [t for t in l | not lit?(t, unit)]
         empty? l => lift(unit::E)
@@ -292,9 +295,161 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
             if s = '_+ then r := arith('_+, [r, t], value r + value t)
             else r := arith('_*, [r, t], value r * value t)
         r
+
+    -- Linear combinations and power products (spec 3.4, rungs P4, M4, M5).
+    -- A product is a numeral times factors b^e with distinct bases b
+    -- (e >= 1 under powers, e ~= 0 under quotients); a sum is a numeral
+    -- constant plus terms c*m with distinct monomials m.  Both are taken
+    -- apart into these data (pfac, lfac), combined, and rebuilt in normal
+    -- form (prodBuild, linBuild).
+    SFAC ==> Record(b : %, e : Integer)
+    SPROD  ==> Record(c : RN, fs : List SFAC)
+    STERM ==> Record(m : %, c : RN)
+    SLIN  ==> Record(c0 : RN, ts : List STERM)
+
+    rnE(q : RN) : E == (numer q)::E / (denom q)::E
+    numVal(t : %) : RN == retract(value t)@RN
+    sameForm?(a : %, b : %) : Boolean == (form a = form b)@Boolean
+    intExp(t : %) : Union(Integer, "failed") ==
+        hd t = '_^ and #(kids t) = 2 and numeral?(second kids t) =>
+            retractIfCan(value second kids t)@Union(Integer, "failed")
+        "failed"
+
+    facNode(b : %, e : Integer) : % ==
+        e = 1 => b
+        arith('_^, [b, e::%], value b ^ e)
+    -- numeral c (left out if 1 and there are factors) times sorted factors
+    mulChain(c : RN, l : List %) : % ==
+        if c ~= 1 or empty? l then l := cons(lift rnE c, l)
+        r := first l
+        for t in rest l repeat r := arith('_*, [r, t], value r * value t)
+        r
+    mergeF(fs : List SFAC) : List SFAC ==
+        ms : List SFAC := empty()
+        for f in fs repeat
+            nm : List SFAC := empty()
+            hit := false
+            for g in ms repeat
+                if not hit and sameForm?(g.b, f.b) then
+                    nm := cons([g.b, g.e + f.e]$SFAC, nm)
+                    hit := true
+                else nm := cons(g, nm)
+            if not hit then nm := cons(f, nm)
+            ms := nm
+        [g for g in ms | g.e ~= 0]
+    prodBuild(c : RN, fs : List SFAC) : % ==
+        c = 0 => lift(0$E)
+        ms := mergeF fs
+        srt := (l : List %) : List % +-> sort((a : %, b : %) : Boolean +-> before?(a, b), l)
+        pl := srt [facNode(g.b, g.e) for g in ms | g.e > 0]
+        nl := srt [facNode(g.b, - g.e) for g in ms | g.e < 0]
+        num := mulChain(c, pl)
+        empty? nl => num
+        den := mulChain(1, nl)
+        arith('_/, [num, den], value num / value den)
+    pfac(t : %) : SPROD ==
+        numeral? t => [numVal t, empty()]
+        hd t = '_* =>
+            c : RN := 1
+            fs : List SFAC := empty()
+            for f in chain('_*, t) repeat
+                r := pfac f
+                c := c * r.c
+                fs := concat(fs, r.fs)
+            [c, fs]
+        QUOR and hd t = '_/ =>
+            n := pfac first kids t
+            d := pfac second kids t
+            [n.c / d.c, concat(n.fs, [[f.b, - f.e]$SFAC for f in d.fs])]
+        (u := intExp t) case Integer and (u::Integer >= 1 or QUOR) =>
+            k := u::Integer
+            r := pfac first kids t
+            [r.c ^ k, [[f.b, f.e * k]$SFAC for f in r.fs]]
+        [1, [[t, 1]$SFAC]]
+
+    sum?(t : %) : Boolean == hd t = '_+ or hd t = '_-
+    -- a term as (monomial, coefficient)
+    coefMono(t : %) : STERM ==
+        POWR =>
+            r := pfac t
+            [prodBuild(1, r.fs), r.c]
+        hd t = '_* =>
+            fs := chain('_*, t)
+            numeral? first fs =>
+                rs := rest fs
+                m := first rs
+                for f in rest rs repeat m := arith('_*, [m, f], value m * value f)
+                [m, numVal first fs]
+            [t, 1]
+        [t, 1]
+    mergeT(ts : List STERM) : List STERM ==
+        ms : List STERM := empty()
+        for t in ts repeat
+            nm : List STERM := empty()
+            hit := false
+            for g in ms repeat
+                if not hit and sameForm?(g.m, t.m) then
+                    nm := cons([g.m, g.c + t.c]$STERM, nm)
+                    hit := true
+                else nm := cons(g, nm)
+            if not hit then nm := cons(t, nm)
+            ms := nm
+        [g for g in ms | g.c ~= 0]
+    -- the normal form of c0 + sum of c*m: terms sorted by monomial, the
+    -- first negated if its coefficient is negative, the others added or
+    -- subtracted, the constant last
+    linBuild(c0 : RN, ts : List STERM) : % ==
+        ms := sort((a : STERM, b : STERM) : Boolean +-> before?(a.m, b.m), mergeT ts)
+        empty? ms => lift rnE c0
+        acc : % := lift(0$E)
+        firstTerm := true
+        for t in ms repeat
+            pc := abs(t.c)
+            trm : % := if pc = 1 then t.m else lift(rnE pc) * t.m
+            if firstTerm then
+                if t.c > 0 then acc := trm
+                else acc := arith('_-, [trm], - value trm)
+                firstTerm := false
+            else
+                if t.c > 0 then acc := arith('_+, [acc, trm], value acc + value trm)
+                else acc := arith('_-, [acc, trm], value acc - value trm)
+        c0 = 0 => acc
+        cn := lift rnE abs(c0)
+        c0 > 0 => arith('_+, [acc, cn], value acc + value cn)
+        arith('_-, [acc, cn], value acc - value cn)
+    lfac(t : %) : SLIN ==
+        numeral? t => [numVal t, empty()]
+        hd t = '_+ =>
+            a := lfac first kids t
+            b := lfac second kids t
+            [a.c0 + b.c0, concat(a.ts, b.ts)]
+        hd t = '_- and #(kids t) = 2 =>
+            a := lfac first kids t
+            b := lfac second kids t
+            [a.c0 - b.c0, concat(a.ts, [[r.m, - r.c]$STERM for r in b.ts])]
+        hd t = '_- =>
+            a := lfac first kids t
+            [- a.c0, [[r.m, - r.c]$STERM for r in a.ts]]
+        r := coefMono t
+        numeral? r.m => [r.c * numVal r.m, empty()]
+        [0, [r]]
+    scaled(c : RN, x : %) : % ==
+        a := lfac x
+        linBuild(c * a.c0, [[r.m, c * r.c]$STERM for r in a.ts])
+    -- a product in normal form, with a numeral times a sum distributed
+    -- under linear (2*(x+y) = 2*x+2*y)
+    mulNormal(c : RN, fs : List SFAC) : % ==
+        ms := mergeF fs
+        LINR and c ~= 1 and #ms = 1 and (first ms).e = 1 and sum?((first ms).b) =>
+            scaled(c, (first ms).b)
+        prodBuild(c, ms)
     x : % + y : % ==
         v := value x + value y
         NUM and numeral? x and numeral? y => lift v
+        LINR =>
+            a := lfac x
+            b := lfac y
+            linBuild(a.c0 + b.c0, concat(a.ts, b.ts))
         ID and lit?(x, 0) => y
         ID and lit?(y, 0) => x
         COMM and ASSOC => acNormal('_+, concat(chain('_+, x), chain('_+, y)))
@@ -309,11 +464,16 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     - x : % ==
         v := - value x
         NUM and numeral? x => lift v
+        LINR => scaled(-1, x)
         INV and hd x = '_- and #(kids x) = 1 => first kids x
         arith('_-, [x], v)
     x : % - y : % ==
         v := value x - value y
         NUM and numeral? x and numeral? y => lift v
+        LINR =>
+            a := lfac x
+            b := lfac y
+            linBuild(a.c0 - b.c0, concat(a.ts, [[r.m, - r.c]$STERM for r in b.ts]))
         ID and lit?(y, 0) => x
         ID and lit?(x, 0) => - y
         arith('_-, [x, y], v)
@@ -323,6 +483,15 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         ANN and (lit?(x, 0) or lit?(y, 0)) => lift(0$E)
         ID and lit?(x, 1) => y
         ID and lit?(y, 1) => x
+        POWR =>
+            a := pfac x
+            b := pfac y
+            mulNormal(a.c * b.c, concat(a.fs, b.fs))
+        COMM and ASSOC and LINR =>
+            r := acNormal('_*, concat(chain('_*, x), chain('_*, y)))
+            cm := coefMono r
+            cm.c ~= 1 and sum?(cm.m) => scaled(cm.c, cm.m)
+            r
         COMM and ASSOC => acNormal('_*, concat(chain('_*, x), chain('_*, y)))
         ASSOC and hd y = '_* => (x * first kids y) * second kids y
         ASSOC and NUM and numeral? y and hd x = '_* and
@@ -332,6 +501,10 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     x : % / y : % ==
         v := value x / value y
         NUM and numeral? x and numeral? y => lift v
+        QUOR =>
+            a := pfac x
+            b := pfac y
+            mulNormal(a.c / b.c, concat(a.fs, [[f.b, - f.e]$SFAC for f in b.fs]))
         ID and lit?(y, 1) => x
         INV and lit?(x, 1) and hd y = '_/ and lit?(first kids y, 1) =>
             second kids y
@@ -351,6 +524,9 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         NUM and numeral? x => lift v
         ID and n = 1 => x
         ID and n = 0 => lift(1$E)
+        POWR and (n >= 1 or (QUOR and n ~= 0)) =>
+            a := pfac x
+            mulNormal(a.c ^ n, [[f.b, f.e * n]$SFAC for f in a.fs])
         arith('_^, [x, n::%], v)
     x : % ^ n : NonNegativeInteger == x ^ (n::Integer)
     x : % ^ n : PositiveInteger == x ^ (n::Integer)
