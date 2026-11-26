@@ -83,7 +83,7 @@ FriCAS's `Ring` and `FunctionSpace` promise that $`=`$, `zero?`, `numer`, `denom
 
 ### 3.2 Design (II): `SymbolicTerm(R, A)`, the term algebra modulo $`A`$
 
-*Named by decision [0009](../decisions/0009-symbolic-term-groups.md). Until plan step 6, the 2017 implementation `Symbolic(R, A)` in `src/algebra/sexpr.spad`, whose parameter is a `join` of axiom domains, exists alongside it.*
+*Named by decision [0009](../decisions/0009-symbolic-term-groups.md). It replaces the 2017 implementation `Symbolic(R, A)`, whose parameter was a `join` of axiom domains, retired in plan step 6 ([note](../notes/2026-11-26-retiring-symbolic.md)).*
 
 - **Carrier:** $`T/{=_A}`$, represented by normal forms $`\mathrm{nf}_A`$.
 - **Equality:** $`=_A`$, decided by comparing normal forms. This requires a normaliser with (N1) and (N2) (§3.4). A terminating and confluent rewrite system modulo $`B`$ is one way to obtain one (§2.4); the ladder of §3.4 builds canonical forms of free algebras directly.
@@ -241,12 +241,12 @@ Rungs P1, P3, P4 and M1, M3–M5 sort atoms by a strict total order $`\prec`$ on
 
 *Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–4 order the kinds, and within each kind of atom, by strict total orders: for exact numerals, the lexicographic product of value, integer-before-quotient and numerator, which separates any two distinct trees. Step 5 is the lexicographic product of the order on heads and arguments (by the induction hypothesis, since these are strictly smaller) with the order on arities. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
 
-Implemented as `SymbolicTermOrder` (`SYMORD`) in `src/algebra/sexpr.spad`. Checked exhaustively on 37 terms, i.e. all pairs and all 50,653 triples, in `sexpr2.input`, test case "Ord".
+Implemented as `SymbolicTermOrder` (`SYMORD`) in `src/algebra/gsexpr.spad`. Checked exhaustively on 37 terms, i.e. all pairs and all 50,653 triples, in `gsexpr.input`, test case "Ord".
 
 **Remarks.**
 - $`\prec`$ is not a reduction order and plays no part in termination; the normalisers of §3.4 terminate by structural recursion.
 - Display conventions are separate from $`\prec`$: in a P4 sum the constant is shown last, and in an M4 product the numeral first, as in $`2x + y + 1`$.
-- $`\prec`$ replaces `smaller?` of `SINFunctions` in `sexpr.spad`, whose own comment says it is "not yet proven" to be a total order.
+- $`\prec`$ replaces `smaller?` of the 2017 `SINFunctions`, whose own comment said it was "not yet proven" to be a total order.
 
 ## 4. Axiom analysis
 
@@ -335,6 +335,8 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 - `isPlus` already gives the pattern matcher every term of a nested sum, so rewrite rules match either grouping with or without Assoc.
 
 ### 4.2 The 2017 axioms, assessed against (S), (T), (CR) and G1
+
+*Kept as the record of why the ladder of §3.4 replaced them. `Symbolic(R, A)` and its axiom domains were retired on 2026-11-26 ([note](../notes/2026-11-26-retiring-symbolic.md)), which maps each axiom to its group.*
 
 | Axiom (2017) | (S) in $`E`$ | (T) | (CR) | Presentation (G1) | Verdict |
 |---|---|---|---|---|---|

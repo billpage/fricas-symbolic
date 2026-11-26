@@ -13,7 +13,6 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 | `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
 | `SymbolicExpression(R)` | `src/algebra/gsexpr.spad` | `GeneralSymbolicExpression(R, A)` with the default axioms $`A_P`$ (decision 0002) | Passes its tests |
 | `SymbolicTerm(R, A)` | `src/algebra/symterm.spad` | Design (II): terms modulo the axiom groups $`A`$, equality by identity of normal forms (decisions 0008, 0009) | All groups, from $`A_P`$ to `ring` and `field` (plan steps 2–5) |
-| `Symbolic(R, A)` and the axiom domains | `src/algebra/sexpr.spad` | Bill Page's 2016–17 implementation, to be retired by `SymbolicTerm` (plan step 6), ported to FriCAS 1.4.0; equality modulo the axioms $`A`$. Spec §3.2, design (II), to be rebuilt on canonical forms ([note](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md)). | Ported; rewrites only by its axioms since 2026-11-26 |
 
 [`ORIENTATION.md`](ORIENTATION.md) explains the goals, what is settled and what is open, and where to start reading.
 
@@ -38,8 +37,6 @@ sum(x, 'x=1..10)               -- 55
 integrate(sin(x)*cos(x), 'x)   -- correct, unlike the 2017 domain
 ```
 
-`sexpr.spad` (`Symbolic` and its axiom domains) defines many constructors. In a fresh session, load its compiled libraries with `)lib )dir <directory>` **twice**: FriCAS 1.4.0's `)lib` records constructor signatures in load order, and the second pass repairs them. A `)compile` in the same session needs no `)lib`.
-
 ## Layout
 
 | Path | Contents |
@@ -48,7 +45,7 @@ integrate(sin(x)*cos(x), 'x)   -- correct, unlike the 2017 domain
 | `docs/decisions/` | Numbered decision records: what was decided, by whom, why, and what it rules out. |
 | `docs/notes/` | Analyses and design notes. Not normative; the specification wins where they differ. |
 | `docs/INDEX.md` | Every labelled goal, axiom and result in the specification, with its section, its standing and the tests that check it. |
-| `src/algebra/` | Spad source, as in FriCAS: `gsexpr.spad` (`GeneralSymbolicExpression`, `SymbolicExpression`, `SymbolicAxiomGroups`, `SymbolicTermOrder`), `symterm.spad` (`SymbolicTerm`, needs `gsexpr.spad` compiled first), `sexpr.spad` (the 2017 `Symbolic`). |
+| `src/algebra/` | Spad source, as in FriCAS: `gsexpr.spad` (`GeneralSymbolicExpression`, `SymbolicExpression`, `SymbolicAxiomGroups`, `SymbolicTermOrder`), `symterm.spad` (`SymbolicTerm`, needs `gsexpr.spad` compiled first). |
 | `src/input/` | Tests, written with FriCAS's unit-test package, as in FriCAS's `src/input`. |
 | `references/` | Bibliography. |
 | `tools/` | `check_summary.py` (judges a test log) and `check_md_math.py` (checks math in the markdown). |
@@ -59,7 +56,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: questions and ideas go to Is
 
 ## History
 
-The work began on fricas-devel in the thread "Symbolic (unevaluated) Expressions" (November 2016 to February 2017), with contributions from Kurt Pagani, Qian Yun, Ralf Hemmecke and Waldek Hebisch. Its git history, from the first commit of 14 November 2016, was carried over from the `symbolic-expressions` branch of [billpage/fricas-dev](https://github.com/billpage/fricas-dev) together with the 2026 port. `src/input/sexpr2.input` is Kurt Pagani's 2017 test suite, updated for FriCAS 1.4.0.
+The work began on fricas-devel in the thread "Symbolic (unevaluated) Expressions" (November 2016 to February 2017), with contributions from Kurt Pagani, Qian Yun, Ralf Hemmecke and Waldek Hebisch. Its git history, from the first commit of 14 November 2016, was carried over from the `symbolic-expressions` branch of [billpage/fricas-dev](https://github.com/billpage/fricas-dev) together with the 2026 port. Kurt Pagani's 2017 test suite, `src/input/sexpr2.input`, was updated for FriCAS 1.4.0 and, when the 2017 `Symbolic(R, A)` was retired on 2026-11-26, partly ported to `SymbolicTerm` ([note](docs/notes/2026-11-26-retiring-symbolic.md)).
 
 ## Licence
 
