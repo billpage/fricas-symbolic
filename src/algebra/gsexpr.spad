@@ -20,6 +20,75 @@ GSEXPRCAT ==> Join(AlgebraicallyClosedFunctionSpace R,
     ++ form of x, evaluated structurally in Expression R, equals the
     ++ value of x.
 
+)abbrev package SYMORD SymbolicTermOrder
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ The structural term order of the fricas-symbolic specification
+++ (docs/spec/sexpr-spec.md, section 3.5): a strict total order on terms,
+++ i.e. InputForm trees, used to sort the operands of commutative
+++ operators in canonical forms.  Exact numerals (integers and quotients of
+++ integers) come first, ordered by value with ties broken by form; then
+++ float atoms; then symbols; then strings; then other atoms; then compound
+++ terms, ordered by head, number of arguments and arguments.
+SymbolicTermOrder() : with
+    smaller? : (InputForm, InputForm) -> Boolean
+      ++ smaller?(s, t) is true if s precedes t in the term order.
+  == add
+    INF ==> InputForm
+    RN ==> Fraction Integer
+
+    exactNumeral?(f : INF) : Boolean ==
+        integer?(f)$INF => true
+        atom?(f)$INF => false
+        l := destruct(f)$INF
+        #l = 3 and symbol?(first l)$INF and symbol(first l)$INF = '_/ and
+          integer?(l.2)$INF and integer?(l.3)$INF and integer(l.3)$INF ~= 0
+
+    exactValue(f : INF) : RN ==
+        integer?(f)$INF => integer(f)$INF :: RN
+        l := destruct(f)$INF
+        integer(l.2)$INF / integer(l.3)$INF
+
+    -- 0 exact numeral, 1 float atom, 2 symbol, 3 string, 4 other atom,
+    -- 5 compound
+    kind(f : INF) : Integer ==
+        exactNumeral? f => 0
+        float?(f)$INF => 1
+        symbol?(f)$INF => 2
+        string?(f)$INF => 3
+        atom?(f)$INF => 4
+        5
+
+    smaller?(s : INF, t : INF) : Boolean ==
+        ks := kind s
+        kt := kind t
+        ks ~= kt => ks < kt
+        ks = 0 =>
+            a := exactValue s
+            b := exactValue t
+            a ~= b => a < b
+            -- equal values: an integer before a quotient; quotients by
+            -- numerator (equal value and numerator give equal trees)
+            integer?(s)$INF => not integer?(t)$INF
+            integer?(t)$INF => false
+            ds := destruct(s)$INF
+            dt := destruct(t)$INF
+            integer(ds.2)$INF < integer(dt.2)$INF
+        ks = 1 => float(s)$INF < float(t)$INF
+        ks = 2 => smaller?(symbol(s)$INF, symbol(t)$INF)$Symbol
+        ks = 3 => string(s)$INF < string(t)$INF
+        ks = 4 => unparse(s)$INF < unparse(t)$INF
+        ls := destruct(s)$INF
+        lt := destruct(t)$INF
+        smaller?(first ls, first lt) => true
+        smaller?(first lt, first ls) => false
+        #ls ~= #lt => #ls < #lt
+        for a in rest ls for b in rest lt repeat
+            if smaller?(a, b) then return true
+            if smaller?(b, a) then return false
+        false
+
 )abbrev package SYMGRP SymbolicAxiomGroups
 ++ Author: Bill Page, Claude
 ++ Date Created: 26 November 2026
@@ -64,7 +133,8 @@ SymbolicAxiomGroups() : with
 ++ of fricas-symbolic: GeneralSymbolicExpression(R, A) is a presentation of Expression R.
 ++ A lists the groups of presentation axioms applied when a node is built
 ++ (spec section 4.1): identities, annihilation, involutions, numerals,
-++ and optionally associativity (spec section 4.1.1).
+++ and optionally associativity (spec section 4.1.1) and commutativity
+++ (spec section 3.4).
 ++ From Option (c) of the sexpr design review: a FunctionSpace
 ++ whose elements carry their written form together with their value in
 ++ Expression R.  Each element is a node (head, operands) with its form
@@ -97,7 +167,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
 
   Implementation ==> add
     -- admissibility of A (spec 3.4, decision 0009), at instantiation
-    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity]
+    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity, 'commutativity]
     checkGroups("GeneralSymbolicExpression", A, IMPL)$SymbolicAxiomGroups
     -- hd: '+, '-, '*, '/, '^ for arithmetic nodes; the operator name for
     -- operator nodes (opr holds the operator); %lift for leaves and
@@ -187,23 +257,54 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     INV ==> member?('involutions, A)
     NUM ==> member?('numerals, A)
     ASSOC ==> member?('associativity, A)
+    COMM ==> member?('commutativity, A)
     lit?(x : %, n : Integer) : Boolean ==
         f := form x
         integer?(f)$IF and integer(f)$IF = n
     -- a numeral is a leaf whose value is a constant of Fraction Integer
     numeral?(x : %) : Boolean ==
         hd x = LIFT and (retractIfCan(value x)@Union(RN, "failed") case RN)
+    -- Commutativity (spec 3.4, rungs P1/M1 and, with associativity, P3/M3)
+    before?(a : %, b : %) : Boolean == smaller?(form a, form b)$SymbolicTermOrder
+    chain(s : SY, t : %) : List % ==
+        hd t = s => concat(chain(s, first kids t), [second kids t])
+        [t]
+    -- the normal form of a chain of operands under C and A: operands sorted
+    -- by the term order; under Num the numerals (which sort first) folded
+    -- into one; under Ann a product with a zero operand is 0; under Id
+    -- identity elements dropped; then built left-nested
+    acNormal(s : SY, l : List %) : % ==
+        l := sort((a : %, b : %) : Boolean +-> before?(a, b), l)
+        if NUM then
+            ns := [t for t in l | numeral? t]
+            if #ns > 1 then
+                c := value first ns
+                for t in rest ns repeat
+                    if s = '_+ then c := c + value t else c := c * value t
+                l := concat(lift c, [t for t in l | not numeral? t])
+        unit : Integer := if s = '_+ then 0 else 1
+        if s = '_* and ANN and any?((t : %) : Boolean +-> lit?(t, 0), l) then
+            return lift(0$E)
+        if ID then l := [t for t in l | not lit?(t, unit)]
+        empty? l => lift(unit::E)
+        r := first l
+        for t in rest l repeat
+            if s = '_+ then r := arith('_+, [r, t], value r + value t)
+            else r := arith('_*, [r, t], value r * value t)
+        r
     x : % + y : % ==
         v := value x + value y
         NUM and numeral? x and numeral? y => lift v
         ID and lit?(x, 0) => y
         ID and lit?(y, 0) => x
+        COMM and ASSOC => acNormal('_+, concat(chain('_+, x), chain('_+, y)))
         -- Assoc (spec 4.1.1): (A) x+(y1+y2) -> (x+y1)+y2, and its completion
         -- with Num, (AN) (x1+n)+m -> x1+(n+m), through + itself, so the new
         -- inner node is normalised too
         ASSOC and hd y = '_+ => (x + first kids y) + second kids y
         ASSOC and NUM and numeral? y and hd x = '_+ and
           numeral? second kids x => first kids x + (second kids x + y)
+        COMM and before?(y, x) => arith('_+, [y, x], v)
         arith('_+, [x, y], v)
     - x : % ==
         v := - value x
@@ -222,9 +323,11 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         ANN and (lit?(x, 0) or lit?(y, 0)) => lift(0$E)
         ID and lit?(x, 1) => y
         ID and lit?(y, 1) => x
+        COMM and ASSOC => acNormal('_*, concat(chain('_*, x), chain('_*, y)))
         ASSOC and hd y = '_* => (x * first kids y) * second kids y
         ASSOC and NUM and numeral? y and hd x = '_* and
           numeral? second kids x => first kids x * (second kids x * y)
+        COMM and before?(y, x) => arith('_*, [y, x], v)
         arith('_*, [x, y], v)
     x : % / y : % ==
         v := value x / value y

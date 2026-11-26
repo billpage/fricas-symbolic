@@ -170,6 +170,8 @@ So any sound admissible $`A`$ can serve as presentation axioms (Proposition 2). 
 | P3 | AC | flat list in $`\prec`$ order (a multiset) | free commutative semigroup | `List` |
 | P4 | AC, Id ($`0`$), Num, Doubles, Cancels, with $`x-y \approx x + (-1)\,y`$ and $`-x \approx (-1)\,x`$ | a numeral $`c`$ plus a finite sum $`\sum_i c_i\, a_i`$ with distinct atoms $`a_1 \prec \cdots \prec a_k`$ and numerals $`c_i \ne 0`$ | free $`K`$-vector space on the atoms, plus constants | `FreeModule(K, S)` |
 
+In the implementation the flat lists of P2/P3 (and M2/M3) are stored as left-nested chains, which display as `a+b+c` (Disp). Under P3/M3 with `numerals`, all numerals of a chain fold into one, since numerals come first in $`\prec`$ and so become neighbours; with `identities` the identity element is dropped, and with `annihilation` a product with a factor $`0`$ is $`0`$.
+
 P4 takes Doubles and Cancels together: with numeral coefficients, a sum of coefficients can vanish, so one without the other is not closed under Num.
 
 **The rungs for $`\cdot`$:**
