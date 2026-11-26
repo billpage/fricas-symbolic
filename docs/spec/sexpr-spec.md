@@ -81,7 +81,9 @@ Orienting each axiom $`l \approx r`$ as $`l \to r`$ gives a rewrite system $`\ma
 
 FriCAS's `Ring` and `FunctionSpace` promise that $`=`$, `zero?`, `numer`, `denom` and `kernels` describe the same structure. With syntactic equality $`=_A`$, a ring requires $`A`$ to prove distributivity, and then $`(x+1)^2 =_A x^2+2x+1`$. The normal forms are then expanded polynomials, which contradicts G1. Conversely, semantic equality cannot distinguish $`1+2`$ from $`3`$, which contradicts G3. The 2017 `SymbolicExpression` mixed the two equalities, and the wrong integrals and sums followed from that (design review, D1).
 
-### 3.2 Design (II): `Symbolic(R, A)`, the term algebra modulo $`A`$
+### 3.2 Design (II): `SymbolicTerm(R, A)`, the term algebra modulo $`A`$
+
+*Named by decision [0009](../decisions/0009-symbolic-term-groups.md). Until plan step 6, the 2017 implementation `Symbolic(R, A)` in `src/algebra/sexpr.spad`, whose parameter is a `join` of axiom domains, exists alongside it.*
 
 - **Carrier:** $`T/{=_A}`$, represented by normal forms $`\mathrm{nf}_A`$.
 - **Equality:** $`=_A`$, decided by comparing normal forms. This requires a normaliser with (N1) and (N2) (§3.4). A terminating and confluent rewrite system modulo $`B`$ is one way to obtain one (§2.4); the ladder of §3.4 builds canonical forms of free algebras directly.
@@ -131,7 +133,7 @@ Note that **(I) needs only (S) and (T), not (CR)**. Equality comes from the valu
 
 ### 3.4 One library of normalisers: the ladder of axiom sets
 
-*Decision [0008](../decisions/0008-ladder-of-normalisers.md). This section and §3.5 replace, for `Symbolic(R, A)`, the 2017 axiom categories, which rewrite binary trees with an order that was never shown to terminate (§4.2).*
+*Decision [0008](../decisions/0008-ladder-of-normalisers.md). This section and §3.5 replace, for design (II), the 2017 axiom categories, which rewrite binary trees with an order that was never shown to terminate (§4.2).*
 
 **Normalisers.** For an admissible axiom set $`A`$ (defined below), a *normaliser* is a function $`N_A : T \to T`$ with
 
@@ -146,7 +148,7 @@ A normaliser need not come from a rewrite system. For the sets below it builds t
 
 **Both constructors use the same normalisers** and differ only in their equality:
 
-| | `Symbolic(R, A)`, design (II) | `GeneralSymbolicExpression(R, A)`, design (I) |
+| | `SymbolicTerm(R, A)`, design (II) | `GeneralSymbolicExpression(R, A)`, design (I) |
 |---|---|---|
 | Carrier | $`N_A(T)`$ | pairs $`(N_A(t), [\![t]\!])`$ |
 | Operation $`\omega`$ | $`N_A(\omega(t_1, \ldots, t_n))`$ | form $`N_A(\omega(t_1, \ldots, t_n))`$, value $`\omega_E(v_1, \ldots, v_n)`$ |
@@ -190,7 +192,23 @@ M5 is sound where defined: $`x \cdot x^{-1} \to 1`$ holds wherever $`x \ne 0`$, 
 
 The Ring and Field rungs are not `Expression`. Their equality is polynomial (rational-function) identity with the functions left uninterpreted. `Expression` identifies more, e.g. $`\sqrt2^{\,2} = 2`$, $`e^{\log x} = x`$, $`\sin 0 = 0`$ (run of 2026-11-26), so $`=_{\mathrm{Field}} \subsetneq \equiv`$.
 
-**Admissible sets.** An admissible $`A`$ is a choice of one rung for $`+`$, one for $`\cdot`$, and linking axioms whose requirements those rungs meet. `Symbolic(R, A)` rejects other combinations when the domain is instantiated, with an error naming the missing requirement. Optional groups that are normalisers of their own, such as Assoc (§4.1.1) or the reciprocal and negation groups of the note of 2026-11-26, may be added where the specification lists them.
+**Axiom groups and admissible sets** (decision [0009](../decisions/0009-symbolic-term-groups.md)). Both constructors take $`A`$ as a list of group names, `List Symbol`, with one vocabulary:
+
+| Group | Axioms | Requires | Rung |
+|---|---|---|---|
+| `identities` | Id: $`0+x,\ x+0,\ x-0,\ 0-x,\ 1\cdot x,\ x \cdot 1,\ x/1,\ x^1,\ x^0`$ (§4.1) | — | |
+| `annihilation` | Ann: $`0 \cdot x,\ x \cdot 0`$ | — | Ann |
+| `involutions` | Inv: $`-(-x),\ 1/(1/x)`$ | — | |
+| `numerals` | Num: fold operations on numerals | — | |
+| `associativity` | A for $`+`$ and $`\cdot`$; with `numerals` also (AN) (§4.1.1) | — | P2, M2 |
+| `commutativity` | C for $`+`$ and $`\cdot`$ | — | P1, M1; with `associativity` P3, M3 |
+| `linear` | Doubles, Cancels, signed sums | `commutativity`, `associativity`, `identities`, `numerals` | P4 |
+| `powers` | Squares: products as power products with exponents $`\ge 1`$ | `commutativity`, `associativity`, `identities`, `numerals` | M4 |
+| `quotients` | Divides, $`x/y \approx x \cdot y^{-1}`$: exponents in $`\mathbb{Z}`$ | `powers` | M5 |
+| `ring` | distributivity: polynomials in the atoms | `linear`, `powers` | Ring |
+| `field` | reduced fractions | `ring`, `quotients` | Field |
+
+$`A`$ is **admissible** if every name in it is a group of this table, and the groups it requires are in $`A`$ too. Requirements are listed, not implied, so the list shows everything that applies. A constructor rejects an inadmissible $`A`$ when it is instantiated, with an error naming the unknown group or the missing requirement. `GeneralSymbolicExpression` also rejects groups it does not implement yet (plan step 7). The empty list is rungs P0/M0: no rewriting. $`A_P`$, with or without `associativity`, is admissible (Theorem 3). AntiCommutative of 2017 is not a group: it is unsound for $`E`$ (§4.2) and has no rung yet.
 
 ### 3.5 The structural term order $`\prec`$
 
@@ -326,7 +344,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 
 ## 5. Specification summary
 
-1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$, for an admissible $`A`$ on the ladder of §3.4, decided by a normaliser with (N1), (N2) and the term order of §3.5. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
+1. **`SymbolicTerm(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$, for an admissible $`A`$ on the ladder of §3.4, decided by a normaliser with (N1), (N2) and the term order of §3.5. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
 2. **`GeneralSymbolicExpression(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
 3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** (implemented in `src/algebra/gsexpr.spad`, decision 0007) with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
 4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy

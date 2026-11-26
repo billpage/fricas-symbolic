@@ -19,7 +19,7 @@ Two of the goals cannot be met by one equality relation (spec §3.1):
 
 The 2017 `SymbolicExpression` used both at once (`=` semantic, `zero?` syntactic), and FriCAS's integrator and summation then gave wrong answers. The specification therefore has two constructors, each with one equality:
 
-| | `Symbolic(R, A)` — design (II) | `GeneralSymbolicExpression(R, A)` — design (I) |
+| | `SymbolicTerm(R, A)` — design (II) | `GeneralSymbolicExpression(R, A)` — design (I) |
 |---|---|---|
 | An element is | a term, modulo the axioms $`A`$ | a pair (written form, value in `Expression R`) |
 | Equality | $`=_A`$: same normal form | same value |
@@ -40,7 +40,7 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 | The 2017 axioms (commutativity, doubles, distributivity, …) in `Symbolic(R, A)` | Open: need AC-compatible ordering and a confluence check | spec §4.2 |
 | Rewrites the 2017 code applied outside its axiom system | Removed or tied to axioms, 2026-11-26 | [decision 0007](docs/decisions/0007-symbolic-hidden-rewrites.md), spec §4.2 |
 | `SymbolicExpression(R)` = `GeneralSymbolicExpression(R, A_P)` | Implemented, 2026-11-26 | decision 0007 |
-| `Symbolic(R, A)` rebuilt on canonical forms: one library of normalisers shared by both constructors, the ladder of axiom sets, the term order | Decided by Bill Page, 2026-11-26; [plan](docs/plans/symbolic-ladder.md) not started | [decision 0008](docs/decisions/0008-ladder-of-normalisers.md), spec §3.4–3.5 |
+| Design (II) rebuilt on canonical forms as `SymbolicTerm(R, A)`, with group names as parameter (decision 0009): one library of normalisers shared by both constructors, the ladder of axiom sets, the term order | Decided by Bill Page, 2026-11-26; [plan](docs/plans/symbolic-ladder.md) not started | [decision 0008](docs/decisions/0008-ladder-of-normalisers.md), spec §3.4–3.5 |
 | 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `GeneralSymbolicExpression` | [design review](docs/notes/2026-11-24-design-review.md) |
 
 ## 4. Where to start
