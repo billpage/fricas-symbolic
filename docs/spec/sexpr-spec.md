@@ -195,6 +195,8 @@ M5 is sound where defined: $`x \cdot x^{-1} \to 1`$ holds wherever $`x \ne 0`$, 
 
 The implementation computes Ring and Field in `Fraction Polynomial Fraction Integer`, with a fresh symbol for each atom, and rebuilds the result as above; (N2) for Field rests on FriCAS's polynomial gcd.
 
+The order of terms and factors is $`\prec`$, which is not a degree order: $`(x-y)^3`$ has form `3*x*y^2-3*y*x^2+x^3-y^3`. A degree order is a possible later change, after wider review (plan §4).
+
 In P4 a numeral times a sum is scalar multiplication, so $`2(x+y) = 2x + 2y`$ and $`0 \cdot x = 0`$ without `annihilation`. Other products of sums are distributivity, the Ring rung: $`x(y+1)`$ stays a product.
 
 **Linking axioms**, which relate $`+`$ and $`\cdot`$:
