@@ -7,6 +7,8 @@ LeanCrossCheck(A : List Symbol) : with
     run : (Integer, Integer, Integer) -> List Integer
       ++ run(s0, n, d) builds n terms of depth d from seed s0 and returns
       ++ [n, checksum of their forms].
+    forms : (Integer, Integer, Integer) -> List String
+      ++ forms(s0, n, d) are the printed forms of those terms.
   == add
     G ==> GeneralSymbolicExpression(Integer, A)
     st : Reference Integer := ref 0
@@ -76,3 +78,6 @@ LeanCrossCheck(A : List Symbol) : with
             for j in 1..#s repeat h := (h * 31 + ord(s.j)) rem 1000000007
             h := (h * 31 + 59) rem 1000000007
         [n, h]
+    forms(s0 : Integer, n : Integer, d : Integer) : List String ==
+        setref(st, s0)
+        [PRINC_-TO_-STRING(form gen(d, false))$Lisp pretend String for i in 1..n]
