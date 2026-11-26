@@ -72,9 +72,9 @@ testTrue("rt(x+(y+1)) and rt(x-(y-1)) and rt(x*(y/2)) and rt(sin(x+y)^2)")
 testcase "admissibility (spec 3.4, decision 0009)"
 -- unknown group, not yet implemented group, both constructors
 testLibraryError("('x)::SymbolicTerm(Integer, [identity])")
-testLibraryError("('x)::SymbolicTerm(Integer, [commutativity])")
+testLibraryError("('x)::SymbolicTerm(Integer, [linear, commutativity, associativity, identities, numerals])")
 testLibraryError("('x)::GeneralSymbolicExpression(Integer, [identity])")
-testLibraryError("('x)::GeneralSymbolicExpression(Integer, [commutativity])")
+testLibraryError("('x)::GeneralSymbolicExpression(Integer, [linear, commutativity, associativity, identities, numerals])")
 -- requirements, checked with every group taken as implemented
 testLibraryError("checkGroups(_"test_", [linear], groups())$SymbolicAxiomGroups")
 testLibraryError("checkGroups(_"test_", [quotients, commutativity, associativity, identities, numerals], groups())$SymbolicAxiomGroups")
@@ -83,5 +83,92 @@ testTrue("(checkGroups(_"test_", [field, ring, quotients, powers, linear, commut
 -- admissible lists are accepted
 testTrue("(unparse(form(('x)::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity]))) = _"x_")@Boolean")
 testTrue("(unparse(form(('x)::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]))) = _"x_")@Boolean")
+
+testcase "commutativity alone: P1/M1, operands of each node sorted (spec 3.4)"
+(x, y, z) : SymbolicTerm(Integer, [commutativity])
+x := 'x; y := 'y; z := 'z
+testTrue("(x+y = y+x)@Boolean")
+testTrue("(x*y = y*x)@Boolean")
+testTrue("((x+y)+z = z+(y+x))@Boolean")
+testTrue("not ((x+y)+z = x+(y+z))@Boolean")
+testTrue("not (x+0 = x)@Boolean")
+testTrue("not ((1::SymbolicTerm(Integer, [commutativity]))+2 = 3)@Boolean")
+testTrue("(unparse(form(y+x)) = _"x+y_")@Boolean")
+xftestTrue("(unparse(form(y+x)) = _"y+x_")@Boolean")
+-- swapping the operands at any node of a three-leaf tree gives one form
+lc : List SymbolicTerm(Integer, [commutativity]) := [('x)::SymbolicTerm(Integer, [commutativity]), ('y)::SymbolicTerm(Integer, [commutativity]), ('z)::SymbolicTerm(Integer, [commutativity]), 1::SymbolicTerm(Integer, [commutativity])]
+ncomb : Integer := 0
+nsw : Integer := 0
+for a in lc repeat
+  for b in lc repeat
+    for c in lc repeat
+      ncomb := ncomb + 1
+      g1 := [unparse(form t) for t in [(a+b)+c, (b+a)+c, c+(a+b), c+(b+a), (a*b)*c, (b*a)*c, c*(a*b), c*(b*a)]]
+      g2 := [unparse(form t) for t in [a+(b+c), a+(c+b), (b+c)+a, (c+b)+a, a*(b*c), a*(c*b), (b*c)*a, (c*b)*a]]
+      if #removeDuplicates(first(g1, 4)) > 1 or #removeDuplicates(rest(g1, 4)) > 1 then nsw := nsw + 1
+      if #removeDuplicates(first(g2, 4)) > 1 or #removeDuplicates(rest(g2, 4)) > 1 then nsw := nsw + 1
+testTrue("(ncomb = 64)@Boolean")
+testTrue("(nsw = 0)@Boolean")
+
+testcase "commutativity with associativity: P3/M3, all orders and groupings agree (spec 3.4)"
+pl(u : SymbolicTerm(Integer, [commutativity, associativity]), v : SymbolicTerm(Integer, [commutativity, associativity])) : SymbolicTerm(Integer, [commutativity, associativity]) == u + v
+ml(u : SymbolicTerm(Integer, [commutativity, associativity]), v : SymbolicTerm(Integer, [commutativity, associativity])) : SymbolicTerm(Integer, [commutativity, associativity]) == u * v
+brs(op : (SymbolicTerm(Integer, [commutativity, associativity]), SymbolicTerm(Integer, [commutativity, associativity])) -> SymbolicTerm(Integer, [commutativity, associativity]), a : SymbolicTerm(Integer, [commutativity, associativity]), b : SymbolicTerm(Integer, [commutativity, associativity]), c : SymbolicTerm(Integer, [commutativity, associativity]), d : SymbolicTerm(Integer, [commutativity, associativity])) : List SymbolicTerm(Integer, [commutativity, associativity]) == [op(op(op(a,b),c),d), op(op(a,op(b,c)),d), op(op(a,b),op(c,d)), op(a,op(op(b,c),d)), op(a,op(b,op(c,d)))]
+perms(l : List Integer) : List List Integer == if empty? l then [empty()$List(Integer)] else concat [[cons(l.i, q) for q in perms(delete(l, i))] for i in 1..#l]
+P := perms([1, 2, 3, 4])
+lv : List SymbolicTerm(Integer, [commutativity, associativity]) := [('x)::SymbolicTerm(Integer, [commutativity, associativity]), ('y)::SymbolicTerm(Integer, [commutativity, associativity]), 1::SymbolicTerm(Integer, [commutativity, associativity]), 2::SymbolicTerm(Integer, [commutativity, associativity])]
+n := #lv
+nbad : Integer := 0
+nms : Integer := 0
+for i in 1..n repeat
+  for j in i..n repeat
+    for k in j..n repeat
+      for m in k..n repeat
+        ms := [lv.i, lv.j, lv.k, lv.m]
+        nms := nms + 1
+        for op in [pl, ml] repeat
+          fs := concat [[unparse(form t) for t in brs(op, ms.(q.1), ms.(q.2), ms.(q.3), ms.(q.4))] for q in P]
+          if #removeDuplicates(fs) > 1 then nbad := nbad + 1
+testTrue("(nms = 35)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity])
+x := 'x; y := 'y
+testTrue("not (x+x = 2*x)@Boolean")
+testTrue("not ((1::SymbolicTerm(Integer, [commutativity, associativity]))+2 = 3)@Boolean")
+testTrue("(unparse(form(y+(2+x))) = _"2+x+y_")@Boolean")
+
+testcase "A_P with commutativity and associativity: all orders and groupings agree"
+pl(u : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), v : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]) == u + v
+ml(u : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), v : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]) == u * v
+brs(op : (SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])) -> SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), a : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), b : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), c : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), d : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])) : List SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]) == [op(op(op(a,b),c),d), op(op(a,op(b,c)),d), op(op(a,b),op(c,d)), op(a,op(op(b,c),d)), op(a,op(b,op(c,d)))]
+perms(l : List Integer) : List List Integer == if empty? l then [empty()$List(Integer)] else concat [[cons(l.i, q) for q in perms(delete(l, i))] for i in 1..#l]
+P := perms([1, 2, 3, 4])
+lv : List SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]) := [('x)::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), ('y)::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), 0::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), 1::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity]), 2::SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])]
+n := #lv
+nbad : Integer := 0
+nms : Integer := 0
+for i in 1..n repeat
+  for j in i..n repeat
+    for k in j..n repeat
+      for m in k..n repeat
+        ms := [lv.i, lv.j, lv.k, lv.m]
+        nms := nms + 1
+        for op in [pl, ml] repeat
+          fs := concat [[unparse(form t) for t in brs(op, ms.(q.1), ms.(q.2), ms.(q.3), ms.(q.4))] for q in P]
+          if #removeDuplicates(fs) > 1 then nbad := nbad + 1
+testTrue("(nms = 70)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+
+(x, y) : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity, commutativity])
+x := 'x; y := 'y
+testTrue("((1+x)+2 = x+3)@Boolean")
+testTrue("(x*(0*y) = 0)@Boolean")
+testTrue("(x+((-1)+1) = x)@Boolean")
+testTrue("(2*(x*3) = 6*x)@Boolean")
+testTrue("not (x+y = x*y)@Boolean")
+testTrue("not (x+x = x)@Boolean")
+testTrue("not (x*x = x^2)@Boolean")
+testTrue("(unparse(form(y+(2+x))) = _"2+x+y_")@Boolean")
 
 statistics()

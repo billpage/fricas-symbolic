@@ -1,6 +1,6 @@
 # Plan: design (II) on the ladder of normalisers: `SymbolicTerm(R, A)`
 
-*2026-11-26. Planning document; implements decision [0008](../decisions/0008-ladder-of-normalisers.md) and spec §3.4–3.5. Status: steps 1–2 done.*
+*2026-11-26. Planning document; implements decision [0008](../decisions/0008-ladder-of-normalisers.md) and spec §3.4–3.5. Status: steps 1–3 done.*
 
 ## 1. Goal
 
@@ -16,7 +16,7 @@ Each step is one pull request: code, tests named by spec label, and the status u
 
 1. **Done 2026-11-26.** **The term order (Ord).** A package with `smaller?` implementing §3.5 on `InputForm` normal forms. Tests: irreflexive, antisymmetric, transitive and total on all pairs and triples drawn from a list of about 30 varied terms, compared exhaustively. It is not yet wired in.
 2. **Done 2026-11-26.** **`SymbolicTerm(R, A)` with `A : List Symbol`.** Admissibility check at instantiation (spec §3.4), also added to `GeneralSymbolicExpression`, which today ignores unknown names. Rungs P0/M0 (`[]`) and the $`A_P`$ groups, with `associativity`, through the normaliser code `GeneralSymbolicExpression` already has. Equality is identity of normal forms; display and (Disp) as for `GeneralSymbolicExpression`. A new file `src/algebra/symterm.spad` and tests `src/input/symterm.input`, added to `make check`.
-3. **P1–P3 and M1–M3** (C, A, AC): sorted binary nodes, flat words, flat sorted lists. Tests: for every small term, all permutations and regroupings allowed by the rung give one normal form (N2), with the bracketing test of `gsexpr.input` as the model; and terms that are different under the rung keep different forms.
+3. **Done 2026-11-26** (in the shared normaliser of `gsexpr.spad`, so both constructors have them). **P1–P3 and M1–M3** (C, A, AC): sorted binary nodes, flat words, flat sorted lists. Tests: for every small term, all permutations and regroupings allowed by the rung give one normal form (N2), with the bracketing test of `gsexpr.input` as the model; and terms that are different under the rung keep different forms.
 4. **P4 and M4–M5** (linear combinations; power products) with `FreeModule`, signed sums and quotients as powers. Tests as in step 3, plus (N3) against `Expression` on random terms.
 5. **Ann, Ring, Field** (polynomials and fractions over the atoms) with `SparseMultivariatePolynomial` and `Fraction`. Tests as above, plus examples where Ring/Field equality is strictly weaker than `Expression`'s ($`\sqrt2^{\,2}`$ against $`2`$).
 6. **Retire the 2017 machinery:** `Symbolic(R, A)`, the axiom categories and domains, `join`, `SINFunctions`, and the interim `Inverse` home of the negation and reciprocal rewrites (decision 0007). Port `sexpr2.input` to `SymbolicTerm` and its groups.

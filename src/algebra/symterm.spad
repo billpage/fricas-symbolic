@@ -72,7 +72,7 @@ SymbolicTerm(R, A) : Exports == Implementation where
     pr(g : G) : % == g pretend %
 
     -- admissibility of A (spec 3.4, decision 0009), at instantiation
-    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity]
+    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity, 'commutativity]
     checkGroups("SymbolicTerm", A, IMPL)$SymbolicAxiomGroups
 
     -- equality modulo A: identity of normal forms
