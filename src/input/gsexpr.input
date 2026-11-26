@@ -328,4 +328,27 @@ for trial in 1..300 repeat
 testTrue("(ntr = 300)@Boolean")
 testTrue("(nbad = 0)@Boolean")
 
+testcase "ring and field in GeneralSymbolicExpression (spec 3.4): reduced fraction shown, value kept (Val)"
+(x, y) : GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])
+x := 'x; y := 'y
+testTrue("(unparse(form((x^2-1)/(x-1))) = _"x+1_")@Boolean")
+testTrue("(unparse(form(x/y+y/x)) = _"(x^2+y^2)/(x*y)_")@Boolean")
+testTrue("check((x^2-1)/(x-1)) and check(x/y+y/x) and check(1/(1/x+1/y)) and check((x+y)^3)")
+-- design (I) equality is Expression's: finer than the Field rung
+testTrue("(unparse(form(sqrt(2::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]))^2)) = _"sqrt(2)^2_")@Boolean")
+testTrue("(sqrt(2::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]))^2 = 2)@Boolean")
+xftestTrue("(unparse(form((x^2-1)/(x-1))) = _"(x^2-1)/(x-1)_")@Boolean")
+
+testcase "ring and field: (N3) on random terms, value kept (Val)"
+atl : List GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]) := [('x)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]), ('y)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]), sin(('x)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])), 2::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]), (-1)::GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])]
+rt(d : Integer) : GeneralSymbolicExpression(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field]) == (d <= 0 => atl.(random(#atl)$Integer + 1); a := rt(d - 1); b := rt(d - 1); r := random(5)$Integer; r = 0 => a + b; r = 1 => a - b; r = 2 => a * b; r = 3 and not zero? value b => a / b; n := random(5)$Integer - 2; zero? value a => a ^ abs(n); a ^ n)
+ntr : Integer := 0
+nbad : Integer := 0
+for trial in 1..300 repeat
+  t := rt(3)
+  ntr := ntr + 1
+  if not check(t) then nbad := nbad + 1
+testTrue("(ntr = 300)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+
 statistics()

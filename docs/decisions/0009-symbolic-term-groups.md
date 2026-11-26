@@ -1,6 +1,6 @@
 # 0009. `SymbolicTerm(R, A)`, with axiom groups named in a list
 
-- Status: Accepted
+- Status: Accepted (amended 2026-11-26, see admissibility below)
 - Date: 2026-11-26
 - Decided by: Bill Page
 - Spec: §3.2, §3.4 (axiom groups and admissible sets)
@@ -23,6 +23,7 @@ Option 2.
   - from $`A_P`$ and §4.1.1: `identities`, `annihilation`, `involutions`, `numerals`, `associativity`;
   - new: `commutativity`, `linear` (P4), `powers` (M4), `quotients` (M5), `ring`, `field`.
 - **Admissible:** every name known, and every required group present. Requirements are listed, not implied.
+  *Amended 2026-11-26, when `ring` was implemented:* `ring` and `quotients` together also require `field`. Without it the normal forms are not canonical: under M5, $`(y+1)^{-1}`$ is a factor whose base is a sum, and distributivity rewrites $`(y+1)^{-1}(y+1)`$ to $`(y+1)^{-1}y + (y+1)^{-1}`$ instead of $`1`$.
 - **Rejection:** both constructors reject inadmissible lists at instantiation, naming the problem. `GeneralSymbolicExpression` also rejects groups it does not implement yet; until now it silently ignored unknown names.
 
 ## Consequences
