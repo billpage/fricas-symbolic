@@ -283,6 +283,73 @@ testTrue("smaller?(convert(-3)@InputForm, parse(_"-3_")$InputForm)$SymbolicTermO
 testTrue("not smaller?(parse(_"-3_")$InputForm, convert(-3)@InputForm)$SymbolicTermOrder")
 xftestTrue("lt(_"1.5_", _"2_")")
 
+testcase "bridge: eval is the homomorphism extending phi (decision 0011, spec 3.2)"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+x := 'x; y := 'y
+toE(t : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])) : Expression(Integer) == eval(t, (s : Symbol) : Expression(Integer) +-> s::Expression(Integer))$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Expression(Integer))
+psiF(s : Symbol, l : List Fraction(Polynomial(Integer))) : Fraction(Polynomial(Integer)) == (s = 'sin => ('s)::Fraction(Polynomial(Integer)); error "unexpected operator")
+toF(t : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])) : Fraction(Polynomial(Integer)) == eval(t, (s : Symbol) : Fraction(Polynomial(Integer)) +-> s::Fraction(Polynomial(Integer)), psiF)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Fraction(Polynomial(Integer)))
+-- the value map is the instance D = Expression R
+testTrue("(toE((x^2 - 1)/(x - 1) + sin(y)/2) = ((x^2 - 1)/(x - 1) + sin(y)/2)::Expression(Integer))@Boolean")
+testTrue("(toF((x + y)^2/(x*y)) = (('x::Fraction(Polynomial(Integer))) + ('y::Fraction(Polynomial(Integer))))^2/(('x::Fraction(Polynomial(Integer)))*('y::Fraction(Polynomial(Integer)))))@Boolean")
+-- random terms built in parallel in SymbolicTerm and in the model: eval of
+-- the normal form agrees with the model (eval respects =_A); the value map
+-- agrees with eval into Expression; and the read-back gives the term back
+PR ==> Record(t : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), p : Fraction(Polynomial(Integer)))
+gen(d : Integer) : PR == (d <= 0 => (r := random(6)$Integer; r = 0 => [('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), ('x)::Fraction(Polynomial(Integer))]$PR; r = 1 => [('y)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), ('y)::Fraction(Polynomial(Integer))]$PR; r = 2 => [sin(('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])), ('s)::Fraction(Polynomial(Integer))]$PR; r = 3 => [2::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), 2::Fraction(Polynomial(Integer))]$PR; r = 4 => [(1/2)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), (1/2)::Fraction(Polynomial(Integer))]$PR; [(-1)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), (-1)::Fraction(Polynomial(Integer))]$PR); a := gen(d - 1); b := gen(d - 1); r := random(6)$Integer; r = 0 => [a.t + b.t, a.p + b.p]$PR; r = 1 => [a.t - b.t, a.p - b.p]$PR; r = 2 => [a.t * b.t, a.p * b.p]$PR; r = 3 => [a.t ^ 2, a.p ^ 2]$PR; r = 4 and not zero?(b.p) => [a.t / b.t, a.p / b.p]$PR; [- a.t, - a.p]$PR)
+ntr : Integer := 0
+nbad : Integer := 0
+for trial in 1..150 repeat
+  g := gen(3)
+  ntr := ntr + 1
+  if not (toF(g.t) = g.p)@Boolean then nbad := nbad + 1
+  if not (toE(g.t) = g.t::Expression(Integer))@Boolean then nbad := nbad + 1
+  if not (convert(form g.t)@SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]) = g.t)@Boolean then nbad := nbad + 1
+testTrue("(ntr = 150)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+-- numerical evaluation: D = Float
+testTrue("(abs(eval((x^2 - 1)/(x - 1) + sin(y)/2, (s : Symbol) : Float +-> (s = 'x => 2.0; 0.5))$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Float) - (3 + sin(0.5)/2)) < 10.0^(-15))@Boolean")
+xftestTrue("(toF(x + y) = ('x::Fraction(Polynomial(Integer))))@Boolean")
+
+testcase "bridge: adding and dropping axioms by read-back (decision 0011)"
+(a, b) : SymbolicTerm(Integer, [])
+a := 'x; b := 'y
+w := (a + a) + 0*b
+testTrue("(unparse(form w) = _"x+x+0*y_")@Boolean")
+testTrue("(unparse(form(convert(form w)@SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))) = _"2*x_")@Boolean")
+-- dropping axioms reads the normal form back as written
+testTrue("(unparse(form(convert(form(convert(form w)@SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])))@SymbolicTerm(Integer, []))) = _"2*x_")@Boolean")
+testTrue("(convert(form w)@SymbolicTerm(Integer, []) = w)@Boolean")
+xftestTrue("(unparse(form(convert(form w)@SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))) = _"x+x+0*y_")@Boolean")
+
+testcase "bridge: without commutativity, into matrices (decision 0011)"
+(p, q) : SymbolicTerm(Integer, [associativity, identities])
+p := 'p; q := 'q
+mp : SquareMatrix(2, Fraction(Integer)) := matrix [[1, 2], [3, 4]]
+mq : SquareMatrix(2, Fraction(Integer)) := matrix [[0, 1], [1, 0]]
+ev(v : SymbolicTerm(Integer, [associativity, identities])) : SquareMatrix(2, Fraction(Integer)) == eval(v, (s : Symbol) : SquareMatrix(2, Fraction(Integer)) +-> (s = 'p => mp; mq))$SymbolicTermFunctions2(Integer, [associativity, identities], SquareMatrix(2, Fraction(Integer)))
+testTrue("(ev(p*q*p) = mp*mq*mp)@Boolean")
+testTrue("not (ev(p*q) = ev(q*p))@Boolean")
+testTrue("(ev((p + q)^2) = (mp + mq)^2)@Boolean")
+xftestTrue("(ev(p*q) = ev(q*p))@Boolean")
+
+testcase "bridge: refused targets (decision 0011)"
+-- commutativity, linear, powers, ring need a commutative ring D
+testLibraryError("eval(('p)::SymbolicTerm(Integer, [commutativity]), (s : Symbol) : SquareMatrix(2, Fraction(Integer)) +-> 1)$SymbolicTermFunctions2(Integer, [commutativity], SquareMatrix(2, Fraction(Integer)))")
+-- quotients and field need a field D
+testLibraryError("eval(('p)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]), (s : Symbol) : Polynomial(Fraction(Integer)) +-> 1)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Polynomial(Fraction(Integer)))")
+-- numerals need Fraction Integer in D
+testLibraryError("eval(('p)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]), (s : Symbol) : Polynomial(Integer) +-> 1)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear], Polynomial(Integer))")
+-- an operator D cannot interpret
+testLibraryError("eval(sin(('p)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])), (s : Symbol) : Polynomial(Fraction(Integer)) +-> 1)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear], Polynomial(Fraction(Integer)))")
+-- accepted: a commutative D with Fraction Integer
+testTrue("(eval(('p)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) + 1, (s : Symbol) : Polynomial(Fraction(Integer)) +-> 2)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear], Polynomial(Fraction(Integer))) = 3)@Boolean")
+
+testcase "bridge: float numerals (decisions 0010, 0011)"
+y : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) := 'y
+testTrue("(eval(1.5*y + 0.25, (s : Symbol) : Float +-> 2.0)$SymbolicTermFunctions2(Float, [commutativity, associativity, identities, numerals, linear], Float) = 3.25)@Boolean")
+testTrue("(eval(1.5*y + 0.25, (s : Symbol) : Expression(Float) +-> s::Expression(Float))$SymbolicTermFunctions2(Float, [commutativity, associativity, identities, numerals, linear], Expression(Float)) = (1.5*y + 0.25)::Expression(Float))@Boolean")
+
 testcase "admissibility (spec 3.4, decision 0009)"
 -- unknown group; ring with quotients but without field; both constructors
 testLibraryError("('x)::SymbolicTerm(Integer, [identity])")

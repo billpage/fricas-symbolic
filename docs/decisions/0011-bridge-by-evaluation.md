@@ -1,7 +1,8 @@
 # 0011. The bridge: evaluation by the universal property
 
-- Status: Proposed (Claude, 2026-11-26, at Bill's request: "Maybe we can provide conversions or other bridges?")
+- Status: Accepted (proposed by Claude at Bill's request, "Maybe we can provide conversions or other bridges?"; accepted by merging pull request #16)
 - Date: 2026-11-26
+- Decided by: Bill Page
 - Spec: §2.2 (evaluation), §3.2 (design (II): categories and conversions)
 
 ## Context
@@ -37,9 +38,9 @@ Analogy: a polynomial ring $`K[x_1, \ldots, x_n]`$ is the free commutative $`K`$
 ## Options
 
 1. **Categories per rung.** Separate constructors, one per admissible set with a category of its own. Heavy, and it multiplies the domains a user must know.
-2. **Bridges only (proposed).** `SymbolicTerm(R, A)` keeps a small interface: the arithmetic, operator application, `form`, `value`. Computation happens by crossing to a FriCAS domain that has the algebra, through $`\mathrm{eval}_\varphi`$. It needs no categories that depend on $`A`$.
+2. **Bridges only (chosen).** `SymbolicTerm(R, A)` keeps a small interface: the arithmetic, operator application, `form`, `value`. Computation happens by crossing to a FriCAS domain that has the algebra, through $`\mathrm{eval}_\varphi`$. It needs no categories that depend on $`A`$.
 
-## Decision (proposed)
+## Decision
 
 Option 2:
 
@@ -63,5 +64,5 @@ Option 2:
 - No category claims to verify per rung, and no extra constructors.
 - Operations such as `simplify`, `factor`, `D` and rewrite rules are used on `SymbolicTerm` by crossing a bridge and, if wanted, reading back. The tests of 2017 that wait for an interface (note on retiring `Symbolic`) get their answer this way: for example, `D` through `GeneralSymbolicExpression` or `Polynomial`.
 - `SymbolicTerm(R, A)` needs operator application (`elt(op, args)`) for terms with operators beyond its current `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, so that every term can be built and evaluated.
-- To do once accepted: the package, the per-group category checks, and tests that `eval` respects $`=_A`$: random terms equal under $`A`$ evaluate equally in a `D` satisfying $`A`$. A must-fail test: a `D` that lacks a required category is refused.
+- Implemented 2026-11-26: `InputFormEvaluation(D)` evaluates the forms of terms in a ring `D`; `SymbolicTermFunctions2(R, A, D)` has `eval` and refuses, when instantiated, a `D` without the categories the groups of $`A`$ need; `SymbolicTerm(R, A)` has `elt` and the read-back `convert : InputForm -> %`. Tests in `symterm.input`, test cases "bridge: …": random terms evaluated into `Fraction Polynomial Integer` agree with a model built in parallel, the value map is `eval` into `Expression`, the read-back gives the term back, matrices without commutativity, and refused targets (must fail).
 - Open: whether `eval` should also accept a target `D` whose axioms hold only on a subset, such as `Float` for `field` (division by zero), with the partiality left to `D`.

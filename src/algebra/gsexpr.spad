@@ -1168,3 +1168,106 @@ SymbolicExpression(R) : Exports == Implementation where
   R : GSEXPRRING
   Exports ==> GSEXPRCAT
   Implementation ==> GeneralSymbolicExpression(R, ['identities, 'annihilation, 'involutions, 'numerals])
+
+)abbrev package INFEVAL InputFormEvaluation
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ Evaluation of the forms of terms (InputForm trees as built by
+++ GeneralSymbolicExpression and SymbolicTerm) in a ring D, by structural
+++ recursion (spec section 2.2, decision 0011): symbols by a given map, the
+++ arithmetic by D's own, numerals through Fraction Integer, and other
+++ operators by a given map, or by default by D's elementary functions or,
+++ if D is an ExpressionSpace, by applying the operator of that name.
+InputFormEvaluation(D : Ring) : with
+    evalForm : (InputForm, Symbol -> D) -> D
+      ++ evalForm(f, phi) evaluates the term form f in D, with symbols
+      ++ mapped by phi and operators interpreted by defaultOperators.
+    evalForm : (InputForm, Symbol -> D, (Symbol, List D) -> D) -> D
+      ++ evalForm(f, phi, psi) evaluates the term form f in D, with symbols
+      ++ mapped by phi, and operators other than + - * / ^ applied by psi.
+    defaultOperators : (Symbol, List D) -> D
+      ++ defaultOperators(s, l) applies the operator named s to l in D: an
+      ++ elementary function of D, or, if D is an ExpressionSpace, the
+      ++ operator of that name; an error otherwise.
+  == add
+    INF ==> InputForm
+    RN ==> Fraction Integer
+    NUMF ==> Record(fl : Boolean, q : RN)
+
+    num(q : RN) : D ==
+        denom q = 1 => (numer q)::D
+        if D has Algebra(RN) then return q::D
+        error "InputFormEvaluation: a fractional numeral needs Fraction Integer in D"
+
+    powD(a : D, n : Integer) : D ==
+        n >= 0 => a ^ (n::NonNegativeInteger)
+        if D has Field then return inv(a ^ ((-n)::NonNegativeInteger))
+        error "InputFormEvaluation: a negative exponent needs D to be a Field"
+
+    defaultOperators(s : Symbol, l : List D) : D ==
+        if D has TranscendentalFunctionCategory then
+            if #l = 1 then
+                a := first l
+                s = 'exp => return exp a
+                s = 'log => return log a
+                s = 'sin => return sin a
+                s = 'cos => return cos a
+                s = 'tan => return tan a
+                s = 'cot => return cot a
+                s = 'sec => return sec a
+                s = 'csc => return csc a
+                s = 'asin => return asin a
+                s = 'acos => return acos a
+                s = 'atan => return atan a
+                s = 'sinh => return sinh a
+                s = 'cosh => return cosh a
+                s = 'tanh => return tanh a
+        if D has RadicalCategory then
+            if #l = 1 and s = 'sqrt then return sqrt first l
+        if D has ExpressionSpace then
+            return elt(operator(s)$CommonOperators, l)$D
+        error concat(["InputFormEvaluation: no interpretation in D of the operator ", string s])
+
+    evalForm(f : INF, phi : Symbol -> D) : D == evalForm(f, phi, defaultOperators)
+
+    evalForm(f : INF, phi : Symbol -> D, psi : (Symbol, List D) -> D) : D ==
+        u := numeralForm(f)$SymbolicTermOrder
+        u case NUMF => num(u.q)
+        symbol?(f)$INF => phi symbol(f)$INF
+        atom?(f)$INF => error concat(["InputFormEvaluation: not a term: ", unparse f])
+        l := destruct(f)$INF
+        h := first l
+        not symbol?(h)$INF => error concat(["InputFormEvaluation: not a term: ", unparse f])
+        s := symbol(h)$INF
+        args := rest l
+        ev := (g : INF) : D +-> evalForm(g, phi, psi)
+        s = '_+ =>
+            r := ev first args
+            for g in rest args repeat r := r + ev g
+            r
+        s = '_- and #args = 1 => - ev first args
+        s = '_- => ev first args - ev second args
+        s = '_* =>
+            r := ev first args
+            for g in rest args repeat r := r * ev g
+            r
+        s = '_/ =>
+            if D has Field then return ev first args / ev second args
+            error "InputFormEvaluation: division needs D to be a Field"
+        s = '_^ =>
+            a := ev first args
+            e := numeralForm(second args)$SymbolicTermOrder
+            -- exact exponents: integer, or rational if D has radicals
+            if e case NUMF and not e.fl then
+                denom(e.q) = 1 => return powD(a, numer(e.q))
+                if D has RadicalCategory then return a ^ e.q
+            -- any other exponent: exp(b log a)
+            if D has TranscendentalFunctionCategory then
+                return exp(ev second args * log a)
+            error "InputFormEvaluation: this exponent needs D to have exp and log"
+        s = 'nthRoot and #args = 2 and integer?(second args)$INF =>
+            if D has RadicalCategory then
+                return nthRoot(ev first args, integer(second args)$INF)
+            error "InputFormEvaluation: nthRoot needs D to have radicals"
+        psi(s, [ev g for g in args])

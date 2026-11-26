@@ -57,8 +57,14 @@ SymbolicTerm(R, A) : Exports == Implementation where
       ++ cos(x) is the cosine term.
     tan : % -> %
       ++ tan(x) is the tangent term.
+    elt : (BasicOperator, List %) -> %
+      ++ elt(op, [x1, ..., xn]) is the term op(x1, ..., xn).
     form : % -> InputForm
       ++ form(x) is the normal form of x.
+    convert : InputForm -> %
+      ++ convert(f) reads the term form f back: the normal form under A of
+      ++ the term f, built by the operations of this domain (decision 0011).
+      ++ convert(form x) = x.
     coerce : % -> E
       ++ coerce(x) evaluates x in Expression R; every axiom group is sound
       ++ for Expression R (spec 3.4).
@@ -99,3 +105,48 @@ SymbolicTerm(R, A) : Exports == Implementation where
     sin x == pr sin(rp x)
     cos x == pr cos(rp x)
     tan x == pr tan(rp x)
+    elt(op : BasicOperator, l : List %) : % == pr elt(op, [rp a for a in l])$G
+    convert(f : InputForm) : % ==
+        pr evalForm(f, (s : Symbol) : G +-> s::G)$InputFormEvaluation(G)
+
+)abbrev package SYMTF2 SymbolicTermFunctions2
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ The bridge of decision 0011: SymbolicTerm(R, A) is the free algebra over
+++ the symbols in the variety of algebras satisfying A, so every map phi of
+++ the symbols into a ring D satisfying A extends to exactly one
+++ homomorphism eval(., phi) into D.  The package refuses, when it is
+++ instantiated, a D that lacks the category asserting the axioms of a
+++ group in A: commutativity, linear, powers and ring need a commutative
+++ ring, quotients and field a field, and numerals Fraction Integer in D.
+SymbolicTermFunctions2(R, A, D) : Exports == Implementation where
+  R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
+           RetractableTo Integer, ConvertibleTo InputForm)
+  A : List Symbol
+  D : Ring
+  ST ==> SymbolicTerm(R, A)
+  Exports ==> with
+    eval : (ST, Symbol -> D) -> D
+      ++ eval(t, phi) is the image of t under the homomorphism extending
+      ++ phi; operators are applied by defaultOperators of
+      ++ InputFormEvaluation(D).
+    eval : (ST, Symbol -> D, (Symbol, List D) -> D) -> D
+      ++ eval(t, phi, psi) is the same, with operators other than the
+      ++ arithmetic applied by psi.
+  Implementation ==> add
+    who ==> "SymbolicTermFunctions2"
+    needs(g : Symbol, what : String) : Void ==
+        error concat([who, ": axiom group ", string g, " needs ", what])
+    for g in A repeat
+        if member?(g, ['commutativity, 'linear, 'powers, 'ring]) and not (D has CommutativeRing) then
+            needs(g, "a commutative ring D")
+        if member?(g, ['quotients, 'field]) and not (D has Field) then
+            needs(g, "a field D")
+        if g = 'numerals and not (D has Algebra(Fraction Integer)) then
+            needs(g, "Fraction Integer in D")
+
+    eval(t : ST, phi : Symbol -> D) : D ==
+        evalForm(form t, phi)$InputFormEvaluation(D)
+    eval(t : ST, phi : Symbol -> D, psi : (Symbol, List D) -> D) : D ==
+        evalForm(form t, phi, psi)$InputFormEvaluation(D)
