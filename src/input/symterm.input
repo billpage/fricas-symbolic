@@ -69,12 +69,18 @@ x := 'x; y := 'y
 rt(t : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
 testTrue("rt(x+(y+1)) and rt(x-(y-1)) and rt(x*(y/2)) and rt(sin(x+y)^2)")
 
+testcase "display reads back as the normal form under linear, powers, quotients (Disp)"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients])
+x := 'x; y := 'y
+rt(t : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
+testTrue("rt(y-2*x+1) and rt(3-x) and rt(-x-1) and rt(x/(2*y)) and rt(x/(y*x^2)) and rt(2*x*y+3*y*x) and rt((1/2)*x+y) and rt(x^(-1)) and rt(-(x/y)) and rt(sin(x-y)^(-2)*(x+1)) and rt(x-(1/3)*y^2)")
+
 testcase "admissibility (spec 3.4, decision 0009)"
 -- unknown group, not yet implemented group, both constructors
 testLibraryError("('x)::SymbolicTerm(Integer, [identity])")
-testLibraryError("('x)::SymbolicTerm(Integer, [linear, commutativity, associativity, identities, numerals])")
+testLibraryError("('x)::SymbolicTerm(Integer, [ring, linear, powers, commutativity, associativity, identities, numerals])")
 testLibraryError("('x)::GeneralSymbolicExpression(Integer, [identity])")
-testLibraryError("('x)::GeneralSymbolicExpression(Integer, [linear, commutativity, associativity, identities, numerals])")
+testLibraryError("('x)::GeneralSymbolicExpression(Integer, [ring, linear, powers, commutativity, associativity, identities, numerals])")
 -- requirements, checked with every group taken as implemented
 testLibraryError("checkGroups(_"test_", [linear], groups())$SymbolicAxiomGroups")
 testLibraryError("checkGroups(_"test_", [quotients, commutativity, associativity, identities, numerals], groups())$SymbolicAxiomGroups")
@@ -170,5 +176,108 @@ testTrue("not (x+y = x*y)@Boolean")
 testTrue("not (x+x = x)@Boolean")
 testTrue("not (x*x = x^2)@Boolean")
 testTrue("(unparse(form(y+(2+x))) = _"2+x+y_")@Boolean")
+
+testcase "linear: P4, linear combinations (spec 3.4)"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+x := 'x; y := 'y
+testTrue("(x+x = 2*x)@Boolean")
+testTrue("(2*x+3*x = 5*x)@Boolean")
+testTrue("(x-x = 0)@Boolean")
+testTrue("(2*(x+y) = 2*x+2*y)@Boolean")
+testTrue("(-(x-y) = y-x)@Boolean")
+testTrue("(x+y-x = y)@Boolean")
+testTrue("((1/2)*x+(1/2)*x = x)@Boolean")
+testTrue("(0*x = 0)@Boolean")
+testTrue("(x*0+y = y)@Boolean")
+testTrue("not (x*x = x^2)@Boolean")
+testTrue("not (x*(y+1) = x*y+x)@Boolean")
+testTrue("(unparse(form(y-2*x+1)) = _"(-(2*x))+y+1_")@Boolean")
+testTrue("(unparse(form(3-x)) = _"(-x)+3_")@Boolean")
+testTrue("(unparse(form(-x-1)) = _"(-x)-1_")@Boolean")
+xftestTrue("(x+x = x)@Boolean")
+-- random linear combinations, each written in many ways (property test)
+atl : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) := [('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]), ('y)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]), ('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) * ('y)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]), sin(('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))]
+rk(k : Integer, a : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) == (r := random(5)$Integer; if r = 0 then (k::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))*a else if r = 1 then ((k-1)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))*a + a else if r = 2 then ((k+1)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))*a - a else if r = 3 then a*(k::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])) else -(((-k)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]))*a))
+shuf(l : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])) : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) == if empty? l then l else (i := random(#l)$Integer + 1; cons(l.i, shuf(delete(l, i))))
+rsum(l : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) == if #l = 1 then first l else (i : NonNegativeInteger := (random(#l - 1)$Integer + 1)::NonNegativeInteger; rsum(first(l, i)) + rsum(rest(l, i)))
+build(v : List Integer, c : Integer) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear]) == rsum(shuf(concat([rk(v.i, atl.i) for i in 1..#atl | v.i ~= 0], [c::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])])))
+ntr : Integer := 0
+nbad : Integer := 0
+ndiff : Integer := 0
+for trial in 1..150 repeat
+  v := [random(7)$Integer - 3 for i in 1..4]
+  c := random(7)$Integer - 3
+  e1 := build(v, c)
+  e2 := build(v, c)
+  ntr := ntr + 1
+  if not (e1 = e2)@Boolean then nbad := nbad + 1
+  w := [random(7)$Integer - 3 for i in 1..4]
+  d := random(7)$Integer - 3
+  if (v ~= w or c ~= d) and (e1 = build(w, d))@Boolean then ndiff := ndiff + 1
+testTrue("(ntr = 150)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+testTrue("(ndiff = 0)@Boolean")
+
+testcase "powers and quotients: M4, M5, power products (spec 3.4)"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])
+x := 'x; y := 'y
+testTrue("(x*x = x^2)@Boolean")
+testTrue("(x^2*x^3 = x^5)@Boolean")
+testTrue("((x*y)^2 = x^2*y^2)@Boolean")
+testTrue("((x^2)^3 = x^6)@Boolean")
+testTrue("(x/x = 1)@Boolean")
+testTrue("(x*y/x = y)@Boolean")
+testTrue("(x^(-1)*x = 1)@Boolean")
+testTrue("(x/y*y = x)@Boolean")
+testTrue("((x/y)^(-1) = y/x)@Boolean")
+testTrue("(1/(1/x) = x)@Boolean")
+testTrue("(x/(2*y) = (1/2)*x/y)@Boolean")
+testTrue("not (x+x = 2*x)@Boolean")
+testTrue("(unparse(form(x^2*y)) = _"y*x^2_")@Boolean")
+testTrue("(unparse(form(x/(y*x^2))) = _"1/(x*y)_")@Boolean")
+xftestTrue("(x*x = x)@Boolean")
+-- random power products, each written in many ways (property test)
+atl : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) := [('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]), ('y)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]), sin(('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])), ('x)::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) + 1]
+rp(k : Integer, a : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) == (r := random(4)$Integer; if r = 0 then a^k else if r = 1 then a^(k-1)*a else if r = 2 then a^(k+1)/a else if k >= 0 then a^k else 1/a^(-k))
+shuf(l : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])) : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) == if empty? l then l else (i := random(#l)$Integer + 1; cons(l.i, shuf(delete(l, i))))
+rprod(l : List SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) == if #l = 1 then first l else (i : NonNegativeInteger := (random(#l - 1)$Integer + 1)::NonNegativeInteger; rprod(first(l, i)) * rprod(rest(l, i)))
+cs : List Integer := [1, 2, -1, 3]
+build(e : List Integer, c : Integer) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients]) == rprod(shuf(concat([rp(e.i, atl.i) for i in 1..#atl | e.i ~= 0], [c::SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers, quotients])])))
+ntr : Integer := 0
+nbad : Integer := 0
+ndiff : Integer := 0
+for trial in 1..150 repeat
+  e := [random(5)$Integer - 2 for i in 1..4]
+  c := cs.(random(4)$Integer + 1)
+  e1 := build(e, c)
+  e2 := build(e, c)
+  ntr := ntr + 1
+  if not (e1 = e2)@Boolean then nbad := nbad + 1
+  f := [random(5)$Integer - 2 for i in 1..4]
+  d := cs.(random(4)$Integer + 1)
+  if (e ~= f or c ~= d) and (e1 = build(f, d))@Boolean then ndiff := ndiff + 1
+testTrue("(ntr = 150)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+testTrue("(ndiff = 0)@Boolean")
+
+testcase "powers without quotients: M4, exponents at least 1"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, powers])
+x := 'x; y := 'y
+testTrue("(x*x = x^2)@Boolean")
+testTrue("not (x/x = 1)@Boolean")
+testTrue("not (x^(-1)*x = 1)@Boolean")
+testTrue("(x^(-1)*x^(-1) = (x^(-1))^2)@Boolean")
+
+testcase "linear with powers and quotients"
+(x, y) : SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients])
+x := 'x; y := 'y
+testTrue("(2*x*y+3*y*x = 5*x*y)@Boolean")
+testTrue("(x*x-x^2 = 0)@Boolean")
+testTrue("(x/y+x/y = 2*x/y)@Boolean")
+testTrue("((x+y)^2 = (y+x)*(x+y))@Boolean")
+testTrue("not (x*(x+1) = x^2+x)@Boolean")
+testTrue("not (2*x*(y+1) = 2*x*y+2*x)@Boolean")
+testTrue("(2*(x+y)/2 = x+y)@Boolean")
+testTrue("(((2*x*(y+1))::Expression(Integer)) = 2*('x::Expression(Integer))*('y::Expression(Integer)) + 2*('x::Expression(Integer)))@Boolean")
 
 statistics()

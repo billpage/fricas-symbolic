@@ -1,6 +1,6 @@
 # Plan: design (II) on the ladder of normalisers: `SymbolicTerm(R, A)`
 
-*2026-11-26. Planning document; implements decision [0008](../decisions/0008-ladder-of-normalisers.md) and spec §3.4–3.5. Status: steps 1–3 done.*
+*2026-11-26. Planning document; implements decision [0008](../decisions/0008-ladder-of-normalisers.md) and spec §3.4–3.5. Status: steps 1–4 done.*
 
 ## 1. Goal
 
@@ -17,7 +17,7 @@ Each step is one pull request: code, tests named by spec label, and the status u
 1. **Done 2026-11-26.** **The term order (Ord).** A package with `smaller?` implementing §3.5 on `InputForm` normal forms. Tests: irreflexive, antisymmetric, transitive and total on all pairs and triples drawn from a list of about 30 varied terms, compared exhaustively. It is not yet wired in.
 2. **Done 2026-11-26.** **`SymbolicTerm(R, A)` with `A : List Symbol`.** Admissibility check at instantiation (spec §3.4), also added to `GeneralSymbolicExpression`, which today ignores unknown names. Rungs P0/M0 (`[]`) and the $`A_P`$ groups, with `associativity`, through the normaliser code `GeneralSymbolicExpression` already has. Equality is identity of normal forms; display and (Disp) as for `GeneralSymbolicExpression`. A new file `src/algebra/symterm.spad` and tests `src/input/symterm.input`, added to `make check`.
 3. **Done 2026-11-26** (in the shared normaliser of `gsexpr.spad`, so both constructors have them). **P1–P3 and M1–M3** (C, A, AC): sorted binary nodes, flat words, flat sorted lists. Tests: for every small term, all permutations and regroupings allowed by the rung give one normal form (N2), with the bracketing test of `gsexpr.input` as the model; and terms that are different under the rung keep different forms.
-4. **P4 and M4–M5** (linear combinations; power products) with `FreeModule`, signed sums and quotients as powers. Tests as in step 3, plus (N3) against `Expression` on random terms.
+4. **Done 2026-11-26** (in the shared normaliser, groups `linear`, `powers`, `quotients`). **P4 and M4–M5** (linear combinations; power products), signed sums and quotients as powers. The canonical elements are sorted lists of (atom, coefficient) and (atom, exponent) records, the representation `FreeModule` would use, built into `InputForm` trees as in spec §3.4. Tests: random linear combinations and power products, each written in many ways, have one normal form, and different ones keep different forms (150 trials each, with a mutation check); (N3) by `check` on 300 random terms; (Disp) on the new forms.
 5. **Ann, Ring, Field** (polynomials and fractions over the atoms) with `SparseMultivariatePolynomial` and `Fraction`. Tests as above, plus examples where Ring/Field equality is strictly weaker than `Expression`'s ($`\sqrt2^{\,2}`$ against $`2`$).
 6. **Retire the 2017 machinery:** `Symbolic(R, A)`, the axiom categories and domains, `join`, `SINFunctions`, and the interim `Inverse` home of the negation and reciprocal rewrites (decision 0007). Port `sexpr2.input` to `SymbolicTerm` and its groups.
 7. **Shared with design (I):** let `GeneralSymbolicExpression(R, A)` accept sound rungs as presentation axioms (for example C for sorted display), keeping (Disp) and (Val).
@@ -26,5 +26,5 @@ Each step is one pull request: code, tests named by spec label, and the status u
 
 - Categories: which FriCAS categories each admissible $`A`$ may claim (spec §3.2): for example `AbelianMonoid` at P3 with Id, `CommutativeRing` at Ring.
 - Floats as numerals: `Float` has no exact arithmetic, so is Num sound for them? Probably restrict Num to exact numerals.
-- Display of P4/M4 forms: the constant last and the numeral first are proposed (§3.5); confirm with examples.
+- Display of P4/M4 forms: settled in step 4 (spec §3.4, "Trees of P4, M4 and M5"): the constant last in a sum, the numeral first in a product. Review with examples.
 - Whether the user-rule AC matcher (note §2.3, item 5) is wanted at all for design (II).
