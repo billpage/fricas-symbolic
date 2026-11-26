@@ -84,7 +84,7 @@ FriCAS's `Ring` and `FunctionSpace` promise that $`=`$, `zero?`, `numer`, `denom
 ### 3.2 Design (II): `Symbolic(R, A)`, the term algebra modulo $`A`$
 
 - **Carrier:** $`T/{=_A}`$, represented by normal forms $`\mathrm{nf}_A`$.
-- **Equality:** $`=_A`$, decided by comparing normal forms. This requires (T) and (CR), modulo $`B`$ where needed.
+- **Equality:** $`=_A`$, decided by comparing normal forms. This requires a normaliser with (N1) and (N2) (§3.4). A terminating and confluent rewrite system modulo $`B`$ is one way to obtain one (§2.4); the ladder of §3.4 builds canonical forms of free algebras directly.
 - **Categories:** exactly those whose axioms follow from $`A`$, e.g. $`A \supseteq \{\text{assoc}, \text{comm}, 0\}`$ for `+` gives `AbelianMonoid`. Never `Ring` or `FunctionSpace` unless $`A`$ contains the ring axioms (§3.1).
 - **Soundness for $`E`$** is required only for the conversion to `Expression`. $`A`$ may describe a different algebra, e.g. graded-commutative (§4.2); then no conversion to $`E`$ is offered.
 - **G3:** `Symbolic(R, None)` applies no rewriting at all; $`=_\emptyset`$ is syntactic identity of terms.
@@ -128,6 +128,87 @@ Note that **(I) needs only (S) and (T), not (CR)**. Equality comes from the valu
 **Conversions:**
 - $`E \to P_A`$: $`v \mapsto (\mathrm{nf}_A(\mathrm{form}(v)), v)`$, where $`\mathrm{form}(v)`$ is `Expression`'s own structural `convert(v)@InputForm` (no interpreter, fixing D7).
 - $`P_A \to E`$ is $`\mathrm{val}`$.
+
+### 3.4 One library of normalisers: the ladder of axiom sets
+
+*Decision [0008](../decisions/0008-ladder-of-normalisers.md). This section and §3.5 replace, for `Symbolic(R, A)`, the 2017 axiom categories, which rewrite binary trees with an order that was never shown to terminate (§4.2).*
+
+**Normalisers.** For an admissible axiom set $`A`$ (defined below), a *normaliser* is a function $`N_A : T \to T`$ with
+
+- **(N1) correct:** $`N_A(t) =_A t`$ for every term $`t`$;
+- **(N2) canonical:** $`s =_A t \implies N_A(s) = N_A(t)`$ (identity of trees).
+
+Together, $`s =_A t \iff N_A(s) = N_A(t)`$, and $`N_A`$ is idempotent: $`N_A(N_A(t)) = N_A(t)`$, since $`N_A(t) =_A t`$ by (N1). If $`A`$ is sound (S), then by Lemma 1 $`N_A`$ also preserves values where the term is defined:
+
+- **(N3) value-preserving:** $`[\![t]\!]`$ defined $`\implies [\![N_A(t)]\!] = [\![t]\!]`$.
+
+A normaliser need not come from a rewrite system. For the sets below it builds the canonical element of a known free algebra directly. (N2) then holds because canonical forms of a free algebra are unique, and no termination order or critical-pair check is involved.
+
+**Both constructors use the same normalisers** and differ only in their equality:
+
+| | `Symbolic(R, A)`, design (II) | `GeneralSymbolicExpression(R, A)`, design (I) |
+|---|---|---|
+| Carrier | $`N_A(T)`$ | pairs $`(N_A(t), [\![t]\!])`$ |
+| Operation $`\omega`$ | $`N_A(\omega(t_1, \ldots, t_n))`$ | form $`N_A(\omega(t_1, \ldots, t_n))`$, value $`\omega_E(v_1, \ldots, v_n)`$ |
+| Equality | identity of normal forms, i.e. $`=_A`$ | equality of values, i.e. $`\equiv`$ |
+| Needs | (N1), (N2) | (S) and (N1), hence (N3) and (Val) |
+| Display | the normal form | the normal form of what was written |
+
+So any sound admissible $`A`$ can serve as presentation axioms (Proposition 2). For example, `GeneralSymbolicExpression(R, [commutativity])` would display sums with sorted operands while keeping semantic equality. $`A_P`$ (§4.1) and Assoc (§4.1.1) are normalisers of this kind (Theorem 3).
+
+**Atoms.** For a given $`A`$, an *atom* of an operator $`\circ`$ is a normal form whose head is not $`\circ`$, and not an operator that $`A`$ expresses through $`\circ`$ (below: $`-`$ through $`+`$, $`/`$ through $`\cdot`$). Numerals, symbols and applications $`f(t_1, \ldots, t_n)`$ are atoms of every operator. A power with a non-integer exponent, such as $`x^{1/2}`$, is an atom of $`\cdot`$.
+
+**The rungs for $`+`$.** Each rung is the free algebra of its axioms over the atoms of $`+`$:
+
+| Rung | Axioms for $`+`$ | Normal form of a sum | Free algebra | FriCAS container |
+|---|---|---|---|---|
+| P0 | none | binary tree as written | term algebra | `InputForm` |
+| P1 | C | binary tree, the two operands of each node in $`\prec`$ order | free commutative magma | `InputForm` |
+| P2 | A | flat list, written order | free semigroup | `List` |
+| P3 | AC | flat list in $`\prec`$ order (a multiset) | free commutative semigroup | `List` |
+| P4 | AC, Id ($`0`$), Num, Doubles, Cancels, with $`x-y \approx x + (-1)\,y`$ and $`-x \approx (-1)\,x`$ | a numeral $`c`$ plus a finite sum $`\sum_i c_i\, a_i`$ with distinct atoms $`a_1 \prec \cdots \prec a_k`$ and numerals $`c_i \ne 0`$ | free $`K`$-vector space on the atoms, plus constants | `FreeModule(K, S)` |
+
+P4 takes Doubles and Cancels together: with numeral coefficients, a sum of coefficients can vanish, so one without the other is not closed under Num.
+
+**The rungs for $`\cdot`$:**
+
+| Rung | Axioms for $`\cdot`$ | Normal form of a product | Free algebra | FriCAS container |
+|---|---|---|---|---|
+| M0–M3 | as P0–P3 | as P0–P3 | as P0–P3 | as P0–P3 |
+| M4 | AC, Id ($`1`$), Num, Squares | a numeral times $`\prod_i a_i^{e_i}`$, distinct atoms in $`\prec`$ order, integers $`e_i \ge 1`$ | free commutative monoid | `FreeModule(Integer, S)`, exponents $`\ge 1`$ |
+| M5 | M4, Divides, with $`x/y \approx x \cdot y^{-1}`$ | the same with integers $`e_i \ne 0`$ | free abelian group | `FreeModule(Integer, S)` |
+
+M5 is sound where defined: $`x \cdot x^{-1} \to 1`$ holds wherever $`x \ne 0`$, which is where the left side is defined.
+
+**Linking axioms**, which relate $`+`$ and $`\cdot`$:
+
+| Axioms | Requires | Normal form | FriCAS container |
+|---|---|---|---|
+| Ann: $`0 \cdot x \approx 0`$ | any rungs | as the rungs, with products containing $`0`$ replaced by $`0`$ | |
+| Ring: distributivity | P4 and M4 | polynomial over $`K`$ in the atoms of both | `SparseMultivariatePolynomial(K, S)` |
+| Field: distributivity | P4 and M5 | reduced fraction $`p/q`$, $`\gcd(p, q) = 1`$, $`q`$ normalised | `Fraction` of the above |
+
+The Ring and Field rungs are not `Expression`. Their equality is polynomial (rational-function) identity with the functions left uninterpreted. `Expression` identifies more, e.g. $`\sqrt2^{\,2} = 2`$, $`e^{\log x} = x`$, $`\sin 0 = 0`$ (run of 2026-11-26), so $`=_{\mathrm{Field}} \subsetneq \equiv`$.
+
+**Admissible sets.** An admissible $`A`$ is a choice of one rung for $`+`$, one for $`\cdot`$, and linking axioms whose requirements those rungs meet. `Symbolic(R, A)` rejects other combinations when the domain is instantiated, with an error naming the missing requirement. Optional groups that are normalisers of their own, such as Assoc (§4.1.1) or the reciprocal and negation groups of the note of 2026-11-26, may be added where the specification lists them.
+
+### 3.5 The structural term order $`\prec`$
+
+Rungs P1, P3, P4 and M1, M3–M5 sort atoms by a strict total order $`\prec`$ on normal forms. Any strict total order gives canonical forms: if the operands are canonical, their sorted list is canonical. The choice of $`\prec`$ therefore affects only the display, not correctness. It is defined by structural recursion:
+
+1. **Kinds:** numeral $`\prec`$ symbol $`\prec`$ compound.
+2. **Numerals** are compared by value, with `smaller?` of their domain: `Fraction Integer` for rational numerals, otherwise $`R`$. This requires $`R`$ to be `Comparable`, whose `smaller?` is a linear order compatible with equality. `ComparableRepresentation` is not enough, because there two representatives of one element may compare inconsistently.
+3. **Symbols** are compared with `smaller?$Symbol`, the order of the `OrderedSet` `Symbol`.
+4. **Compounds** $`f(t_1, \ldots, t_n)`$ and $`g(u_1, \ldots, u_m)`$, where the arithmetic operators count as $`f`$ and $`g`$, are compared lexicographically by the triple (operator name, arity, argument list). Operator names are compared as symbols; the argument lists $`(t_1, \ldots, t_n)`$ and $`(u_1, \ldots, u_n)`$, which have equal length once the arities are equal, are compared lexicographically by $`\prec`$.
+
+**Proposition 4.** $`\prec`$ is a strict total order on $`T`$.
+
+*Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–3 compare by strict total orders. Step 4 is the lexicographic product of strict total orders: on names, on arities, and, by the induction hypothesis on the strictly smaller arguments, on argument lists of equal length. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
+
+**Remarks.**
+- $`\prec`$ is not a reduction order and plays no part in termination; the normalisers of §3.4 terminate by structural recursion.
+- Display conventions are separate from $`\prec`$: in a P4 sum the constant is shown last, and in an M4 product the numeral first, as in $`2x + y + 1`$.
+- $`\prec`$ replaces `smaller?` of `SINFunctions` in `sexpr.spad`, whose own comment says it is "not yet proven" to be a total order.
 
 ## 4. Axiom analysis
 
@@ -242,7 +323,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 
 ## 5. Specification summary
 
-1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$. It requires (T) and (CR), modulo AC where C is present. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
+1. **`Symbolic(R, A)`** (II) is the term algebra modulo $`A`$, with equality $`=_A`$, for an admissible $`A`$ on the ladder of §3.4, decided by a normaliser with (N1), (N2) and the term order of §3.5. It claims only the categories $`A`$ proves, offers conversion to `Expression` only when $`A`$ is sound for $`E`$, and applies no rewriting outside $`A`$.
 2. **`GeneralSymbolicExpression(R, A)`** (I) is a presentation of `Expression(R)`, with equality $`\equiv`$. It requires $`A`$ sound and terminating, and keeps invariant (Val). Semantic primitives go through the value; structural primitives use the form, by class.
 3. **`SymbolicExpression(R)` $`:=`$ `GeneralSymbolicExpression(R, A_P)`** (implemented in `src/algebra/gsexpr.spad`, decision 0007) with $`A_P = \mathrm{Id}\cup\mathrm{Ann}\cup\mathrm{Inv}\cup\mathrm{Num}`$ (Theorem 3).
 4. **Display** is decided in `coerce: % -> OutputForm` from the form (G8). Structural results from library algorithms show `Expression`'s form of their value. The display must satisfy
@@ -268,7 +349,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
 3. ~~Whether $`A_P`$ should include an associativity axiom~~ Decided: no; it is the optional group Assoc, §4.1.1 (decision [0005](../decisions/0005-associativity-group.md)).
 4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
-5. Clean-up of `Symbolic(R, A)` for (II): remove the hidden rewrites (§4.2), fix Doubles, and decide the AC strategy (design review, Q4).
+5. ~~Clean-up of `Symbolic(R, A)` for (II)~~ Hidden rewrites done (decision 0007); AC strategy decided: canonical forms of free algebras, the ladder of §3.4 (decision 0008).
 
 ## 8. Implementation status (2026-11-25)
 
