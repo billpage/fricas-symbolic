@@ -12,7 +12,8 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 |---|---|---|---|
 | `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
 | `SymbolicExpression(R)` | `src/algebra/gsexpr.spad` | `GeneralSymbolicExpression(R, A)` with the default axioms $`A_P`$ (decision 0002) | Passes its tests |
-| `Symbolic(R, A)` and the axiom domains | `src/algebra/sexpr.spad` | Bill Page's 2016–17 implementation, ported to FriCAS 1.4.0; equality modulo the axioms $`A`$. Spec §3.2, design (II), to be rebuilt on canonical forms ([note](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md)). | Ported; rewrites only by its axioms since 2026-11-26 |
+| `SymbolicTerm(R, A)` | (planned) | Design (II): terms modulo the axiom groups $`A`$, on the ladder of normal forms (decisions 0008, 0009) | Planned; step 1 (term order) done |
+| `Symbolic(R, A)` and the axiom domains | `src/algebra/sexpr.spad` | Bill Page's 2016–17 implementation, to be retired by `SymbolicTerm` (plan step 6), ported to FriCAS 1.4.0; equality modulo the axioms $`A`$. Spec §3.2, design (II), to be rebuilt on canonical forms ([note](docs/notes/2026-11-26-commutativity-and-hidden-rewrites.md)). | Ported; rewrites only by its axioms since 2026-11-26 |
 
 [`ORIENTATION.md`](ORIENTATION.md) explains the goals, what is settled and what is open, and where to start reading.
 

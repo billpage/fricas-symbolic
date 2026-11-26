@@ -14,7 +14,8 @@ Terms as used in this repository, with where each is defined. Section numbers re
 | **normal form** $`\mathrm{nf}_A`$ | The result of rewriting with $`A`$ oriented left to right until no rule applies. | §2.4 |
 | **terminating** (T), **confluent** (CR) | Rewriting always stops; and the normal form does not depend on the order of rewriting. | §2.4 |
 | **design (I)**, **presentation** | `GeneralSymbolicExpression(R, A)`: pairs (form, value); equality is semantic. | §3.3 |
-| **design (II)** | `Symbolic(R, A)`: terms modulo $`A`$; equality is $`=_A`$. | §3.2 |
+| **design (II)** | `SymbolicTerm(R, A)`: terms modulo $`A`$; equality is $`=_A`$. The 2017 implementation is `Symbolic(R, A)`. | §3.2 |
+| **group**, **admissible** | An entry of the list $`A`$ (`identities`, `linear`, …), and a list whose groups are all known and whose requirements are all present. | §3.4 |
 | **normaliser** $`N_A`$ | A function on terms that is correct ($`N_A(t) =_A t`$) and canonical (equal under $`A`$ ⇒ identical results): (N1), (N2). | §3.4 |
 | **rung**, **ladder** | An admissible axiom set for one operator (P0–P4 for $`+`$, M0–M5 for $`\cdot`$), with its canonical form; the rungs and linking axioms form a lattice. | §3.4 |
 | **atom** | A normal form whose head is not the operator under consideration: an operand that a rung treats as indivisible. | §3.4 |
