@@ -168,12 +168,18 @@ Not part of $`A_P`$ (decision [0005](../decisions/0005-associativity-group.md)):
 **Rules.** For $`\circ \in \{+, \cdot\}`$, applied at the root of a newly built node,
 
 ```math
-\text{(A}_\circ\text{)}\qquad x \circ (y \circ z) \;\to\; (x \circ y) \circ z .
+\text{(A}_\circ\text{)}\qquad x \circ (y \circ z) \;\to\; (x \circ y) \circ z ,
 ```
+
+```math
+\text{(AN}_\circ\text{)}\qquad (x \circ n) \circ m \;\to\; x \circ k, \qquad k = [\![\, n \circ m \,]\!] ,
+```
+
+where $`n, m`$ are numerals. (AN) is the completion of (A) with Num (Knuth–Bendix): without it, $`x+(1+2)`$ has two normal forms, $`x+3`$ (Num inside first) and $`(x+1)+2`$ (A at the root first), which are equal under the axioms. The group `associativity` consists of (A) and, when Num is also present, (AN).
 
 Only $`+`$ and $`\cdot`$ are associative; $`-`$, $`/`$ and $`\hat{}`$ get no rule, so $`a+(b-c)`$ and $`a\cdot(b/c)`$ keep their grouping.
 
-**Soundness.** $`E`$ is a field, so both rules hold for all values, with no side condition (neither side divides).
+**Soundness.** $`E`$ is a field, so (A) holds for all values, with no side condition (neither side divides); (AN) is (A) read right to left followed by Num.
 
 **Termination.** The rules keep the size, so the size order of §4.1 does not apply. Let $`r(u)`$ be the right operand of a node $`u`$ and define
 
@@ -181,7 +187,7 @@ Only $`+`$ and $`\cdot`$ are associative; $`-`$, $`/`$ and $`\hat{}`$ get no rul
 \mu(t) \;=\; \sum_{u \in t,\ \mathrm{head}(u) \in \{+,\cdot\}} \lvert r(u) \rvert .
 ```
 
-A step $`x \circ (y \circ z) \to (x \circ y) \circ z`$ changes only the root and its right child. Before, they contribute $`\lvert y \circ z\rvert + \lvert z\rvert = \lvert y\rvert + 2\lvert z\rvert + 1`$; after, the root and its new left child contribute $`\lvert z\rvert + \lvert y\rvert`$. So $`\mu`$ falls by $`\lvert z\rvert + 1 \ge 2`$, for every instance of $`x, y, z`$. The size is unchanged, so the contributions of all enclosing nodes are unchanged, and $`\mu`$ also falls in every context. Combined with §4.1, every rule of $`A_P \cup \mathrm{Assoc}`$ decreases the pair $`(\lvert t\rvert, \mu(t))`$ in the lexicographic order: the rules of $`A_P`$ decrease $`\lvert t\rvert`$, and Assoc keeps $`\lvert t\rvert`$ and decreases $`\mu`$. Every rule is linear and non-duplicating (each variable occurs once on each side), so this order is closed under contexts and substitutions and is well founded. Hence $`A_P \cup \mathrm{Assoc}`$ terminates.
+A step $`x \circ (y \circ z) \to (x \circ y) \circ z`$ changes only the root and its right child. Before, they contribute $`\lvert y \circ z\rvert + \lvert z\rvert = \lvert y\rvert + 2\lvert z\rvert + 1`$; after, the root and its new left child contribute $`\lvert z\rvert + \lvert y\rvert`$. So $`\mu`$ falls by $`\lvert z\rvert + 1 \ge 2`$, for every instance of $`x, y, z`$. The size is unchanged, so the contributions of all enclosing nodes are unchanged, and $`\mu`$ also falls in every context. Combined with §4.1, every rule of $`A_P \cup \mathrm{Assoc}`$ decreases the pair $`(\lvert t\rvert, \mu(t))`$ in the lexicographic order: the rules of $`A_P`$ and (AN) decrease $`\lvert t\rvert`$ (AN: from 5 to 3), and (A) keeps $`\lvert t\rvert`$ and decreases $`\mu`$. Every rule is linear and non-duplicating (each variable occurs once on each side), so this order is closed under contexts and substitutions and is well founded. Hence $`A_P \cup \mathrm{Assoc}`$ terminates.
 
 **Critical pairs.** All left sides stay linear, so it suffices to join the overlaps.
 
@@ -192,13 +198,19 @@ A step $`x \circ (y \circ z) \to (x \circ y) \circ z`$ changes only the root and
 | with Id inside: $`x + (0+z)`$, $`x+(y+0)`$ | Id: $`x+z`$, $`x+y`$ | Assoc: $`(x+0)+z \to x+z`$; $`(x+y)+0 \to x+y`$ |
 | the same for $`1`$ and $`\cdot`$ | | |
 | with Ann: $`0 \cdot (y \cdot z)`$, $`x \cdot (0 \cdot z)`$, $`x \cdot (y \cdot 0)`$ | Ann: $`0`$ | Assoc then Ann: $`(0\cdot y)\cdot z \to 0 \cdot z \to 0`$, and likewise |
-| with Num: $`n + (m+z)`$ | Num cannot fire at the root | Assoc: $`(n+m)+z \to k+z`$ with $`k = n+m`$; also reached after Num on $`m+z`$ when $`z`$ is a numeral |
+| (A) with Num at the root: $`n + (m+z)`$ | Num cannot fire at the root | (A): $`(n+m)+z \to k+z`$ with $`k = n+m`$ |
+| (A) with Num inside: $`x + (n+m)`$ | Num inside: $`x+k`$ | (A): $`(x+n)+m \to x+k`$ by (AN) — this pair is why (AN) is needed |
+| (AN) with (A): $`w + ((x+n)+m)`$ | (AN) inside: $`w+(x+k) \to (w+x)+k`$ | (A): $`(w+(x+n))+m \to ((w+x)+n)+m \to (w+x)+k`$ |
+| (AN) with itself: $`((x+p)+n)+m`$ | outer: $`(x+p)+k' \to x+k''`$ | inner: $`(x+k)+m \to x+k''`$, with $`k'' = p+n+m`$ either way |
+| (AN) with Num: $`(p+n)+m`$ | Num inside: $`q+m \to k''`$ | (AN): $`p+k \to k''`$ |
+| (AN) with Id: $`(x+0)+m`$, $`(x+n)+0`$ | Id: $`x+m`$, $`x+n`$ | (AN): $`x+m`$, $`x+n`$ |
 
-Inv rewrites unary $`-`$ and $`/`$, which Assoc never matches, so there is no overlap. All pairs are joinable, so $`A_P \cup \mathrm{Assoc}`$ is confluent (Newman's lemma), and so is every union of its groups.
+The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rewrites unary $`-`$ and $`/`$, which Assoc never matches, so there is no overlap. All pairs are joinable, so $`A_P \cup \mathrm{Assoc}`$ is confluent (Newman's lemma), and so is every union of its groups.
 
 **Remarks.**
 - The rule is not root-collapsing (§3.3): it builds a new inner node $`x \circ y`$, which must itself be normalised. Since the right operand of a normal $`\circ`$-node is never a $`\circ`$-node, the implementation is the recursion $`x \circ (y_1 \circ y_2) := (x \circ y_1) \circ y_2`$ through the domain's own operations, and it terminates by the measure above.
-- Without commutativity, folding is incomplete: $`1+(2+x)`$ becomes $`3+x`$, but $`(x+1)+2`$ stays, because $`1`$ and $`2`$ never become siblings.
+- Numerals next to each other in a chain are folded, whatever the grouping: $`1+(2+x) \to 3+x`$, $`(x+1)+2 \to x+3`$. Numerals separated by another term, as in $`(1+x)+2`$, are not: joining them needs commutativity, which reorders what was written.
+- Check: for chains of four leaves, every bracketing must give the same form (test case "Assoc: all bracketings agree").
 - `isPlus` already gives the pattern matcher every term of a nested sum, so rewrite rules match either grouping with or without Assoc.
 
 ### 4.2 The 2017 axioms, assessed against (S), (T), (CR) and G1

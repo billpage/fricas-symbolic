@@ -26,4 +26,4 @@ Option 2.
 
 - The spec gains §4.1.1 with the rules $`x \circ (y \circ z) \to (x \circ y) \circ z`$ for $`\circ \in \{+, \cdot\}`$, the termination proof and the critical pairs.
 - The implementation adds the group `associativity`, as a recursion through the domain's own operations, with tests for each rule, for its absence from the default, and for (Disp) on flattened chains.
-- Without commutativity, numeral folding stays incomplete under Assoc: $`(x+1)+2`$ is not folded.
+- Completion: Assoc with Num needs the extra rule $`(x \circ n) \circ m \to x \circ k`$ for confluence (found 2026-11-26, before this record was merged; spec §4.1.1). Numerals separated by another term, as in $`(1+x)+2`$, are still not folded: that would need commutativity.
