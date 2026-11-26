@@ -224,6 +224,65 @@ g(t : SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, as
 testTrue("(g(0*u) = _"0_")@Boolean")
 testTrue("(g(0-v) = _"-(y)_")@Boolean")
 
+testcase "floats as numerals in SymbolicTerm(Float, A) (decision 0010)"
+(y, z) : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+y := 'y; z := 'z
+st(t : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])) : String == concat lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)
+rt(t : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])) : Boolean == (parse(st t)$InputForm = form t)@Boolean
+-- exact rational arithmetic on the decimals, rounded only when needed
+testTrue("(y + 0.1 + 0.2 = y + 0.3)@Boolean")
+testTrue("((y^2 - 0.01)/(y - 0.1) = y + 0.1)@Boolean")
+testTrue("(1.5*y + 2*y = 3.5*y)@Boolean")
+-- every numeral of a floating-point domain is a float numeral
+testTrue("(st((y + 1.5)*(z + 2)) = _"2.0*y+1.5*z+y*z+3.0_")@Boolean")
+testTrue("(st(2*y + 1.5*z) = _"2.0*y+1.5*z_")@Boolean")
+testTrue("(st(y/3.0) = _"0.33333333333333333333*y_")@Boolean")
+-- 1/3 is rounded where it is made; the sum of the two decimals is exact
+testTrue("(st(y/3 + y/3) = _"0.66666666666666666666*y_")@Boolean")
+-- exponents stay exact integers
+testTrue("(st(y^2*y^3/y) = _"y^4_")@Boolean")
+-- 1.0 and 0.0 are the reals 1 and 0
+testTrue("(1.0*y = y)@Boolean")
+testTrue("(y + 0.0 = y)@Boolean")
+-- 2 and 2.0 are the same numeral
+testTrue("(2*y = 2.0*y)@Boolean")
+-- the rounding caveat: 1/3.0 is 0.33333333333333333333
+testTrue("not (y + 1/3.0 + 1/3.0 + 1/3.0 = y + 1.0)@Boolean")
+xftestTrue("(y + 1/3.0 + 1/3.0 + 1/3.0 = y + 1.0)@Boolean")
+ts : List SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field]) := [(y + 1.5)*(z + 2), (y^2 - 0.01)/(y - 0.1), y/3.0, (2.5*y - 1)/(0.5*z), -(1.25*y), y^2*1.0e30, y*1.0e-8]
+testTrue("(#ts = 7)@Boolean")
+testTrue("every?(rt, ts)")
+-- random linear combinations with one-decimal coefficients, each written
+-- in many ways: no rounding occurs, so all give one normal form (N2)
+atl : List SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) := [('y)::SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]), ('z)::SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]), sin(('y)::SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]))]
+rk(k : Integer, a : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear])) : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) == (r := random(4)$Integer; g : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) := ((k::Float)/10)::SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]); r = 0 => g*a; r = 1 => a*g; r = 2 => (g + 1)*a - a; (g - 1)*a + a)
+shuf(l : List SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear])) : List SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) == if empty? l then l else (i := random(#l)$Integer + 1; cons(l.i, shuf(delete(l, i))))
+rsum(l : List SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear])) : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) == if #l = 1 then first l else (i : NonNegativeInteger := (random(#l - 1)$Integer + 1)::NonNegativeInteger; rsum(first(l, i)) + rsum(rest(l, i)))
+build(v : List Integer) : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, linear]) == rsum(shuf([rk(v.i, atl.i) for i in 1..#atl | v.i ~= 0]))
+ntr : Integer := 0
+nbad : Integer := 0
+for trial in 1..100 repeat
+  v := [random(41)$Integer - 20 for i in 1..3]
+  if every?((k : Integer) : Boolean +-> k ~= 0, v) then
+    ntr := ntr + 1
+    if not (build(v) = build(v))@Boolean then nbad := nbad + 1
+testTrue("(ntr > 50)@Boolean")
+testTrue("(nbad = 0)@Boolean")
+
+testcase "term order on numerals: exact, then float, by value (spec 3.5, decision 0010)"
+lt(a : String, b : String) : Boolean == smaller?(parse(a)$InputForm, parse(b)$InputForm)$SymbolicTermOrder
+testTrue("lt(_"2_", _"1.5_")")
+testTrue("lt(_"-1/2_", _"2_")")
+testTrue("lt(_"-0.5_", _"1.5_")")
+testTrue("lt(_"1.5_", _"2.5e3_")")
+testTrue("lt(_"1.5_", _"u_")")
+testTrue("lt(_"2.5e-3_", _"0.5_")")
+testTrue("not lt(_"1.5_", _"1.5_")")
+-- equal values: by shape, the atom before the negation
+testTrue("smaller?(convert(-3)@InputForm, parse(_"-3_")$InputForm)$SymbolicTermOrder")
+testTrue("not smaller?(parse(_"-3_")$InputForm, convert(-3)@InputForm)$SymbolicTermOrder")
+xftestTrue("lt(_"1.5_", _"2_")")
+
 testcase "admissibility (spec 3.4, decision 0009)"
 -- unknown group; ring with quotients but without field; both constructors
 testLibraryError("('x)::SymbolicTerm(Integer, [identity])")

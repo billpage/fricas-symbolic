@@ -1,13 +1,18 @@
 -- The requirements on R and the exports are shared by
 -- GeneralSymbolicExpression and SymbolicExpression.
+-- Pattern matching is exported over Integer and over Float as R allows,
+-- as in Expression R (decision 0010).
 GSEXPRRING ==> Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
-                    PolynomialFactorizationExplicit, RetractableTo Integer,
-                    LinearlyExplicitOver Integer, ConvertibleTo InputForm,
-                    PatternMatchable Integer, ConvertibleTo Pattern Integer)
+                    RetractableTo Integer, ConvertibleTo InputForm)
 GSEXPRCAT ==> Join(AlgebraicallyClosedFunctionSpace R,
                  TranscendentalFunctionCategory, PrimitiveFunctionCategory,
-                 CombinatorialOpsCategory, PatternMatchable Integer,
-                 ConvertibleTo Pattern Integer, ConvertibleTo InputForm) with
+                 CombinatorialOpsCategory, ConvertibleTo InputForm) with
+  if R has PatternMatchable Integer and R has ConvertibleTo Pattern Integer then
+    PatternMatchable Integer
+    ConvertibleTo Pattern Integer
+  if R has PatternMatchable Float and R has ConvertibleTo Pattern Float then
+    PatternMatchable Float
+    ConvertibleTo Pattern Float
   value : % -> Expression R
     ++ value(x) is the element of Expression R that x denotes.
   form : % -> InputForm
@@ -27,58 +32,67 @@ GSEXPRCAT ==> Join(AlgebraicallyClosedFunctionSpace R,
 ++ The structural term order of the fricas-symbolic specification
 ++ (docs/spec/sexpr-spec.md, section 3.5): a strict total order on terms,
 ++ i.e. InputForm trees, used to sort the operands of commutative
-++ operators in canonical forms.  Exact numerals (integers and quotients of
-++ integers) come first, ordered by value with ties broken by form; then
-++ float atoms; then symbols; then strings; then other atoms; then compound
-++ terms, ordered by head, number of arguments and arguments.
+++ operators in canonical forms.  Exact numerals (integers, quotients of
+++ integers and their negations) come first, ordered by value with ties
+++ broken by shape; then float numerals (float literals, float atoms and
+++ their negations, decision 0010), likewise; then symbols; then strings;
+++ then other atoms; then compound terms, ordered by head, number of
+++ arguments and arguments.
 SymbolicTermOrder() : with
     smaller? : (InputForm, InputForm) -> Boolean
       ++ smaller?(s, t) is true if s precedes t in the term order.
+    numeralForm : InputForm -> Union(Record(fl : Boolean, q : Fraction Integer), "failed")
+      ++ numeralForm(f) is [fl, q] if f is the form of a numeral of value q:
+      ++ an integer, a quotient of integers, a float literal or float atom
+      ++ (fl true), or the negation of one of these (decision 0010).
   == add
     INF ==> InputForm
     RN ==> Fraction Integer
 
-    exactNumeral?(f : INF) : Boolean ==
-        integer?(f)$INF => true
-        atom?(f)$INF => false
-        l := destruct(f)$INF
-        #l = 3 and symbol?(first l)$INF and symbol(first l)$INF = '_/ and
-          integer?(l.2)$INF and integer?(l.3)$INF and integer(l.3)$INF ~= 0
+    NUMF ==> Record(fl : Boolean, q : RN)
 
-    exactValue(f : INF) : RN ==
-        integer?(f)$INF => integer(f)$INF :: RN
-        l := destruct(f)$INF
-        integer(l.2)$INF / integer(l.3)$INF
+    floatHead?(h : INF) : Boolean ==
+        symbol?(h)$INF => symbol(h)$INF = 'float
+        atom?(h)$INF => false
+        l := destruct(h)$INF
+        #l = 3 and symbol?(first l)$INF and symbol(first l)$INF = '_$elt and
+          symbol?(l.3)$INF and symbol(l.3)$INF = 'float
 
-    -- 0 exact numeral, 1 float atom, 2 symbol, 3 string, 4 other atom,
+    numeralForm(f : INF) : Union(NUMF, "failed") ==
+        integer?(f)$INF => [false, integer(f)$INF :: RN]
+        float?(f)$INF =>
+            d := float(f)$INF
+            [true, (mantissa(d)::RN) * (base()$DoubleFloat :: RN) ^ exponent(d)]
+        atom?(f)$INF => "failed"
+        l := destruct(f)$INF
+        h := first l
+        #l = 2 and symbol?(h)$INF and symbol(h)$INF = '_- =>
+            u := numeralForm(l.2)
+            u case "failed" => "failed"
+            r := u::NUMF
+            [r.fl, - r.q]
+        #l = 3 and symbol?(h)$INF and symbol(h)$INF = '_/ and
+          integer?(l.2)$INF and integer?(l.3)$INF and integer(l.3)$INF ~= 0 =>
+            [false, integer(l.2)$INF / integer(l.3)$INF]
+        #l = 4 and floatHead?(h) and integer?(l.2)$INF and integer?(l.3)$INF and
+          integer?(l.4)$INF and integer(l.4)$INF >= 2 =>
+            [true, (integer(l.2)$INF :: RN) * (integer(l.4)$INF :: RN) ^ integer(l.3)$INF]
+        "failed"
+
+    -- 0 exact numeral, 1 float numeral, 2 symbol, 3 string, 4 other atom,
     -- 5 compound
-    kind(f : INF) : Integer ==
-        exactNumeral? f => 0
-        float?(f)$INF => 1
+    kind(f : INF, u : Union(NUMF, "failed")) : Integer ==
+        u case NUMF => (u.fl => 1; 0)
         symbol?(f)$INF => 2
         string?(f)$INF => 3
         atom?(f)$INF => 4
         5
 
-    smaller?(s : INF, t : INF) : Boolean ==
-        ks := kind s
-        kt := kind t
-        ks ~= kt => ks < kt
-        ks = 0 =>
-            a := exactValue s
-            b := exactValue t
-            a ~= b => a < b
-            -- equal values: an integer before a quotient; quotients by
-            -- numerator (equal value and numerator give equal trees)
-            integer?(s)$INF => not integer?(t)$INF
-            integer?(t)$INF => false
-            ds := destruct(s)$INF
-            dt := destruct(t)$INF
-            integer(ds.2)$INF < integer(dt.2)$INF
-        ks = 1 => float(s)$INF < float(t)$INF
-        ks = 2 => smaller?(symbol(s)$INF, symbol(t)$INF)$Symbol
-        ks = 3 => string(s)$INF < string(t)$INF
-        ks = 4 => unparse(s)$INF < unparse(t)$INF
+    -- trees compared by shape: atoms first, compounds by head, arity and
+    -- arguments
+    structural?(s : INF, t : INF) : Boolean ==
+        atom?(s)$INF => not atom?(t)$INF
+        atom?(t)$INF => false
         ls := destruct(s)$INF
         lt := destruct(t)$INF
         smaller?(first ls, first lt) => true
@@ -88,6 +102,24 @@ SymbolicTermOrder() : with
             if smaller?(a, b) then return true
             if smaller?(b, a) then return false
         false
+
+    smaller?(s : INF, t : INF) : Boolean ==
+        us := numeralForm s
+        ut := numeralForm t
+        ks := kind(s, us)
+        kt := kind(t, ut)
+        ks ~= kt => ks < kt
+        ks <= 1 =>
+            a := (us::NUMF).q
+            b := (ut::NUMF).q
+            a ~= b => a < b
+            -- equal values: by shape (an integer before a quotient,
+            -- quotients by numerator, a numeral before its negations)
+            structural?(s, t)
+        ks = 2 => smaller?(symbol(s)$INF, symbol(t)$INF)$Symbol
+        ks = 3 => string(s)$INF < string(t)$INF
+        ks = 4 => unparse(s)$INF < unparse(t)$INF
+        structural?(s, t)
 
 )abbrev package SYMGRP SymbolicAxiomGroups
 ++ Author: Bill Page, Claude
@@ -127,6 +159,156 @@ SymbolicAxiomGroups() : with
         if member?('ring, a) and member?('quotients, a) and not member?('field, a) then
             error concat([who, ": axiom groups ring and quotients together require field"])
 
+)abbrev domain SYMNUM SymbolicNumeral
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ The numerals of fricas-symbolic (spec section 3.4, decision 0010).  If R
+++ is a floating-point domain, every numeral is a float numeral: a decimal
+++ fraction with at most digits() significant digits of R.  Otherwise the
+++ numerals are the rational numbers.  Arithmetic is exact; in a
+++ floating-point domain each result is then rounded to digits() significant
+++ digits.  A numeral has a canonical form, which its display reads back as.
+SymbolicNumeral(R : GSEXPRRING) : Exports == Implementation where
+  RN ==> Fraction Integer
+  E ==> Expression R
+  INF ==> InputForm
+  Exports ==> Field with
+    coerce : RN -> %
+      ++ coerce(q) is the numeral q (rounded if R is a floating-point domain).
+    if R has FloatingPointSystem then
+      coerce : R -> %
+        ++ coerce(r) is the float numeral r, rounded to digits() significant
+        ++ digits.
+    float? : () -> Boolean
+      ++ float?() is true if the numerals are float numerals.
+    rational : % -> RN
+      ++ rational(n) is the rational number n denotes.
+    positive? : % -> Boolean
+      ++ positive?(n) is true if n > 0.
+    negative? : % -> Boolean
+      ++ negative?(n) is true if n < 0.
+    abs : % -> %
+      ++ abs(n) is the absolute value of n.
+    _< : (%, %) -> Boolean
+      ++ m < n compares the reals denoted.
+    convert : % -> INF
+      ++ convert(n) is the canonical form of n: an integer or a quotient of
+      ++ integers, or a decimal float literal; negated if n < 0.
+    fromForm : INF -> Union(%, "failed")
+      ++ fromForm(f) is the numeral with form f, if f is a numeral's form.
+    value : % -> E
+      ++ value(n) is n in Expression R.
+  Implementation ==> add
+    Rep := Record(q : RN)
+    rp(n : %) : RN == (n pretend Rep).q
+    pr(a : RN) : % == [a]$Rep pretend %
+
+    float?() : Boolean == R has FloatingPointSystem
+    digs() : Integer ==
+        if R has FloatingPointSystem then return digits()$R
+        20
+    ndigits(n : Integer) : Integer ==
+        k : Integer := 0
+        r : Integer := n
+        while r > 0 repeat (r := r quo 10; k := k + 1)
+        k
+    -- a rounded to d significant decimal digits, half away from zero
+    roundDec(a : RN, d : Integer) : RN ==
+        zero? a => 0
+        neg := a < 0
+        b := abs a
+        k : Integer := ndigits(numer b) - ndigits(denom b)
+        while b >= (10::RN) ^ k repeat k := k + 1
+        while b < (10::RN) ^ (k - 1) repeat k := k - 1
+        -- now 10^(k-1) <= b < 10^k
+        sc := d - k
+        m := numer(b * (10::RN) ^ sc + 1/2) quo denom(b * (10::RN) ^ sc + 1/2)
+        r := (m :: RN) / (10::RN) ^ sc
+        neg => - r
+        r
+    res(a : RN) : % ==
+        float?() => pr roundDec(a, digs())
+        pr a
+    -- a decimal a > 0 as m*10^e, m without trailing zeros
+    decParts(a : RN) : Record(m : Integer, e : Integer) ==
+        e : Integer := 0
+        b : RN := a
+        while denom b ~= 1 repeat (b := b * 10; e := e - 1)
+        m : Integer := numer b
+        while m ~= 0 and m rem 10 = 0 repeat (m := m quo 10; e := e + 1)
+        [m, e]
+    zeros(n : Integer) : String == new(n::NonNegativeInteger, char "0")$String
+    -- the spelling of a float numeral a >= 0: positional for moderate
+    -- magnitudes, with an exponent otherwise; always with a point
+    spell(a : RN) : String ==
+        zero? a => "0.0"
+        de := decParts a
+        ds : String := convert(de.m)@String
+        k : Integer := #ds
+        p : Integer := k + de.e
+        if p > -6 and p <= digs() then
+            p <= 0 => return concat(["0.", zeros(-p), ds])
+            p >= k => return concat([ds, zeros(p - k), ".0"])
+            return concat([ds(1..p), ".", ds((p + 1)..k)])
+        tl : String := "0"
+        if k > 1 then tl := ds(2..k)
+        concat([ds(1..1), ".", tl, "e", convert(p - 1)@String])
+
+    0 == pr 0
+    1 == pr 1
+    coerce(n : Integer) : % == pr(n::RN)
+    coerce(a : RN) : % == res a
+    if R has FloatingPointSystem then
+        coerce(r : R) : % == res((mantissa(r)::RN) * (base()$R :: RN) ^ exponent(r))
+    rational(n : %) : RN == rp n
+    m : % + n : % == res(rp m + rp n)
+    m : % - n : % == res(rp m - rp n)
+    - n : % == pr(- rp n)
+    m : % * n : % == res(rp m * rp n)
+    inv(n : %) : % == res(inv rp n)
+    m : % / n : % == res(rp m / rp n)
+    m : % = n : % == rp m = rp n
+    zero?(n : %) : Boolean == zero? rp n
+    one?(n : %) : Boolean == one? rp n
+    m : % < n : % == rp m < rp n
+    positive?(n : %) : Boolean == rp n > 0
+    negative?(n : %) : Boolean == rp n < 0
+    abs(n : %) : % == pr abs rp n
+    characteristic() == 0
+    unitNormal(n : %) ==
+        zero? n => [1, 0, 1]
+        [n, 1, inv n]
+    unitCanonical n == (zero? n => n; 1)
+    hashUpdate!(h : HashState, n : %) : HashState == hashUpdate!(h, rp n)$RN
+
+    posForm(n : %) : INF ==
+        a := abs rp n
+        float?() => parse(spell a)$INF
+        denom a = 1 => convert(numer a)@INF
+        convert([convert('_/)@INF, convert(numer a)@INF, convert(denom a)@INF])@INF
+    convert(n : %) : INF ==
+        negative? n => convert([convert('_-)@INF, posForm n])@INF
+        posForm n
+    fromForm(f : INF) : Union(%, "failed") ==
+        u := numeralForm(f)$SymbolicTermOrder
+        u case "failed" => "failed"
+        res(u.q)
+    coerce(n : %) : OutputForm ==
+        a := abs rp n
+        o : OutputForm :=
+            float?() => message(spell a)$OutputForm
+            a::OutputForm
+        negative? n => - o
+        o
+    value n ==
+        a := rp n
+        if R has FloatingPointSystem then
+            negative? n => return - value(- n)
+            de := decParts a
+            return (float(de.m, de.e, 10)$R)::E
+        (numer a)::E / (denom a)::E
+
 )abbrev domain GSEXPR GeneralSymbolicExpression
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
@@ -162,6 +344,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
   PI   ==> Pattern Integer
   PMR  ==> PatternMatchResult(Integer, %)
   RN   ==> Fraction Integer
+  NM   ==> SymbolicNumeral R
   POW  ==> Record(val : %, exponent : Integer)
   POWE ==> Record(val : E, exponent : Integer)
 
@@ -180,7 +363,28 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     node(f : IF, v : E, h : SY, o : List OP, l : List %) : % ==
         [f, v, h, o, l]$Rep pretend %
     rp(x : %) : Rep == x pretend Rep
-    lift(e : E) : % == node(convert(e)@IF, e, LIFT, empty(), empty())
+    -- numerals (decision 0010): a leaf with the numeral's canonical form
+    numNode(n : NM) : % == node(convert(n)@IF, value(n)$NM, LIFT, empty(), empty())
+    -- exponents and root indices are exact, also when the numerals are floats
+    exactNode(q : RN) : % ==
+        f : IF :=
+            denom q = 1 => convert(abs numer q)@IF
+            convert([convert('_/)@IF, convert(abs numer q)@IF, convert(denom q)@IF])@IF
+        if q < 0 then f := convert([convert('_-)@IF, f])@IF
+        node(f, (numer q)::E / (denom q)::E, LIFT, empty(), empty())
+    intNode(n : Integer) : % == exactNode(n::RN)
+    -- a value as a leaf; constants of R (or of Fraction Integer) are numerals
+    lift(e : E) : % ==
+        if R has FloatingPointSystem then
+            r := retractIfCan(e)@Union(R, "failed")
+            r case R => return numNode((r::R)::NM)
+        else
+            q := retractIfCan(e)@Union(RN, "failed")
+            q case RN => return numNode((q::RN)::NM)
+        -- a symbol has its own form (Expression Float would give 1.0*x/1.0)
+        sy := retractIfCan(e)@Union(SY, "failed")
+        sy case SY => node(convert(sy::SY)@IF, e, LIFT, empty(), empty())
+        node(convert(e)@IF, e, LIFT, empty(), empty())
     value x == rp(x).val
     form x == rp(x).frm
     hd(x : %) : SY == rp(x).hd
@@ -213,8 +417,8 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
             p)$PolynomialCategoryLifting(IndexedExponents K, K, R, SMP, SMPE)
 
     -- semantic primitives: always the value
-    0 == lift(0$E)
-    1 == lift(1$E)
+    0 == numNode 0
+    1 == numNode 1
     zero? x == zero? value x
     one? x == one? value x
     x = y == value x = value y
@@ -223,9 +427,9 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     belong? op == belong?(op)$E
     operator op == operator(op)$E
 
-    coerce(n : Integer) : % == lift(n::E)
+    coerce(n : Integer) : % == numNode(n::NM)
     coerce(r : R) : % == lift(r::E)
-    coerce(q : RN) : % == lift(q::E)
+    coerce(q : RN) : % == numNode(q::NM)
     coerce(s : SY) : % == lift(s::E)
     coerce(k : K) : % == lift(lowerK(k)::E)
     kernels x == [liftK k for k in kernels value x]
@@ -265,12 +469,13 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     QUOR ==> member?('quotients, A)
     RING ==> member?('ring, A)
     FLD ==> member?('field, A)
-    lit?(x : %, n : Integer) : Boolean ==
-        f := form x
-        integer?(f)$IF and integer(f)$IF = n
-    -- a numeral is a leaf whose value is a constant of Fraction Integer
+    -- a numeral is a leaf with a numeral's form (decision 0010)
     numeral?(x : %) : Boolean ==
-        hd x = LIFT and (retractIfCan(value x)@Union(RN, "failed") case RN)
+        hd x = LIFT and not (numeralForm(form x)$SymbolicTermOrder case "failed")
+    numVal(t : %) : NM == (fromForm(form t)$NM)::NM
+    -- a numeral of value n (numerals are compared as reals)
+    lit?(x : %, n : Integer) : Boolean ==
+        numeral? x and rational(numVal x) = n::RN
     -- Commutativity (spec 3.4, rungs P1/M1 and, with associativity, P3/M3)
     before?(a : %, b : %) : Boolean == smaller?(form a, form b)$SymbolicTermOrder
     chain(s : SY, t : %) : List % ==
@@ -285,15 +490,15 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         if NUM then
             ns := [t for t in l | numeral? t]
             if #ns > 1 then
-                c := value first ns
+                c := numVal first ns
                 for t in rest ns repeat
-                    if s = '_+ then c := c + value t else c := c * value t
-                l := concat(lift c, [t for t in l | not numeral? t])
+                    if s = '_+ then c := c + numVal t else c := c * numVal t
+                l := concat(numNode c, [t for t in l | not numeral? t])
         unit : Integer := if s = '_+ then 0 else 1
         if s = '_* and (ANN or LINR) and any?((t : %) : Boolean +-> lit?(t, 0), l) then
-            return lift(0$E)
+            return numNode 0
         if ID then l := [t for t in l | not lit?(t, unit)]
-        empty? l => lift(unit::E)
+        empty? l => numNode(unit::NM)
         r := first l
         for t in rest l repeat
             if s = '_+ then r := arith('_+, [r, t], value r + value t)
@@ -307,24 +512,26 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     -- apart into these data (pfac, lfac), combined, and rebuilt in normal
     -- form (prodBuild, linBuild).
     SFAC ==> Record(b : %, e : Integer)
-    SPROD  ==> Record(c : RN, fs : List SFAC)
-    STERM ==> Record(m : %, c : RN)
-    SLIN  ==> Record(c0 : RN, ts : List STERM)
+    SPROD  ==> Record(c : NM, fs : List SFAC)
+    STERM ==> Record(m : %, c : NM)
+    SLIN  ==> Record(c0 : NM, ts : List STERM)
 
-    rnE(q : RN) : E == (numer q)::E / (denom q)::E
-    numVal(t : %) : RN == retract(value t)@RN
     sameForm?(a : %, b : %) : Boolean == (form a = form b)@Boolean
     intExp(t : %) : Union(Integer, "failed") ==
         hd t = '_^ and #(kids t) = 2 and numeral?(second kids t) =>
-            retractIfCan(value second kids t)@Union(Integer, "failed")
+            -- exact integer exponents only: x^2.0 is an atom
+            u := numeralForm(form second kids t)$SymbolicTermOrder
+            u case "failed" => "failed"
+            not u.fl and denom(u.q) = 1 => numer(u.q)
+            "failed"
         "failed"
 
     facNode(b : %, e : Integer) : % ==
         e = 1 => b
-        arith('_^, [b, e::%], value b ^ e)
+        arith('_^, [b, intNode e], value b ^ e)
     -- numeral c (left out if 1 and there are factors) times sorted factors
-    mulChain(c : RN, l : List %) : % ==
-        if c ~= 1 or empty? l then l := cons(lift rnE c, l)
+    mulChain(c : NM, l : List %) : % ==
+        if c ~= 1 or empty? l then l := cons(numNode c, l)
         r := first l
         for t in rest l repeat r := arith('_*, [r, t], value r * value t)
         r
@@ -341,8 +548,8 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
             if not hit then nm := cons(f, nm)
             ms := nm
         [g for g in ms | g.e ~= 0]
-    prodBuild(c : RN, fs : List SFAC) : % ==
-        c = 0 => lift(0$E)
+    prodBuild(c : NM, fs : List SFAC) : % ==
+        c = 0 => numNode 0
         ms := mergeF fs
         srt := (l : List %) : List % +-> sort((a : %, b : %) : Boolean +-> before?(a, b), l)
         pl := srt [facNode(g.b, g.e) for g in ms | g.e > 0]
@@ -354,7 +561,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     pfac(t : %) : SPROD ==
         numeral? t => [numVal t, empty()]
         hd t = '_* =>
-            c : RN := 1
+            c : NM := 1
             fs : List SFAC := empty()
             for f in chain('_*, t) repeat
                 r := pfac f
@@ -402,10 +609,10 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     -- the normal form of c0 + sum of c*m: terms sorted by monomial, the
     -- first negated if its coefficient is negative, the others added or
     -- subtracted, the constant last
-    linBuild(c0 : RN, ts : List STERM) : % ==
+    linBuild(c0 : NM, ts : List STERM) : % ==
         ms := sort((a : STERM, b : STERM) : Boolean +-> before?(a.m, b.m), mergeT ts)
-        empty? ms => lift rnE c0
-        acc : % := lift(0$E)
+        empty? ms => numNode c0
+        acc : % := numNode 0
         firstTerm := true
         for t in ms repeat
             pc := abs(t.c)
@@ -414,17 +621,17 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
             trm : % :=
                 pc = 1 => t.m
                 POWR => (pm := pfac t.m; prodBuild(pc * pm.c, mergeF pm.fs))
-                lift(rnE pc) * t.m
+                numNode(pc) * t.m
             if firstTerm then
-                if t.c > 0 then acc := trm
+                if positive? t.c then acc := trm
                 else acc := arith('_-, [trm], - value trm)
                 firstTerm := false
             else
-                if t.c > 0 then acc := arith('_+, [acc, trm], value acc + value trm)
+                if positive? t.c then acc := arith('_+, [acc, trm], value acc + value trm)
                 else acc := arith('_-, [acc, trm], value acc - value trm)
         c0 = 0 => acc
-        cn := lift rnE abs(c0)
-        c0 > 0 => arith('_+, [acc, cn], value acc + value cn)
+        cn := numNode abs(c0)
+        positive? c0 => arith('_+, [acc, cn], value acc + value cn)
         arith('_-, [acc, cn], value acc - value cn)
     lfac(t : %) : SLIN ==
         numeral? t => [numVal t, empty()]
@@ -442,12 +649,12 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         r := coefMono t
         numeral? r.m => [r.c * numVal r.m, empty()]
         [0, [r]]
-    scaled(c : RN, x : %) : % ==
+    scaled(c : NM, x : %) : % ==
         a := lfac x
         linBuild(c * a.c0, [[r.m, c * r.c]$STERM for r in a.ts])
     -- a product in normal form, with a numeral times a sum distributed
     -- under linear (2*(x+y) = 2*x+2*y)
-    mulNormal(c : RN, fs : List SFAC) : % ==
+    mulNormal(c : NM, fs : List SFAC) : % ==
         ms := mergeF fs
         LINR and c ~= 1 and #ms = 1 and (first ms).e = 1 and sum?((first ms).b) =>
             scaled(c, (first ms).b)
@@ -480,7 +687,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     atomSyms(al : List %) : List Symbol ==
         [concat("%%st", string(i)$String)::Symbol for i in 1..#al]
     toF(t : %, al : List %, sy : List Symbol) : FPR ==
-        numeral? t => (numVal(t)::PRN)::FPR
+        numeral? t => (rational(numVal t)::PRN)::FPR
         h := hd t
         ks := kids t
         h = '_+ =>
@@ -500,35 +707,39 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
             if sameForm?(al.i, t) then return (sy.i::PRN)::FPR
         error "GeneralSymbolicExpression: atom not found"
     toLin(p : PRN, al : List %, sy : List Symbol) : SLIN ==
-        c0 : RN := 0
+        c0 : NM := 0
         ts : List STERM := empty()
         for m in monomials p repeat
             vs := variables m
-            if empty? vs then c0 := c0 + leadingCoefficient m
+            if empty? vs then c0 := c0 + (leadingCoefficient m)::NM
             else
                 fs := [[al.position(v, sy), degree(m, v)::Integer]$SFAC for v in vs]
-                ts := cons([prodBuild(1, fs), leadingCoefficient m]$STERM, ts)
+                ts := cons([prodBuild(1, fs), (leadingCoefficient m)::NM]$STERM, ts)
         [c0, ts]
+    linOf(p : PRN, al : List %, sy : List Symbol) : % ==
+        l := toLin(p, al, sy)
+        linBuild(l.c0, l.ts)
     -- the fraction p/q scaled by k: integer coefficients with no common
     -- factor, the first term of q (in term order) positive; a constant q
-    -- is divided into p
+    -- is divided into p.  Computed exactly; numerals are made (and, in a
+    -- floating-point domain, rounded) only at the end
     fromF(f : FPR, al : List %, sy : List Symbol) : % ==
-        lp := toLin(numer f, al, sy)
-        lq := toLin(denom f, al, sy)
-        empty? lq.ts =>
-            linBuild(lp.c0 / lq.c0, [[t.m, t.c / lq.c0]$STERM for t in lp.ts])
-        cs : List RN := concat([lp.c0, lq.c0], concat([t.c for t in lp.ts], [t.c for t in lq.ts]))
+        p := numer f
+        q := denom f
+        ground? q => linOf(inv(ground q) * p, al, sy)
+        cs : List RN := concat(coefficients p, coefficients q)
         d : Integer := 1
         for c in cs repeat d := lcm(d, denom c)
         n : Integer := 0
         for c in cs repeat n := gcd(n, numer(c * d))
         k : RN := d / n
+        lq := toLin(q, al, sy)
         t1 := first lq.ts
         for t in rest lq.ts repeat
             if before?(t.m, t1.m) then t1 := t
-        if t1.c < 0 then k := - k
-        num := linBuild(k * lp.c0, [[t.m, k * t.c]$STERM for t in lp.ts])
-        den := linBuild(k * lq.c0, [[t.m, k * t.c]$STERM for t in lq.ts])
+        if negative? t1.c then k := - k
+        num := linOf(k * p, al, sy)
+        den := linOf(k * q, al, sy)
         arith('_/, [num, den], value num / value den)
     ring1(x : %, f : FPR -> FPR) : % ==
         al := ratoms(empty(), x)
@@ -541,7 +752,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
 
     x : % + y : % ==
         v := value x + value y
-        NUM and numeral? x and numeral? y => lift v
+        NUM and numeral? x and numeral? y => numNode(numVal x + numVal y)
         RING => ring2(x, y, (a : FPR, b : FPR) : FPR +-> a + b)
         LINR =>
             a := lfac x
@@ -560,14 +771,14 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         arith('_+, [x, y], v)
     - x : % ==
         v := - value x
-        NUM and numeral? x => lift v
+        NUM and numeral? x => numNode(- numVal x)
         RING => ring1(x, (f : FPR) : FPR +-> - f)
         LINR => scaled(-1, x)
         INV and hd x = '_- and #(kids x) = 1 => first kids x
         arith('_-, [x], v)
     x : % - y : % ==
         v := value x - value y
-        NUM and numeral? x and numeral? y => lift v
+        NUM and numeral? x and numeral? y => numNode(numVal x - numVal y)
         RING => ring2(x, y, (a : FPR, b : FPR) : FPR +-> a - b)
         LINR =>
             a := lfac x
@@ -578,8 +789,8 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         arith('_-, [x, y], v)
     x : % * y : % ==
         v := value x * value y
-        NUM and numeral? x and numeral? y => lift v
-        ANN and (lit?(x, 0) or lit?(y, 0)) => lift(0$E)
+        NUM and numeral? x and numeral? y => numNode(numVal x * numVal y)
+        ANN and (lit?(x, 0) or lit?(y, 0)) => numNode 0
         ID and lit?(x, 1) => y
         ID and lit?(y, 1) => x
         RING => ring2(x, y, (a : FPR, b : FPR) : FPR +-> a * b)
@@ -600,7 +811,7 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         arith('_*, [x, y], v)
     x : % / y : % ==
         v := value x / value y
-        NUM and numeral? x and numeral? y => lift v
+        NUM and numeral? x and numeral? y => numNode(numVal x / numVal y)
         RING and (FLD or numeral? y) => ring2(x, y, (a : FPR, b : FPR) : FPR +-> a / b)
         QUOR =>
             a := pfac x
@@ -622,22 +833,22 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     q : RN * x : % == (q::%) * x
     x : % ^ n : Integer ==
         v := value x ^ n
-        NUM and numeral? x => lift v
+        NUM and numeral? x => numNode(numVal x ^ n)
         ID and n = 1 => x
-        ID and n = 0 => lift(1$E)
+        ID and n = 0 => numNode 1
         RING and (n >= 0 or FLD) => ring1(x, (f : FPR) : FPR +-> f ^ n)
         POWR and (n >= 1 or (QUOR and n ~= 0)) =>
             a := pfac x
             mulNormal(a.c ^ n, [[f.b, f.e * n]$SFAC for f in a.fs])
-        arith('_^, [x, n::%], v)
+        arith('_^, [x, intNode n], v)
     x : % ^ n : NonNegativeInteger == x ^ (n::Integer)
     x : % ^ n : PositiveInteger == x ^ (n::Integer)
-    x : % ^ q : RN == arith('_^, [x, q::%], value x ^ q)
+    x : % ^ q : RN == arith('_^, [x, exactNode q], value x ^ q)
     x : % ^ y : % ==
         (n := retractIfCan(value y)@Union(Integer, "failed")) case Integer
           and numeral? y => x ^ (n::Integer)
         arith('_^, [x, y], value x ^ value y)
-    nthRoot(x : %, n : Integer) == b2('nthRoot, x, n::%, nthRoot(value x, n))
+    nthRoot(x : %, n : Integer) == b2('nthRoot, x, intNode n, nthRoot(value x, n))
     sqrt x == u1('sqrt, x, sqrt value x)
 
     -- structural primitives: the written tree
@@ -851,7 +1062,17 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
         x::OutputForm
     coerce(x : %) : OutputForm ==
         h := hd x
-        h = LIFT => (value x)::OutputForm
+        h = LIFT =>
+            numeral? x =>
+                u := numeralForm(form x)$SymbolicTermOrder
+                -- exact forms (exponents) display exactly
+                not (u::Record(fl : Boolean, q : RN)).fl =>
+                    a := (u::Record(fl : Boolean, q : RN)).q
+                    o := (abs a)::OutputForm
+                    a < 0 => - o
+                    o
+                (numVal x)::OutputForm
+            (value x)::OutputForm
         l := kids x
         h = '_+ => (first l)::OutputForm + pOut(second l, 1)
         h = '_- =>
@@ -872,7 +1093,9 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     -- structural evaluation of a written form in Expression R (no
     -- interpreter), for the invariant check
     evalF(f : IF) : E ==
-        integer?(f)$IF => integer(f)$IF :: E
+        (u := numeralForm(f)$SymbolicTermOrder) case Record(fl : Boolean, q : RN) =>
+            u.fl => value((fromForm(f)$NM)::NM)$NM
+            (numer u.q)::E / (denom u.q)::E
         symbol?(f)$IF => symbol(f)$IF :: E
         l := destruct(f)$IF
         s := symbol(first l)$IF
@@ -923,9 +1146,14 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     check x == evalF(form x) = value x
 
     -- pattern matching
-    convert(x : %) : PI == convert(value x)@PI
-    patternMatch(x : %, p : PI, l : PMR) : PMR ==
-        patternMatch(x, p, l)$PatternMatchFunctionSpace(Integer, R, %)
+    if R has PatternMatchable Integer and R has ConvertibleTo Pattern Integer then
+        convert(x : %) : Pattern Integer == convert(value x)@Pattern(Integer)
+        patternMatch(x : %, p : Pattern Integer, l : PatternMatchResult(Integer, %)) : PatternMatchResult(Integer, %) ==
+            patternMatch(x, p, l)$PatternMatchFunctionSpace(Integer, R, %)
+    if R has PatternMatchable Float and R has ConvertibleTo Pattern Float then
+        convert(x : %) : Pattern Float == convert(value x)@Pattern(Float)
+        patternMatch(x : %, p : Pattern Float, l : PatternMatchResult(Float, %)) : PatternMatchResult(Float, %) ==
+            patternMatch(x, p, l)$PatternMatchFunctionSpace(Float, R, %)
 
 )abbrev domain SEXPR SymbolicExpression
 ++ Author: Bill Page, Claude

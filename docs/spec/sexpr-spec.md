@@ -7,7 +7,7 @@
 | Symbol | Meaning |
 |---|---|
 | $`R`$ | coefficient domain (e.g. `Integer`) |
-| $`K = \mathrm{Frac}(R)`$ | its field of fractions; the **numerals** are the elements of $`K`$ |
+| $`K = \mathrm{Frac}(R)`$ | its field of fractions; the **numerals** are the elements of $`K`$. If $`R`$ is a floating-point domain, they are decimal fractions with at most `digits()` significant digits, and arithmetic on them is exact, then rounded (decision [0010](../decisions/0010-float-numerals.md)) |
 | $`X`$ | the set of variables (FriCAS `Symbol`s) |
 | $`\Sigma`$ | the signature: constants $`K`$; $`+,\ -,\ \cdot,\ /`$ and `^` (binary); $`-`$ (unary); and the named functions $`\Phi = \{\sin, \exp, \log, \ldots\}`$ with their arities |
 | $`T = T_\Sigma(X)`$ | the terms over $`\Sigma`$ and $`X`$, i.e. labelled trees (FriCAS `InputForm`) |
@@ -231,15 +231,15 @@ $`A`$ is **admissible** if every name in it is a group of this table, and the gr
 
 Rungs P1, P3, P4 and M1, M3–M5 sort atoms by a strict total order $`\prec`$ on normal forms. Any strict total order gives canonical forms: if the operands are canonical, their sorted list is canonical. The choice of $`\prec`$ therefore affects only the display, not correctness. It is defined on terms as `InputForm` trees, by structural recursion. Constants of $`R`$ enter as their `InputForm` conversion, so $`R`$'s own order is not used. *(Corrected 2026-11-26: the first version compared numerals with $`R`$'s `smaller?` and required $`R`$ to be `Comparable`; both were unnecessary, and comparing by value alone is not total on trees, e.g. `2/4` and `1/2`.)*
 
-1. **Kinds**, in this order: exact numerals (integer atoms, and quotients `(/ m n)` of integer atoms with $`n \ne 0`$); float atoms; symbols; strings; other atoms; compound terms.
-2. **Exact numerals** by value in `Fraction Integer`. Ties between different trees of equal value: an integer before a quotient, and quotients by numerator. Equal value and numerator give equal denominators, hence equal trees.
-3. **Float atoms** by value. Floats written in the input parse as compound terms (an application of `float`), and are ordered as such.
+1. **Kinds**, in this order: exact numerals (integer atoms, quotients `(/ m n)` of integer atoms with $`n \ne 0`$, and their negations `(- n)`); float numerals (float literals `(($elt (Float) float) m e b)` and `(float m e b)`, float atoms, and their negations); symbols; strings; other atoms; compound terms.
+2. **Numerals** of one kind by value in `Fraction Integer`; a float literal denotes $`m \cdot b^{e}`$ exactly. Ties between different trees of equal value, such as the atom `-3` and `(- 3)`, or `(/ 1 2)` and `(/ 2 4)`, by shape: an atom before a compound term, and compound terms as in step 5. This gives the earlier rule for exact numerals, an integer before a quotient and quotients by numerator, as a special case.
+3. *(Merged into step 2 by decision 0010: float numerals, including the literals that floats written in the input parse to, are ordered by value.)*
 4. **Symbols** by `smaller?$Symbol`, the order of the `OrderedSet` `Symbol`. **Strings** by `String`'s order. **Other atoms** by their `unparse` text.
 5. **Compound terms** $`(h\ t_1 \ldots t_n)`$ and $`(h'\ u_1 \ldots u_m)`$ lexicographically by head, number of arguments, and argument list. Heads, usually operator symbols, and arguments are compared by $`\prec`$ recursively; the argument lists have equal length once the arities are equal.
 
 **Proposition 4.** $`\prec`$ is a strict total order on $`T`$.
 
-*Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–4 order the kinds, and within each kind of atom, by strict total orders: for exact numerals, the lexicographic product of value, integer-before-quotient and numerator, which separates any two distinct trees. Step 5 is the lexicographic product of the order on heads and arguments (by the induction hypothesis, since these are strictly smaller) with the order on arities. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
+*Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–4 order the kinds, and within each kind by strict total orders: for numerals, the lexicographic product of value and the shape order of step 5, which separates any two distinct trees (two distinct atoms of one kind of numeral have different values). Step 5 is the lexicographic product of the order on heads and arguments (by the induction hypothesis, since these are strictly smaller) with the order on arities. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
 
 Implemented as `SymbolicTermOrder` (`SYMORD`) in `src/algebra/gsexpr.spad`. Checked exhaustively on 37 terms, i.e. all pairs and all 50,653 triples, in `gsexpr.input`, test case "Ord".
 
@@ -262,6 +262,8 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 | **Annihilation (Ann)** | $`0\cdot x\to 0,\ x\cdot 0\to 0`$ | yes | $`3\to1`$ |
 | **Involutions (Inv)** | $`-(-x)\to x,\ 1/(1/x)\to x`$ | yes where the left side is defined | $`3\to1`$, $`5\to1`$ |
 | **Numerals (Num)** | $`\omega(n_1,\ldots,n_k)\to[\![\omega(n_1,\ldots,n_k)]\!]`$ for $`\omega\in\{+,-,\cdot,/,\hat{}\ \text{(integer exponent)},\text{unary }-\}`$, when defined | yes (it is evaluation) | $`\geq 2 \to 1`$ |
+
+*Float numerals (decision [0010](../decisions/0010-float-numerals.md)).* If $`R`$ is a floating-point domain, every numeral is a decimal fraction with at most $`d`$ = `digits()` significant digits, and Num evaluates exactly, then rounds the result to $`d`$ digits. Num, and every rule that combines numerals (Doubles, Squares and the rungs of §3.4), is then sound for the reals the numerals denote only up to that rounding, and two terms equal as reals may have different normal forms when their numerals round differently. Theorem 3 and the properties (N1)–(N3) of §3.4 hold exactly for exact numerals, and for float numerals wherever no rounding occurs.
 
 **Theorem 3.** $`A_P`$ (and every union of its groups) is sound, terminating and confluent.
 
@@ -370,7 +372,7 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 
    **(Disp)** for every element $`p`$ built by the domain's own operations, reading back the one-line display gives the stored form: $`\mathrm{parse}(\mathrm{display}_{1D}(p)) = \mathrm{form}(p)`$,
 
-   where $`\mathrm{display}_{1D}`$ is the text the interpreter prints (`Format1D` after `precondition$OutputFormTools`) and $`\mathrm{parse}`$ is `parse$InputForm`. So the display may not regroup, drop or add structure: grouping that the reading conventions would not restore (e.g. $`a\cdot(b\cdot c)`$, $`a/(b/c)`$, $`a-(b+c)`$) is shown with parentheses, and flattening, if wanted, is an axiom (§4). Known exception: a negative integer literal is stored as one numeral and reads back as the negation of a positive one. The 2-D display is checked by eye against the same requirement.
+   where $`\mathrm{display}_{1D}`$ is the text the interpreter prints (`Format1D` after `precondition$OutputFormTools`) and $`\mathrm{parse}`$ is `parse$InputForm`. So the display may not regroup, drop or add structure: grouping that the reading conventions would not restore (e.g. $`a\cdot(b\cdot c)`$, $`a/(b/c)`$, $`a-(b+c)`$) is shown with parentheses, and flattening, if wanted, is an axiom (§4). Numerals are stored as the parser reads them (decision [0010](../decisions/0010-float-numerals.md)): a negative numeral as the negation `(- n)` of a positive one, which removed the earlier exception for negative literals, and a float numeral as the decimal literal it displays. The 2-D display is checked by eye against the same requirement.
 
 ## 6. Verification plan
 

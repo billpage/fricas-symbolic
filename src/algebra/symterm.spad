@@ -14,9 +14,7 @@
 SymbolicTerm(R, A) : Exports == Implementation where
   -- the same requirements as GeneralSymbolicExpression (gsexpr.spad)
   R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
-           PolynomialFactorizationExplicit, RetractableTo Integer,
-           LinearlyExplicitOver Integer, ConvertibleTo InputForm,
-           PatternMatchable Integer, ConvertibleTo Pattern Integer)
+           RetractableTo Integer, ConvertibleTo InputForm)
   A : List Symbol
   G  ==> GeneralSymbolicExpression(R, A)
   E  ==> Expression R
