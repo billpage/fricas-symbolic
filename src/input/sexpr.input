@@ -21,8 +21,11 @@ smaller?(S,T)
 rank(S::Symbol,1)$SINF
 smaller?(S,T)
 
--- domain with many automatic simplifications
-(x,y,z):SymbolicExpression Integer
+-- domain with many automatic simplifications: the 2017 axiom set of the old
+-- SymbolicExpression (since 2026-11-26 SymbolicExpression is
+-- GeneralSymbolicExpression(R, A_P), src/algebra/gsexpr.spad)
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
+(x,y,z):SEI
 x::Expression Integer
 x+x = 2*x
 test %
@@ -81,7 +84,7 @@ test map(simplify,%)
 --
 -- Kurt's examples
 --
-SEI==>SymbolicExpression INT
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 (x,y):SEI
 (x+y)^2
 r0:=(x+y)^2
@@ -92,14 +95,14 @@ convert(r)$SEI
 coerce(r)$SEI
 -- Wrong result !!
 sum(x,'x=1..10)
-reduce(+,[n::SEXPR INT for n in 1..10])
+reduce(+,[n::SEI for n in 1..10])
 (x+y)^x
 exp(-x)
 -x
 exp(-x)::InputForm
 f:=operator 'f
 f(x)
-f(0$SEXPR INT)
+f(0$SEI)
 f(0$EXPR INT)
 D(x^2,'x)
 simplify %
@@ -127,7 +130,9 @@ rs t1
 rs t2
 rc t1
 rc t2
-rc rs expr
+-- rc rs expr does not terminate with Symbolic's own (syntactic) =;
+-- see src/input/sexpr2.input, ex4.  It runs on SymbolicExpression in gsexpr.input.
+--rc rs expr
 --
 -- Anti-commutative symbols
 --

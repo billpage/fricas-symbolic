@@ -1,5 +1,9 @@
 -- Unit tests for sexpr.spad (Symbolic, SymbolicExpression, ...).
 -- Kurt Pagani's 2017 suite, updated for FriCAS 1.4.0 (2026).
+-- Since 2026-11-26 SymbolicExpression is GeneralSymbolicExpression(R, A_P)
+-- (src/algebra/gsexpr.spad); the suite tests Symbolic(Integer, A) with the
+-- 2017 axiom set of the old SymbolicExpression, plus Annihilation, which that
+-- domain applied unconditionally.  Its = is now Symbolic's own (syntactic).
 --
 -- Run with `make check` (also run by CI). In a FriCAS session, compile first:
 --   )compile src/algebra/sexpr.spad
@@ -36,6 +40,7 @@ testcase  "ex1"
 
 SI0 ==> Symbolic(Integer,None)
 X   ==> Expression Integer
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 
 -- no automatic simplifications
 s:SI0 := 1+1+1
@@ -53,18 +58,18 @@ test(s=3)
 testEquals("sr","3::PositiveInteger")
 -- RetractableTo AlgebraicNumber, required since upstream 7a12330c
 testEquals("retract(s)@AlgebraicNumber","3::AlgebraicNumber")
-testTrue("retractIfCan(sqrt(2)$SymbolicExpression(Integer))@Union(AlgebraicNumber,_"failed_") case AlgebraicNumber")
-testTrue("retractIfCan(('x)::SymbolicExpression(Integer))@Union(AlgebraicNumber,_"failed_") case _"failed_"")
+testTrue("retractIfCan(sqrt(2)$SEI)@Union(AlgebraicNumber,_"failed_") case AlgebraicNumber")
+testTrue("retractIfCan(('x)::SEI)@Union(AlgebraicNumber,_"failed_") case _"failed_"")
 
 ---------------
 testcase  "ex2"
 ---------------
 SI0 ==> Symbolic(Integer,None)
-SEI ==> SymbolicExpression Integer
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 X   ==> Expression Integer
 
 -- many automatic simplifications
-(x,y,z):SymbolicExpression Integer
+(x,y,z):SEI
 x::Expression Integer
 x+x = 2*x
 test %
@@ -108,10 +113,10 @@ testEquals("x*(y*z)","(x*y)*z")
 
 x*(y+z) = x*y + x*z
 test %
--- SymbolicExpression does not distribute, so compare with = (via Expression),
+-- Symbolic does not distribute, so compare the values in Expression,
 -- as test % above does; testEquals compares InputForms, i.e. syntax.
 testEquals("x*(y+z)","(z+y)*x")
-testTrue("(x*(y+z) = z*x + y*x)@Boolean")
+testTrue("((x*(y+z))::X = (z*x + y*x)::X)@Boolean")
 
 smaller?(x*x,x*y)
 testEquals("smaller?(x*x,x*y)","true")
@@ -132,7 +137,7 @@ expand((x+y)/z)
 testEquals("expand((x+y)/z)","(x/z)+(y/z)")
 
 expand(x*(y+z))
-testTrue("(expand(x*(y+z)) = z*x + y*x)@Boolean")
+testTrue("((expand(x*(y+z)))::X = (z*x + y*x)::X)@Boolean")
 
 x*z+y*z+x*y
 
@@ -186,17 +191,17 @@ testEquals("map(simplify,sin(x)^2 + cos(x)^2 = 1)","true")
 testcase  "ex3"
 ---------------
 SI0 ==> Symbolic(Integer,None)
-SEI ==> SymbolicExpression Integer
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 X   ==> Expression Integer
 
 
 (x,y):SEI
 r0:=(x+y)^2
 rs := simplify r0
-testTrue("(eval rs = r0)@Boolean")
+testTrue("((eval rs)::X = r0::X)@Boolean")
 
 rf:=factor rs
-testTrue("(eval rs = r0)@Boolean")
+testTrue("((eval rs)::X = r0::X)@Boolean")
 
 convert(r)$SEI
 testEquals("dom convert(r)$SEI","dom(1::InputForm)")
@@ -207,7 +212,7 @@ testEquals("dom coerce(r)$SEI","dom(1::OutputForm)")
 -- Wrong result !!
 sum(x,'x=1..10)
 
-s10:=reduce(+,[n::SEXPR INT for n in 1..10])
+s10:=reduce(+,[n::SEI for n in 1..10])
 testEquals("s10","55")
 testEquals("dom s10","dom x")
 
@@ -218,7 +223,7 @@ exp(-x)
 exp(-x)::InputForm
 f:=operator 'f
 f(x)
-f(0$SEXPR INT)
+f(0$SEI)
 f(0$EXPR INT)
 D(x^2,'x)
 simplify %
@@ -236,11 +241,11 @@ x^n
 testcase  "ex4"
 ---------------
 SI0 ==> Symbolic(Integer,None)
-SEI ==> SymbolicExpression Integer
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 X   ==> Expression Integer
 
---(x,y,z,a,q,w,x3,r3):SymbolicExpression Integer
-(x,y,z):SymbolicExpression Integer
+--(x,y,z,a,q,w,x3,r3):SEI
+(x,y,z):SEI
 
 -- Rewrite Rules
 -- Interpreter bug: to ensure proper types need _rule(x,y) instead of rule x==y
@@ -276,17 +281,20 @@ testEquals("rc t1","cos(x)*sin(y)-cos(y)*sin(x)")
 rc t2
 testEquals("rc t2","cos(y+x)")
 
-)set mess time on
-rc rs expr
-)set mess time off
+-- rc rs expr: removed 2026-11-26.  With Symbolic's own (syntactic) =, applying
+-- the rule set to expr does not terminate; this was already so on main before
+-- the changes of that date, and the old SymbolicExpression avoided it only
+-- through its semantic =.  The same example runs on the new SymbolicExpression
+-- in src/input/gsexpr.input ("rewrite rules act on the expression as written").
 --testEquals("rc rs expr","")
 
 -------------------------------------------
 testcase "Doubles: coefficient on either side"
 -------------------------------------------
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
 -- CommutativeTimes sorts x*n to n*x; Doubles used to see only x*n, so
 -- 2*x+3*x stayed as 3*x+2*x.
-(x, y) : SymbolicExpression(Integer)
+(x, y) : SEI
 x := 'x; y := 'y
 testTrue("(unparse(convert(2*x+3*x)@InputForm) = _"5*x_")@Boolean")
 testTrue("(unparse(convert(x*2+x*3)@InputForm) = _"5*x_")@Boolean")
@@ -297,6 +305,38 @@ xftestTrue("(unparse(convert(2*x+3*x)@InputForm) = _"3*x+2*x_")@Boolean")
 (u, v) : Symbolic(Integer, Doubles)
 u := 'u
 testTrue("(unparse(convert(u*2+u*3)@InputForm) = _"u*5_")@Boolean")
+
+-------------------------------------------------------------
+testcase "G3: Symbolic(Integer, None) keeps the written form (spec 4.2)"
+-------------------------------------------------------------
+-- Until 2026-11-26 these were rewritten even without axioms.
+(x, y) : Symbolic(Integer, None)
+x := 'x; y := 'y
+p2 : PositiveInteger := 2
+p3 : PositiveInteger := 3
+n3 : Integer := 3
+f(t : Symbolic(Integer, None)) : String == unparse(convert(t)@InputForm)
+testTrue("(f(0*x) = _"0*x_")@Boolean")
+testTrue("(f(x*0) = _"x*0_")@Boolean")
+testTrue("(f(0-y) = _"0-y_")@Boolean")
+testTrue("(f(1/(x/y)) = _"1/(x/y)_")@Boolean")
+testTrue("(f(-(x-y)) = _"-(x-y)_")@Boolean")
+testTrue("(f(-(x+y)) = _"-(x+y)_")@Boolean")
+testTrue("(f(p2*x) = _"2*x_")@Boolean")
+testTrue("(f(p2*x + p3*x) = _"2*x+3*x_")@Boolean")
+testTrue("(f(x^p3) = _"x^3_")@Boolean")
+testTrue("(f(x^n3) = _"x^3_")@Boolean")
+testTrue("(f(x^(-2)) = _"x^(-2)_")@Boolean")
+testTrue("(f(x^(2/3)) = _"x^(2/3)_")@Boolean")
+-- must fail: the 2017 behaviour
+xftestTrue("(f(p2*x) = _"x+x_")@Boolean")
+-- the same inputs are still rewritten when the axioms are present
+SEI ==> Symbolic(Integer, join(join(join(join(join(join(join(join(join(join(Squares, Inverse), Identities), Doubles), Divides), CommutativePlus), CommutativeTimes), Cancels), AssociativePlus), AssociativeTimes), Annihilation))
+(u, v) : SEI
+u := 'x; v := 'y
+g(t : SEI) : String == unparse(convert(t)@InputForm)
+testTrue("(g(0*u) = _"0_")@Boolean")
+testTrue("(g(0-v) = _"-(y)_")@Boolean")
 
 -------------
 -- Results --

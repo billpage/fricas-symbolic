@@ -221,4 +221,18 @@ first(bad, min(#bad, 5))
 testTrue("empty? bad")
 testTrue("(nchk = 0)@Boolean")
 
+testcase "SymbolicExpression(R) is GeneralSymbolicExpression(R, A_P) (decisions 0002, 0006)"
+(x, y) : SymbolicExpression(Integer)
+x := 'x; y := 'y
+testTrue("(unparse(form(sum(x, 'x=1..10))) = _"55_")@Boolean")
+testTrue("(unparse(form(1+(2::SymbolicExpression(Integer)))) = _"3_")@Boolean")
+testTrue("(unparse(form((x+1)^2-(x^2+2*x+1))) = _"(x+1)^2-(x^2+2*x+1)_")@Boolean")
+testTrue("zero?((x+1)^2-(x^2+2*x+1))")
+testTrue("(D(integrate(x*sin(x), 'x), 'x) = x*sin(x))@Boolean")
+testTrue("(unparse(form(0*y + x/1 + (-(-y)))) = _"x+y_")@Boolean")
+-- associativity is not in A_P (decision 0005)
+testTrue("(unparse(form(x+(y+1))) = _"x+(y+1)_")@Boolean")
+testTrue("check(sum(x, 'x)) and check(x+(y+1))")
+xftestTrue("(unparse(form(1+(2::SymbolicExpression(Integer)))) = _"1+2_")@Boolean")
+
 statistics()
