@@ -161,6 +161,46 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 - `1+2` becomes `3` under Num. The choice is per domain: `SymbolicPair(R, Id)` keeps `1+2`, serving G1 and G3. `SymbolicExpression(R)` uses $`A_P`$ (decision 0002).
 - No rule in $`A_P`$ reorders or regroups what the user wrote, so G1 holds up to the removal of identities and the evaluation of pure numerals.
 
+### 4.1.1 The associativity group (Assoc), optional
+
+Not part of $`A_P`$ (decision [0005](../decisions/0005-associativity-group.md)): it regroups what was written, which $`A_P`$ never does. It is available as the axiom group `associativity`, to be added to $`A`$ by a user who wants chains flattened. Under (Disp) a flattened chain is then *stored* left-nested and displayed as `a+b+c`; the display itself never regroups.
+
+**Rules.** For $`\circ \in \{+, \cdot\}`$, applied at the root of a newly built node,
+
+```math
+\text{(A}_\circ\text{)}\qquad x \circ (y \circ z) \;\to\; (x \circ y) \circ z .
+```
+
+Only $`+`$ and $`\cdot`$ are associative; $`-`$, $`/`$ and $`\hat{}`$ get no rule, so $`a+(b-c)`$ and $`a\cdot(b/c)`$ keep their grouping.
+
+**Soundness.** $`E`$ is a field, so both rules hold for all values, with no side condition (neither side divides).
+
+**Termination.** The rules keep the size, so the size order of §4.1 does not apply. Let $`r(u)`$ be the right operand of a node $`u`$ and define
+
+```math
+\mu(t) \;=\; \sum_{u \in t,\ \mathrm{head}(u) \in \{+,\cdot\}} \lvert r(u) \rvert .
+```
+
+A step $`x \circ (y \circ z) \to (x \circ y) \circ z`$ changes only the root and its right child. Before, they contribute $`\lvert y \circ z\rvert + \lvert z\rvert = \lvert y\rvert + 2\lvert z\rvert + 1`$; after, the root and its new left child contribute $`\lvert z\rvert + \lvert y\rvert`$. So $`\mu`$ falls by $`\lvert z\rvert + 1 \ge 2`$, for every instance of $`x, y, z`$. The size is unchanged, so the contributions of all enclosing nodes are unchanged, and $`\mu`$ also falls in every context. Combined with §4.1, every rule of $`A_P \cup \mathrm{Assoc}`$ decreases the pair $`(\lvert t\rvert, \mu(t))`$ in the lexicographic order: the rules of $`A_P`$ decrease $`\lvert t\rvert`$, and Assoc keeps $`\lvert t\rvert`$ and decreases $`\mu`$. Every rule is linear and non-duplicating (each variable occurs once on each side), so this order is closed under contexts and substitutions and is well founded. Hence $`A_P \cup \mathrm{Assoc}`$ terminates.
+
+**Critical pairs.** All left sides stay linear, so it suffices to join the overlaps.
+
+| Overlap | One way | Other way |
+|---|---|---|
+| Assoc with itself: $`x \circ (y \circ (z \circ w))`$ | root first: $`(x \circ y) \circ (z \circ w) \to ((x \circ y) \circ z) \circ w`$ | inner first: $`x \circ ((y \circ z) \circ w) \to (x \circ (y \circ z)) \circ w \to ((x \circ y) \circ z) \circ w`$ |
+| with Id at the root: $`0 + (y+z)`$ | Id: $`y+z`$ | Assoc: $`(0+y)+z \to y+z`$ |
+| with Id inside: $`x + (0+z)`$, $`x+(y+0)`$ | Id: $`x+z`$, $`x+y`$ | Assoc: $`(x+0)+z \to x+z`$; $`(x+y)+0 \to x+y`$ |
+| the same for $`1`$ and $`\cdot`$ | | |
+| with Ann: $`0 \cdot (y \cdot z)`$, $`x \cdot (0 \cdot z)`$, $`x \cdot (y \cdot 0)`$ | Ann: $`0`$ | Assoc then Ann: $`(0\cdot y)\cdot z \to 0 \cdot z \to 0`$, and likewise |
+| with Num: $`n + (m+z)`$ | Num cannot fire at the root | Assoc: $`(n+m)+z \to k+z`$ with $`k = n+m`$; also reached after Num on $`m+z`$ when $`z`$ is a numeral |
+
+Inv rewrites unary $`-`$ and $`/`$, which Assoc never matches, so there is no overlap. All pairs are joinable, so $`A_P \cup \mathrm{Assoc}`$ is confluent (Newman's lemma), and so is every union of its groups.
+
+**Remarks.**
+- The rule is not root-collapsing (§3.3): it builds a new inner node $`x \circ y`$, which must itself be normalised. Since the right operand of a normal $`\circ`$-node is never a $`\circ`$-node, the implementation is the recursion $`x \circ (y_1 \circ y_2) := (x \circ y_1) \circ y_2`$ through the domain's own operations, and it terminates by the measure above.
+- Without commutativity, folding is incomplete: $`1+(2+x)`$ becomes $`3+x`$, but $`(x+1)+2`$ stays, because $`1`$ and $`2`$ never become siblings.
+- `isPlus` already gives the pattern matcher every term of a nested sum, so rewrite rules match either grouping with or without Assoc.
+
 ### 4.2 The 2017 axioms, assessed against (S), (T), (CR) and G1
 
 | Axiom (2017) | (S) in $`E`$ | (T) | (CR) | Presentation (G1) | Verdict |
@@ -211,7 +251,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 1. Accept the two-constructor specification (§5) as the reference design.
 2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
-3. Whether $`A_P`$ should include an associativity axiom (flattening is an axiom, not a display choice: decision [0004](../decisions/0004-display-shows-structure.md)).
+3. ~~Whether $`A_P`$ should include an associativity axiom~~ Decided: no; it is the optional group Assoc, §4.1.1 (decision [0005](../decisions/0005-associativity-group.md)).
 4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
 5. Clean-up of `Symbolic(R, A)` for (II): remove the hidden rewrites (§4.2), fix Doubles, and decide the AC strategy (design review, Q4).
 
