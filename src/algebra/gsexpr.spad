@@ -1,9 +1,9 @@
-)abbrev domain SYMPAIR SymbolicPair
+)abbrev domain GSEXPR GeneralSymbolicExpression
 ++ Author: Bill Page, Claude
 ++ Date Created: 25 November 2026
 ++ Description:
 ++ Prototype of design (I) in the specification docs/spec/sexpr-spec.md
-++ of fricas-symbolic: SymbolicPair(R, A) is a presentation of Expression R.
+++ of fricas-symbolic: GeneralSymbolicExpression(R, A) is a presentation of Expression R.
 ++ A lists the groups of presentation axioms applied when a node is built
 ++ (spec section 4.1): identities, annihilation, involutions, numerals.
 ++ From Option (c) of the sexpr design review: a FunctionSpace
@@ -16,7 +16,7 @@
 ++ follow the written tree, so rewrite rules act on the expression as
 ++ written.  Elements produced by library algorithms carry the form of
 ++ their value (head %lift) and decompose like Expression R.
-SymbolicPair(R, A) : Exports == Implementation where
+GeneralSymbolicExpression(R, A) : Exports == Implementation where
   A : List Symbol
   R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
            PolynomialFactorizationExplicit, RetractableTo Integer,

@@ -20,5 +20,5 @@ Option 2. The user should have as much control as possible over the form of an e
 
 ## Consequences
 
-- `coerce: % -> OutputForm` adds parentheses wherever the reading conventions would otherwise regroup; the three cases above are fixed and tested (28 shapes, `sympair.input`, test case "Disp").
+- `coerce: % -> OutputForm` adds parentheses wherever the reading conventions would otherwise regroup; the three cases above are fixed and tested (28 shapes, `gsexpr.input`, test case "Disp").
 - Spec §7 item 3 becomes: should an associativity axiom be part of the default set $`A_P`$? It is a question about axioms, not about display.

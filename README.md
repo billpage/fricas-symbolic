@@ -10,7 +10,7 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 
 | Constructor | File | What it is | State |
 |---|---|---|---|
-| `SymbolicPair(R, A)` | `src/algebra/sympair.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
+| `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
 | `Symbolic(R, A)`, `SymbolicExpression(R)` and the axiom domains | `src/algebra/sexpr.spad` | Bill Page's 2016–17 implementation, ported to FriCAS 1.4.0. Spec §3.2, design (II), once reworked. | Ported; known defects listed in the spec, §4.2 |
 
 [`ORIENTATION.md`](ORIENTATION.md) explains the goals, what is settled and what is open, and where to start reading.
@@ -28,9 +28,9 @@ make check            # compiles each package and runs its unit tests
 In a FriCAS session started in the repository directory:
 
 ```
-)compile src/algebra/sympair.spad
-SP ==> SymbolicPair(Integer, [identities, annihilation, involutions, numerals])
-x : SP := 'x
+)compile src/algebra/gsexpr.spad
+G ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+x : G := 'x
 (x+1)^2 - (x^2+2*x+1)          -- displayed as written
 zero? %                        -- true: equality is that of Expression Integer
 sum(x, 'x=1..10)               -- 55

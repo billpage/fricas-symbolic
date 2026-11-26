@@ -19,7 +19,7 @@ Two of the goals cannot be met by one equality relation (spec §3.1):
 
 The 2017 `SymbolicExpression` used both at once (`=` semantic, `zero?` syntactic), and FriCAS's integrator and summation then gave wrong answers. The specification therefore has two constructors, each with one equality:
 
-| | `Symbolic(R, A)` — design (II) | `SymbolicPair(R, A)` — design (I) |
+| | `Symbolic(R, A)` — design (II) | `GeneralSymbolicExpression(R, A)` — design (I) |
 |---|---|---|
 | An element is | a term, modulo the axioms $`A`$ | a pair (written form, value in `Expression R`) |
 | Equality | $`=_A`$: same normal form | same value |
@@ -34,16 +34,16 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 | Item | Standing | Where |
 |---|---|---|
 | Two constructors, one equality each (Option (c)) | Decided by Bill Page, 2026-11-25 | [decision 0001](docs/decisions/0001-two-constructors.md) |
-| Presentation axioms $`A_P`$ = identities, annihilation, involutions, numerals, the default for `SymbolicExpression(R)` | Decided by Bill Page, 2026-11-25; sound, terminating and confluent (spec Theorem 3); implemented in `SymbolicPair` | [decision 0002](docs/decisions/0002-presentation-axioms.md), spec §4.1 |
+| Presentation axioms $`A_P`$ = identities, annihilation, involutions, numerals, the default for `SymbolicExpression(R)` | Decided by Bill Page, 2026-11-25; sound, terminating and confluent (spec Theorem 3); implemented in `GeneralSymbolicExpression` | [decision 0002](docs/decisions/0002-presentation-axioms.md), spec §4.1 |
 | The display shows the stored structure exactly, property (Disp) | Decided by Bill Page, 2026-11-26 | [decision 0004](docs/decisions/0004-display-shows-structure.md), spec §5 |
 | Associativity: an optional axiom group, not in $`A_P`$ | Decided by Bill Page, 2026-11-26; specified, not yet implemented | [decision 0005](docs/decisions/0005-associativity-group.md), spec §4.1.1 |
 | The 2017 axioms (commutativity, doubles, distributivity, …) in `Symbolic(R, A)` | Open: need AC-compatible ordering and a confluence check | spec §4.2 |
 | Rewrites the 2017 code applies outside its axiom system | To be removed or made axioms | spec §4.2 |
-| 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `SymbolicPair` | [design review](docs/notes/2026-11-24-design-review.md) |
+| 2017 results `sum(x,'x=1..10) = 100`, $`\int (x+1)^2\,dx = x(x+1)^2`$, $`\int dx/(x^2+1) = 0`$ | Withdrawn (wrong); correct in `GeneralSymbolicExpression` | [design review](docs/notes/2026-11-24-design-review.md) |
 
 ## 4. Where to start
 
 1. [Spec §§1–3](docs/spec/sexpr-spec.md): goals, framework, the two constructors.
 2. [`GLOSSARY.md`](GLOSSARY.md) for the words.
-3. `make check`, then the tests in `src/input/sympair.input`, which read as worked examples.
+3. `make check`, then the tests in `src/input/gsexpr.input`, which read as worked examples.
 4. The [notes](docs/notes/) for how the design got here.
