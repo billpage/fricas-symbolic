@@ -191,6 +191,7 @@ theorem sMul_refines (x y : Term) :
     rw [sMul]; simp only [h1, h2, h3, h4, h5, h6, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
     exact hv
 
+omit [CharZero K] in
 /-- L1 for unary `-`. -/
 theorem sNeg_refines (x : Term) :
     ∀ v : K, (neg x).eval ρ = some v → (sNeg A x).eval ρ = some v := by
