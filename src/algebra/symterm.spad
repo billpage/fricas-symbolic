@@ -1,0 +1,103 @@
+)abbrev domain SYMTERM SymbolicTerm
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ Design (II) of the fricas-symbolic specification (docs/spec/sexpr-spec.md,
+++ sections 3.2 and 3.4; decisions 0008 and 0009): SymbolicTerm(R, A) is the
+++ algebra of terms modulo the axiom groups A.  Every element is kept in the
+++ normal form of A, and two elements are equal exactly when their normal
+++ forms are identical, so equality is equality modulo A (no evaluation).
+++ The normal forms are those of GeneralSymbolicExpression(R, A), which uses
+++ the same groups as presentation axioms.  With A empty no rewriting takes
+++ place.  No algebraic category is claimed: with the groups implemented so
+++ far the ring laws do not hold modulo A.
+SymbolicTerm(R, A) : Exports == Implementation where
+  -- the same requirements as GeneralSymbolicExpression (gsexpr.spad)
+  R : Join(ComparableRepresentation, GcdDomain, CharacteristicZero,
+           PolynomialFactorizationExplicit, RetractableTo Integer,
+           LinearlyExplicitOver Integer, ConvertibleTo InputForm,
+           PatternMatchable Integer, ConvertibleTo Pattern Integer)
+  A : List Symbol
+  G  ==> GeneralSymbolicExpression(R, A)
+  E  ==> Expression R
+  RN ==> Fraction Integer
+
+  Exports ==> Join(SetCategory, ConvertibleTo InputForm) with
+    0 : constant -> %
+      ++ 0 is the numeral zero.
+    1 : constant -> %
+      ++ 1 is the numeral one.
+    coerce : Symbol -> %
+      ++ coerce(s) is the variable s.
+    coerce : Integer -> %
+      ++ coerce(n) is the numeral n.
+    coerce : RN -> %
+      ++ coerce(q) is the numeral q.
+    coerce : R -> %
+      ++ coerce(r) is the constant r.
+    _+ : (%, %) -> %
+      ++ x + y is the normal form of the sum.
+    _- : (%, %) -> %
+      ++ x - y is the normal form of the difference.
+    _- : % -> %
+      ++ -x is the normal form of the negation.
+    _* : (%, %) -> %
+      ++ x * y is the normal form of the product.
+    _/ : (%, %) -> %
+      ++ x / y is the normal form of the quotient.
+    _^ : (%, Integer) -> %
+      ++ x ^ n is the normal form of the power.
+    sqrt : % -> %
+      ++ sqrt(x) is the square root term.
+    exp : % -> %
+      ++ exp(x) is the exponential term.
+    log : % -> %
+      ++ log(x) is the logarithm term.
+    sin : % -> %
+      ++ sin(x) is the sine term.
+    cos : % -> %
+      ++ cos(x) is the cosine term.
+    tan : % -> %
+      ++ tan(x) is the tangent term.
+    form : % -> InputForm
+      ++ form(x) is the normal form of x.
+    coerce : % -> E
+      ++ coerce(x) evaluates x in Expression R; every axiom group is sound
+      ++ for Expression R (spec 3.4).
+
+  Implementation ==> add
+    Rep := G
+    -- conversions to and from the representation
+    rp(x : %) : G == x pretend G
+    pr(g : G) : % == g pretend %
+
+    -- admissibility of A (spec 3.4, decision 0009), at instantiation
+    IMPL ==> ['identities, 'annihilation, 'involutions, 'numerals, 'associativity]
+    checkGroups("SymbolicTerm", A, IMPL)$SymbolicAxiomGroups
+
+    -- equality modulo A: identity of normal forms
+    x = y == (form(rp x)$G = form(rp y)$G)@Boolean
+    form x == form(rp x)$G
+    convert(x : %) : InputForm == form(rp x)$G
+    coerce(x : %) : OutputForm == coerce(rp x)$G
+    coerce(x : %) : E == value(rp x)$G
+
+    0 == pr(0$G)
+    1 == pr(1$G)
+    coerce(s : Symbol) : % == pr(s::G)
+    coerce(n : Integer) : % == pr(n::G)
+    coerce(q : RN) : % == pr(q::G)
+    coerce(r : R) : % == pr(r::G)
+
+    x : % + y : % == pr(rp x + rp y)
+    x : % - y : % == pr(rp x - rp y)
+    - x : % == pr(- rp x)
+    x : % * y : % == pr(rp x * rp y)
+    x : % / y : % == pr(rp x / rp y)
+    x : % ^ n : Integer == pr(rp x ^ n)
+    sqrt x == pr sqrt(rp x)
+    exp x == pr exp(rp x)
+    log x == pr log(rp x)
+    sin x == pr sin(rp x)
+    cos x == pr cos(rp x)
+    tan x == pr tan(rp x)
