@@ -162,7 +162,63 @@ testTrue("rt(a^(b+c))")
 testTrue("rt((a*b)^c)")
 testTrue("rt((a/b)^c)")
 testTrue("rt(sin(a+b)*c)")
+-- mixed arithmetic with integers keeps the written order
+testTrue("rt(a*2) and rt(2*a) and rt(a+2) and rt(2+a) and rt(a-2) and rt(2-a)")
+testTrue("rt(a/2) and rt(2/a) and rt(a^2) and rt(2^a) and rt(a*(1/2)) and rt((1/2)*a)")
+testTrue("(unparse(form(a*2)) = _"a*2_")@Boolean")
+xftestTrue("(unparse(form(a*2)) = _"2*a_")@Boolean")
 -- must fail: a/(b/c) and (a/b)/c are different trees
 xftestTrue("(parse(_"a/b/c_")$InputForm = form(a/(b/c)))@Boolean")
+
+testcase "Assoc: rules (A) and (AN) (spec 4.1.1)"
+(w, x, y, z) : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])
+w := 'w; x := 'x; y := 'y; z := 'z
+testTrue("(unparse(form(x+(y+z))) = _"x+y+z_")@Boolean")
+testTrue("(unparse(form(x*(y*z))) = _"x*y*z_")@Boolean")
+testTrue("(unparse(form(w+(x+(y+z)))) = _"w+x+y+z_")@Boolean")
+testTrue("(unparse(form((x+(y+z))*w)) = _"(x+y+z)*w_")@Boolean")
+-- (AN): adjacent numerals fold whatever the grouping
+testTrue("(unparse(form(x+(1+(2::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]))))) = _"x+3_")@Boolean")
+testTrue("(unparse(form((x+1)+2)) = _"x+3_")@Boolean")
+testTrue("(unparse(form(1+((2::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]))+x))) = _"3+x_")@Boolean")
+testTrue("(unparse(form((x*2)*3)) = _"x*6_")@Boolean")
+-- numerals separated by a term need commutativity: not folded
+testTrue("(unparse(form((1+x)+2)) = _"1+x+2_")@Boolean")
+-- only + and * are associative
+testTrue("(unparse(form(x-(y-z))) = _"x-(y-z)_")@Boolean")
+testTrue("(unparse(form(x+(y-z))) = _"x+(y-z)_")@Boolean")
+testTrue("(unparse(form(x*(y/z))) = _"x*(y/z)_")@Boolean")
+xftestTrue("(unparse(form(x+(y+z))) = _"x+(y+z)_")@Boolean")
+testTrue("check(w+(x+(y+z))) and check((x+1)+2) and check((x*2)*3) and check((1+x)+2)")
+rt(t : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
+testTrue("rt(w+(x+(y+z))) and rt((x+(y+z))*w) and rt((1+x)+2)")
+
+testcase "Assoc: not in A_P (decision 0005)"
+(x, y, z) : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y; z := 'z
+testTrue("(unparse(form(x+(y+z))) = _"x+(y+z)_")@Boolean")
+testTrue("(unparse(form((x+1)+2)) = _"x+1+2_")@Boolean")
+
+testcase "Assoc: all bracketings agree (spec 4.1.1, confluence)"
+lv : List GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]) := ['x, 'y, 0, 1, 2]
+pl(u : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), v : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])) : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]) == u + v
+ml(u : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), v : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])) : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]) == u * v
+br(op : (GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])) -> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), a : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), b : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), c : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]), d : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity])) : List GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, associativity]) == [op(op(op(a,b),c),d), op(op(a,op(b,c)),d), op(op(a,b),op(c,d)), op(a,op(op(b,c),d)), op(a,op(b,op(c,d)))]
+bad : List String := []
+nchk : Integer := 0
+for a in lv repeat
+  for b in lv repeat
+    for c in lv repeat
+      for d in lv repeat
+        for op in [pl, ml] repeat
+          ts := br(op, a, b, c, d)
+          fs := [unparse(form t) for t in ts]
+          if #removeDuplicates(fs) > 1 then bad := cons(first fs, bad)
+          for t in ts repeat
+            if not check(t) then nchk := nchk + 1
+#bad
+first(bad, min(#bad, 5))
+testTrue("empty? bad")
+testTrue("(nchk = 0)@Boolean")
 
 statistics()
