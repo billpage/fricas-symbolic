@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status: `lean/` project built (§6); part 1 started (`Term`, `size`, `μ`); no theorems yet. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8); part 1 under way on branch `claude/lean-part1`: the mirrored normaliser agrees with FriCAS on 7,000 random terms, and L1, L2, L3, L7 and L10 are proved (§3.5). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -55,20 +55,22 @@ A Lean `num q` with `q < 0` stands for the FriCAS form `(- n)` of a negative num
 
 ### 3.2 Semantics: partial, as in the spec
 
-Mathlib's division is total ($`x/0 = 0`$), but `Expression` raises an error, and condition (S) is stated for partial evaluation. So:
+Mathlib's division is total ($`x/0 = 0`$), but `Expression` raises an error, and condition (S) is stated for partial evaluation. So (done in `Eval.lean`):
 
 ```lean
-variable {K : Type} [Field K] [CharZero K]
+variable {K : Type} [Field K] [CharZero K] [DecidableEq K]
 def eval (ρ : String → K) : Term → Option K
 -- div: none if the denominator evaluates to 0
 -- pow with a negative exponent: none if the base is 0; 0 ^ 0 = 1 (as in FriCAS)
 ```
 
+The hypotheses are what FriCAS provides for `Expression R` (§8, decision 4). `Expression R` is itself such a `K`, with each variable sent to itself, so the theorems for all such `K` and $`\rho`$ include the statement about `Expression R`.
+
 Soundness is *refinement*: if the left side is defined, the right side is defined with the same value. The right side may be defined where the left side is not; for example, Ann turns $`0 \cdot (1/0)`$ into $`0`$.
 
 ### 3.3 The normaliser
 
-A structure of flags `Ax := {id ann inv num assoc an : Bool}` stands for $`A`$. The flag `an` (default `true`) exists only for L7, which needs a normaliser without (AN). Smart constructors `sAdd A a b`, `sSub`, `sNeg`, `sMul`, `sDiv`, `sPow` follow the Spad clauses in the same order, and `nf` builds bottom-up, as the domain does:
+Done in `Normalize.lean`. A structure of flags `Ax := {id ann inv num assoc an : Bool}` stands for $`A`$. The flag `an` (default `true`) exists only for L7, which needs a normaliser without (AN). Smart constructors `sAdd A a b`, `sSub`, `sNeg`, `sMul`, `sDiv`, `sPow` follow the Spad clauses in the same order, and `nf` builds bottom-up, as the domain does:
 
 ```lean
 def nf (A : Ax) : Term → Term
@@ -84,6 +86,8 @@ Points where the Lean functions cannot copy the Spad code literally:
 - **Undefined folds.** Num must not fold $`n/0`$ or $`0^{e}`$ with $`e<0`$. Mathlib's `ℚ` gives `1/0 = 0`, but FriCAS raises an error; leave those nodes unfolded.
 - **Numeral tests.** Since decision 0010, `numeral?` recognises a leaf by the form of a numeral, and `lit?(x, n)` compares its value with $`n`$. In Lean both are `.num q`.
 
+**Differential test** (`CrossCheck.lean`, `lean/crosscheck/crosscheck.spad`). Lean and a Spad package generate the same pseudo-random terms from the same linear congruential generator, normalise them, and return a checksum of the printed forms. Denominators and bases of negative powers are drawn from terms with nonzero values, so FriCAS raises no division error. On 2026-11-26, at commit `1e4744b`, the checksums agreed for 13 axiom sets × 400 terms of depth 4 (seed 20261126) and 6 sets × 300 terms of depth 6 (seed 7). The sets were every single group, $`\emptyset`$ (which shows that the two generators agree), and the combinations Id+Num, Id+Ann+Inv, $`A_P`$, $`A_P`$+Assoc, Num+Assoc, Id+Assoc and Ann+Num+Assoc. Runs `20261126-184901-crosscheck-fricas-2`, `…-184750-crosscheck-lean` and `…-184902-crosscheck-lean-2`. (An earlier mismatch came from Lisp's pretty-printer, which breaks long forms across lines; the Spad side now joins them.)
+
 ### 3.4 Theorems
 
 | No. | Statement | Spec |
@@ -97,12 +101,29 @@ Points where the Lean functions cannot copy the Spad code literally:
 | L7 | Regression: without (AN), L5 fails; the witness is the step `x + (1+2) → (x+1)+2` (by (A)), whose two sides get `x+3` and `(x+1)+2` | §4.1.1 |
 | L8 | `Relation.ReflTransGen (Step A) t (nf A t)`: the normaliser only takes steps of the axioms | |
 | L9 | `Step A` is well founded (its converse is `WellFounded`), by the measure $`(\lvert t\rvert, \mu(t))`$ | (T), §4.1.1 |
+| L10 | With Id and without Num, `0 - 0` steps to the distinct normal forms `0` (by $`x-0\to x`$) and `-0` (by $`0-x\to -x`$), so $`=_A`$ does not determine `nf` | Theorem 3 (see below) |
+
+**L10 is a counterexample to spec Theorem 3** as stated ("$`A_P`$ and every union of its groups is … confluent"). The proof joins the overlap $`0-0`$ through Num ($`-0 \to 0`$), which a union without Num does not have. FriCAS agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form `0` and `-0` has form `(- 0)`, with or without Ann and Inv (run `20261126-184235-id-zero-minus-zero`). The other root overlaps of $`A_P`$ do not need Num. The spec needs a decision before L5 can be stated (§8, question 5); until then L5 is stated under the hypothesis `A.id → A.num`.
 
 L4, L5 and L8 together give the Church–Rosser property: if $`s =_A t`$ then $`s \to^* \mathrm{nf}(s) = \mathrm{nf}(t) \;{}^*\!\!\leftarrow t`$, with $`\mathrm{nf}(s)`$ a normal form. So $`\mathrm{nf}`$ chooses exactly one normal form per $`=_A`$ class. Without L8, nothing ties $`\mathrm{nf}(t)`$ to $`t`$: L2 relates their values, not their classes. Termination of the rewriting relation is L9; L3 only says that one strategy, bottom-up, ends. This route avoids formalising Newman's lemma and critical pairs in general.
 
 **`Step` must come from the spec, not from the code.** Define the root rules from the axiom lists of spec §4.1 and §4.1.1, each with its side conditions, and not by unfolding the smart constructors. Otherwise L5 is true by construction and proves nothing about the code. In particular, (AN) is $`(x\circ n)\circ m \to x \circ k`$ with $`k`$ the folded numeral. Num on $`n/m`$ and on $`n^{e}`$ with $`e<0`$ has the side condition that the numeral denominator or base is not $`0`$.
 
 State every theorem for all `A : Ax`, or at least for the combinations the package offers: subsets of {Id, Ann, Inv, Num}, with and without Assoc.
+
+### 3.5 Recorded results
+
+Commit `3f47236` on `claude/lean-part1`, Lean 4.36.0 and Mathlib v4.36.0, 2026-11-26. `lean_build` status `ok` (log `20261126-185346-build-fricas-symbolic`). `#print axioms` of every theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261126-185354-axioms-part1`, file `lean/Axioms.lean`). No CI builds Lean (§8).
+
+| No. | Lean | What it says |
+|---|---|---|
+| L1 | `sAdd_refines`, `sSub_refines`, `sNeg_refines`, `sMul_refines`, `sDiv_refines`, `sPow_refines` | for every `A`, every field `K` of characteristic 0 and every assignment ρ: if the node as written has value $`v`$, the node the constructor builds has value $`v`$ |
+| L2 | `nf_refines` | the same for `nf`, by induction on the term: (Val) |
+| L3 | the definitions of `sAdd`, `sMul` and `nf` | Lean accepts them only with a termination proof: `termination_by (y.size, x.size)` for `sAdd` and `sMul`, structural recursion for `nf` |
+| L7 | `L7_without_AN`, `L7_with_AN` | with (AN) switched off, the (A) step `x+(1+2) → (x+1)+2` joins terms whose normal forms are `x+3` and `(x+1)+2`; with (AN) both are `x+3` |
+| L10 | `L10_id_without_num`, `L10_not_confluent` | for `A = {Id}`: `0-0` steps to `0` and to `-0`, both normal forms; hence some $`s =_A t`$ have $`\mathrm{nf}(s) \ne \mathrm{nf}(t)`$ |
+
+Still to do in part 1: L4, L5, L6, L8, L9.
 
 ## 4. Part 2: the term order
 
@@ -172,7 +193,7 @@ R1–R6 prove that the *mathematical* normaliser $`\mathrm{rb} \circ \varphi`$ i
 1. **Differential testing.** Write `rb` to produce exactly the Spad trees: terms in $`\prec`$ order, with the conventions of spec §3.4, "Trees of P4, M4 and M5". Then `#eval` it on random terms and compare with `run_fricas` on the same terms (skill `lean`, "Verification across systems"). Cheap to run; needs $`\prec`$ in Lean (part 2) and care with the conventions.
 2. **Mirror the code.** Define the incremental smart constructors as in part 1, and prove that they agree with $`\mathrm{rb} \circ \varphi`$. Stronger, and much more work for P4–Field.
 
-Option 1 is recommended.
+**Decided (Bill, 2026-11-26): mirror the code (option 2).** The differential test of part 1 (§3.3) stays as a cheap check that the mirror is faithful, and extends to the rungs.
 
 ### 5.4 Later
 
@@ -205,15 +226,21 @@ lean/
 ├── lake-manifest.json      exact commits (Mathlib fc4f59e5); never `lake update`
 ├── FricasSymbolic.lean     imports the modules below
 └── FricasSymbolic/
-    ├── Term.lean           part 1: syntax, size, μ          (done)
-    ├── Eval.lean           part 1: partial evaluation
-    ├── Normalize.lean      part 1: Ax, smart constructors, nf
-    ├── Theorems.lean       part 1: L1–L9
+    ├── Term.lean           part 1: syntax, size, μ                     (done)
+    ├── Eval.lean           part 1: partial evaluation                  (done)
+    ├── Normalize.lean      part 1: Ax, smart constructors, nf          (done)
+    ├── Form.lean           part 1: forms as FriCAS prints them         (done)
+    ├── CrossCheck.lean     part 1: differential test with crosscheck/  (done)
+    ├── Soundness.lean      part 1: L1, L2                              (done)
+    ├── Rewriting.lean      part 1: Root, Step, IsNF, EqA from the spec (done)
+    ├── Regressions.lean    part 1: L7, L10                             (done)
+    ├── Confluence.lean     part 1: L4–L6, L8, L9
     ├── Order.lean          part 2: Tree, numeral?, lt; O1–O2
     ├── ATerm.lean          part 3: terms over atoms, Step and Equiv per rung
     ├── Rungs.lean          part 3: R1–R6
-    ├── Bridge.lean         part 4: E1–E4
-    └── Axioms.lean         #print axioms of the cited theorems
+    └── Bridge.lean         part 4: E1–E4
+lean/Axioms.lean            #print axioms of the cited theorems (outside the library)
+lean/crosscheck/            the Spad side of the differential test
 ```
 
 The Lean container runs on STRIX, and the repository is registered there. Checked on 2026-11-26:
@@ -223,12 +250,31 @@ The Lean container runs on STRIX, and the repository is registered there. Checke
 
 Work cycle: edit, commit, push a `claude/<topic>` branch, `lean_build("fricas-symbolic", ref)`, read the messages; `run_lean(project="fricas-symbolic")` to probe goals between builds. A Claude Code session in the cloud cannot reach STRIX; it can install Lean in the workspace instead (skill `lean`).
 
-## 8. Decisions for Bill (at the start of that conversation)
+## 8. Decisions (Bill, 2026-11-26)
 
-1. **Order of the parts.** Recommended: part 1 (already started; it is where the 2026-11-26 error was), then part 2 (small), then R4 and E2 (the core of the ladder and of the bridge), then the rest.
-2. **Tying part 3 to the code** (§5.3): differential testing (recommended) or mirroring the Spad normalisers.
-3. **CI:** a Lean job on changes under `lean/`, or recorded `lean_build` runs on STRIX only?
-4. **Generality:** any `[Field K] [CharZero K]` in E1, and any commutative $`\mathbb{Q}`$-algebra in E2 (recommended; it costs little with Mathlib), or `ℚ` only.
+1. **Order of the parts:** part 1, then part 2, then R4 and E2 (Ring and the bridge), then the rest.
+2. **Tying part 3 to the code:** mirror the Spad normalisers in Lean (§5.3, option 2), keeping the differential test as a check.
+3. **CI:** none for Lean. Results are recorded `lean_build` runs on STRIX (skill `lean`, "Recorded results").
+4. **Generality:** the hypotheses of the soundness theorems are limited to what FriCAS provides, explicitly (the categories the code checks) or implicitly (the categories of the domains it uses). Each FriCAS category is matched by the Mathlib class with the same meaning, with nothing weaker (no semirings or modules where FriCAS asks for a ring) and nothing stronger (no orderings, no `ℚ` only):
+
+   | FriCAS | Mathlib | Used in |
+   |---|---|---|
+   | `Expression R` with `R : GcdDomain` and `CharacteristicZero` (so a `Field` with `CharacteristicZero`), and `=` from `SetCategory` | `[Field K] [CharZero K] [DecidableEq K]` | part 1 (L1, L2); E1 |
+   | `D : Ring` (`SymbolicTermFunctions2`, `InputFormEvaluation`) | `[Ring D]` | E4 |
+   | `D has CommutativeRing` (for `commutativity`, `linear`, `powers`, `ring`) | `[CommRing D]` | E2, E3 |
+   | `D has Field` (for `quotients`, `field`); partial evaluation needs `=` | `[Field D] [DecidableEq D]` | E3 |
+   | `D has Algebra(Fraction Integer)` (for `numerals`) | `[Algebra ℚ D]` | E2–E4 |
+
+   E3's remark that weaker structures would do for some groups stays a remark: the theorems use the categories FriCAS checks.
+
+**Open, for Bill:**
+
+5. **Theorem 3 and Id without Num** (L10). Three ways to repair the spec, each with a decision record and a matching change to `gsexpr.spad`:
+   - (a) add $`-0 \to 0`$ to Id. It is sound, shrinks the term, and is what Knuth–Bendix completion adds; the Spad change is one clause in unary `-`;
+   - (b) make Id require Num (`SymbolicAxiomGroups.requires`). This removes `[identities]` alone, which the tests use for G1 and G3;
+   - (c) weaken Theorem 3 to unions in which Id comes with Num, and document the two normal forms of `0 - 0` otherwise.
+
+   Recommended: (a). It keeps every combination the package offers, and it is the smallest change to the presentation.
 
 ## 9. Done when
 
