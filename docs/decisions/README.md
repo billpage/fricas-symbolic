@@ -38,3 +38,4 @@ What this commits the package to, and what it rules out.
 | [0007](0007-symbolic-hidden-rewrites.md) | `SymbolicExpression` is rebuilt; `Symbolic` rewrites only by its axioms | Accepted, 2026-11-26 |
 | [0008](0008-ladder-of-normalisers.md) | One library of normalisers, the ladder of axiom sets, and the term order | Accepted, 2026-11-26 |
 | [0009](0009-symbolic-term-groups.md) | `SymbolicTerm(R, A)`, with axiom groups named in a list | Accepted, 2026-11-26 |
+| [0010](0010-float-numerals.md) | Floats are numerals | Accepted, 2026-11-26 |

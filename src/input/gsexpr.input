@@ -351,4 +351,63 @@ for trial in 1..300 repeat
 testTrue("(ntr = 300)@Boolean")
 testTrue("(nbad = 0)@Boolean")
 
+testcase "negative numerals read back (Disp; decision 0010)"
+x : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]) := 'x
+rt(t : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
+gs : List GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]) := [1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]), x + (1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])), (1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])) * x, (-1/2)::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]), x^(1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])), sin(1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])), x - 3]
+testTrue("(#gs = 7)@Boolean")
+testTrue("every?(rt, gs)")
+testTrue("every?(check, gs)")
+testTrue("(unparse(form(1 - 4::GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]))) = _"-(3)_")@Boolean")
+
+testcase "floats as numerals in GeneralSymbolicExpression(Float, A_P) (decision 0010)"
+x : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) := 'x
+a : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) := 1.5
+b : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) := 2.25
+rt(t : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])) : Boolean == (parse(concat(lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)))$InputForm = form t)@Boolean
+disp(t : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])) : String == concat lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)
+testTrue("GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) has PatternMatchable(Float)")
+testTrue("not (GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) has PatternMatchable(Integer))")
+testTrue("(disp(a + b) = _"3.75_")@Boolean")
+testTrue("(disp((1/3)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) + a) = _"1.8333333333333333333_")@Boolean")
+testTrue("(disp(1/(3.0::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]))) = _"0.33333333333333333333_")@Boolean")
+testTrue("(disp((1.234e25)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])) = _"1.234e25_")@Boolean")
+testTrue("(disp((2.5e-12)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) * x) = _"2.5e-12*x_")@Boolean")
+testTrue("(disp(a - b) = _"-0.75_")@Boolean")
+testTrue("(form(1.0 * x) = form x)@Boolean")
+testTrue("(disp(0.0 * x) = _"0.0_")@Boolean")
+-- in a floating-point domain every numeral is a float numeral, as in
+-- Expression Float; exponents stay exact integers
+testTrue("(disp(2 * x) = _"2.0*x_")@Boolean")
+testTrue("(disp((1/3)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) + (1/3)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])) = _"0.66666666666666666666_")@Boolean")
+testTrue("(disp(x^2 * x^3) = _"x^2*x^3_")@Boolean")
+testTrue("(disp(x^(-2)) = _"x^(-2)_")@Boolean")
+testTrue("(disp(x^(1/3)) = _"x^(1/3)_")@Boolean")
+testTrue("check(x^(1/3)) and check(nthRoot(x, 3))")
+fs : List GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) := [a + b, x + a, a * x, (1/3)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) + a, a - b, 1/(3.0::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])), (1.234e25)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]), (2.5e-12)::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]) * x, -a, x^(0.5::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals]))]
+testTrue("(#fs = 10)@Boolean")
+testTrue("every?(rt, fs)")
+testTrue("every?(check, fs)")
+xftestTrue("(disp(a + b) = _"3.75000000000000000000_")@Boolean")
+
+testcase "rewrite rules over Float patterns (decision 0010, G4)"
+(x, y, p, q) : GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])
+x := 'x; y := 'y; p := 'p; q := 'q
+f := operator 'f
+s := _rule(f(p + q), f(p) + f(q))
+testTrue("(s(f(x + 0.5)) = f(x) + f(0.5::GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])))@Boolean")
+u := _rule(p + 0.5, p)
+testTrue("(u(x + 0.5) = x)@Boolean")
+testTrue("(u(x + 0.25) = x + 0.25)@Boolean")
+testTrue("check(s(f(x + 0.5)))")
+xftestTrue("(u(x + 0.25) = x)@Boolean")
+
+testcase "DoubleFloat numerals (decision 0010)"
+d : GeneralSymbolicExpression(DoubleFloat, [identities, annihilation, involutions, numerals]) := 0.1
+x : GeneralSymbolicExpression(DoubleFloat, [identities, annihilation, involutions, numerals]) := 'x
+dd(t : GeneralSymbolicExpression(DoubleFloat, [identities, annihilation, involutions, numerals])) : String == concat lines(formatExpression(precondition(t::OutputForm)$OutputFormTools)$Format1D)
+testTrue("(dd(d + 0.2) = _"0.3_")@Boolean")
+testTrue("(dd(x * d) = _"x*0.1_")@Boolean")
+testTrue("check(d + 0.2) and check(x * d)")
+
 statistics()

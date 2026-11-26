@@ -10,7 +10,7 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 
 | Constructor | File | What it is | State |
 |---|---|---|---|
-| `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). | Prototype; passes its tests |
+| `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). `R` may be `Float` or `DoubleFloat`, with decimal float numerals (decision 0010). | Prototype; passes its tests |
 | `SymbolicExpression(R)` | `src/algebra/gsexpr.spad` | `GeneralSymbolicExpression(R, A)` with the default axioms $`A_P`$ (decision 0002) | Passes its tests |
 | `SymbolicTerm(R, A)` | `src/algebra/symterm.spad` | Design (II): terms modulo the axiom groups $`A`$, equality by identity of normal forms (decisions 0008, 0009) | All groups, from $`A_P`$ to `ring` and `field` (plan steps 2–5) |
 
