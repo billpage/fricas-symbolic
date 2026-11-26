@@ -16,6 +16,22 @@ LeanCrossCheck(A : List Symbol) : with
         setref(st, (deref st * 1103515245 + 12345) rem 2147483648)
         deref st
     pick(n : Integer) : Integer == (nxt() quo 65536) rem n
+    -- the form as one line: Lisp's pretty-printer breaks long forms at a
+    -- space and indents the next line
+    fstr(t : G) : String ==
+        s := PRINC_-TO_-STRING(form t)$Lisp pretend String
+        r : List Character := empty()
+        skip := false
+        for j in 1..#s repeat
+            c := s.j
+            if c = char(10) then
+                r := cons(char " ", r)
+                skip := true
+            else if skip and c = char " " then skip := true
+            else
+                skip := false
+                r := cons(c, r)
+        construct(reverse! r)$String
     leaf(safe : Boolean) : G ==
         j := pick 7
         j = 0 => (if safe then 3 else 0)::Integer::G
@@ -74,10 +90,10 @@ LeanCrossCheck(A : List Symbol) : with
         setref(st, s0)
         h : Integer := 0
         for i in 1..n repeat
-            s := PRINC_-TO_-STRING(form gen(d, false))$Lisp pretend String
+            s := fstr gen(d, false)
             for j in 1..#s repeat h := (h * 31 + ord(s.j)) rem 1000000007
             h := (h * 31 + 59) rem 1000000007
         [n, h]
     forms(s0 : Integer, n : Integer, d : Integer) : List String ==
         setref(st, s0)
-        [PRINC_-TO_-STRING(form gen(d, false))$Lisp pretend String for i in 1..n]
+        [fstr gen(d, false) for i in 1..n]
