@@ -28,7 +28,7 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | (Val) | §3.3 | Invariant: value = evaluation of form | Required of design (I) | gsexpr: `check` in "integration is correct", "summation and limits are correct", "rewrite rules …", "presentation axioms A_P" |
 | (N1), (N2), (N3) | §3.4 | A normaliser is correct and canonical, and preserves values when $`A`$ is sound | Required of every rung (decision 0008) | — (plan step 3 onwards) |
 | Rungs P0–P4, M0–M5, Ann, Ring, Field | §3.4 | The ladder of admissible axiom sets and their normal forms | Specified; P0/M0 is `Symbolic(R, None)`; others not yet built | sexpr2: "G3: …" (P0/M0) |
-| Prop. 4, (Ord) | §3.5 | $`\prec`$ is a strict total order | Proved | — (plan step 1) |
+| Prop. 4, (Ord) | §3.5 | $`\prec`$ is a strict total order | Proved; implemented as `SymbolicTermOrder` | sexpr2: "Ord: the term order is a strict total order" (37 terms, all pairs and triples) |
 | Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved | via (Val) |
 | Theorem 3 | §4.1, §4.1.1 | $`A_P`$ sound, terminating, confluent; extended to $`A_P \cup \mathrm{Assoc}`$ in §4.1.1 | Proved (sketch: critical pairs listed) | — (V4: confluence by construction order; V5: Lean) |
 

@@ -1,3 +1,72 @@
+)abbrev package SYMORD SymbolicTermOrder
+++ Author: Bill Page, Claude
+++ Date Created: 26 November 2026
+++ Description:
+++ The structural term order of the fricas-symbolic specification
+++ (docs/spec/sexpr-spec.md, section 3.5): a strict total order on terms,
+++ i.e. InputForm trees, used to sort the operands of commutative
+++ operators in canonical forms.  Exact numerals (integers and quotients of
+++ integers) come first, ordered by value with ties broken by form; then
+++ float atoms; then symbols; then strings; then other atoms; then compound
+++ terms, ordered by head, number of arguments and arguments.
+SymbolicTermOrder() : with
+    smaller? : (InputForm, InputForm) -> Boolean
+      ++ smaller?(s, t) is true if s precedes t in the term order.
+  == add
+    INF ==> InputForm
+    RN ==> Fraction Integer
+
+    exactNumeral?(f : INF) : Boolean ==
+        integer?(f)$INF => true
+        atom?(f)$INF => false
+        l := destruct(f)$INF
+        #l = 3 and symbol?(first l)$INF and symbol(first l)$INF = '_/ and
+          integer?(l.2)$INF and integer?(l.3)$INF and integer(l.3)$INF ~= 0
+
+    exactValue(f : INF) : RN ==
+        integer?(f)$INF => integer(f)$INF :: RN
+        l := destruct(f)$INF
+        integer(l.2)$INF / integer(l.3)$INF
+
+    -- 0 exact numeral, 1 float atom, 2 symbol, 3 string, 4 other atom,
+    -- 5 compound
+    kind(f : INF) : Integer ==
+        exactNumeral? f => 0
+        float?(f)$INF => 1
+        symbol?(f)$INF => 2
+        string?(f)$INF => 3
+        atom?(f)$INF => 4
+        5
+
+    smaller?(s : INF, t : INF) : Boolean ==
+        ks := kind s
+        kt := kind t
+        ks ~= kt => ks < kt
+        ks = 0 =>
+            a := exactValue s
+            b := exactValue t
+            a ~= b => a < b
+            -- equal values: an integer before a quotient; quotients by
+            -- numerator (equal value and numerator give equal trees)
+            integer?(s)$INF => not integer?(t)$INF
+            integer?(t)$INF => false
+            ds := destruct(s)$INF
+            dt := destruct(t)$INF
+            integer(ds.2)$INF < integer(dt.2)$INF
+        ks = 1 => float(s)$INF < float(t)$INF
+        ks = 2 => smaller?(symbol(s)$INF, symbol(t)$INF)$Symbol
+        ks = 3 => string(s)$INF < string(t)$INF
+        ks = 4 => unparse(s)$INF < unparse(t)$INF
+        ls := destruct(s)$INF
+        lt := destruct(t)$INF
+        smaller?(first ls, first lt) => true
+        smaller?(first lt, first ls) => false
+        #ls ~= #lt => #ls < #lt
+        for a in rest ls for b in rest lt repeat
+            if smaller?(a, b) then return true
+            if smaller?(b, a) then return false
+        false
+
 )abbrev package SINF SINFunctions
 SIN ==> InputForm
 -- This should be built-in to InputForm, i.e. InputForm should satisfy Comparable

@@ -1,6 +1,6 @@
 # 0008. One library of normalisers, the ladder of axiom sets, and the term order $`\prec`$
 
-- Status: Accepted
+- Status: Accepted (amended 2026-11-26, see the term order below)
 - Date: 2026-11-26
 - Decided by: Bill Page
 - Spec: §3.2, §3.4, §3.5, §5
@@ -23,6 +23,7 @@ Option 2, as specified in §3.4–3.5:
 - **Rungs:** P0–P4 for $`+`$ (up to linear combinations with numeral coefficients); M0–M5 for $`\cdot`$ (up to power products with integer exponents); linking axioms Ann, Ring (distributivity, giving polynomials) and Field (distributivity with M5, giving reduced fractions).
 - **Admissible sets** are the combinations whose requirements are met. Others are rejected when the domain is instantiated.
 - **$`\prec`$:** numerals before symbols before compounds; numerals by value, which requires $`R`$ to be `Comparable`; symbols by `Symbol`'s order; compounds lexicographically by (name, arity, arguments). It is a strict total order (Proposition 4), and its choice affects only the display.
+  *Amended 2026-11-26, when implemented:* $`\prec`$ is defined on `InputForm` trees, so no order on $`R`$ is needed, and ties between numerals of equal value are broken by form (spec §3.5).
 
 ## Consequences
 

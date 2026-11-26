@@ -194,16 +194,19 @@ The Ring and Field rungs are not `Expression`. Their equality is polynomial (rat
 
 ### 3.5 The structural term order $`\prec`$
 
-Rungs P1, P3, P4 and M1, M3–M5 sort atoms by a strict total order $`\prec`$ on normal forms. Any strict total order gives canonical forms: if the operands are canonical, their sorted list is canonical. The choice of $`\prec`$ therefore affects only the display, not correctness. It is defined by structural recursion:
+Rungs P1, P3, P4 and M1, M3–M5 sort atoms by a strict total order $`\prec`$ on normal forms. Any strict total order gives canonical forms: if the operands are canonical, their sorted list is canonical. The choice of $`\prec`$ therefore affects only the display, not correctness. It is defined on terms as `InputForm` trees, by structural recursion. Constants of $`R`$ enter as their `InputForm` conversion, so $`R`$'s own order is not used. *(Corrected 2026-11-26: the first version compared numerals with $`R`$'s `smaller?` and required $`R`$ to be `Comparable`; both were unnecessary, and comparing by value alone is not total on trees, e.g. `2/4` and `1/2`.)*
 
-1. **Kinds:** numeral $`\prec`$ symbol $`\prec`$ compound.
-2. **Numerals** are compared by value, with `smaller?` of their domain: `Fraction Integer` for rational numerals, otherwise $`R`$. This requires $`R`$ to be `Comparable`, whose `smaller?` is a linear order compatible with equality. `ComparableRepresentation` is not enough, because there two representatives of one element may compare inconsistently.
-3. **Symbols** are compared with `smaller?$Symbol`, the order of the `OrderedSet` `Symbol`.
-4. **Compounds** $`f(t_1, \ldots, t_n)`$ and $`g(u_1, \ldots, u_m)`$, where the arithmetic operators count as $`f`$ and $`g`$, are compared lexicographically by the triple (operator name, arity, argument list). Operator names are compared as symbols; the argument lists $`(t_1, \ldots, t_n)`$ and $`(u_1, \ldots, u_n)`$, which have equal length once the arities are equal, are compared lexicographically by $`\prec`$.
+1. **Kinds**, in this order: exact numerals (integer atoms, and quotients `(/ m n)` of integer atoms with $`n \ne 0`$); float atoms; symbols; strings; other atoms; compound terms.
+2. **Exact numerals** by value in `Fraction Integer`. Ties between different trees of equal value: an integer before a quotient, and quotients by numerator. Equal value and numerator give equal denominators, hence equal trees.
+3. **Float atoms** by value. Floats written in the input parse as compound terms (an application of `float`), and are ordered as such.
+4. **Symbols** by `smaller?$Symbol`, the order of the `OrderedSet` `Symbol`. **Strings** by `String`'s order. **Other atoms** by their `unparse` text.
+5. **Compound terms** $`(h\ t_1 \ldots t_n)`$ and $`(h'\ u_1 \ldots u_m)`$ lexicographically by head, number of arguments, and argument list. Heads, usually operator symbols, and arguments are compared by $`\prec`$ recursively; the argument lists have equal length once the arities are equal.
 
 **Proposition 4.** $`\prec`$ is a strict total order on $`T`$.
 
-*Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–3 compare by strict total orders. Step 4 is the lexicographic product of strict total orders: on names, on arities, and, by the induction hypothesis on the strictly smaller arguments, on argument lists of equal length. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
+*Proof.* By induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$ for a comparison of $`s`$ with $`t`$. Steps 1–4 order the kinds, and within each kind of atom, by strict total orders: for exact numerals, the lexicographic product of value, integer-before-quotient and numerator, which separates any two distinct trees. Step 5 is the lexicographic product of the order on heads and arguments (by the induction hypothesis, since these are strictly smaller) with the order on arities. A lexicographic product of strict total orders is a strict total order: irreflexive, transitive and total. $`\square`$
+
+Implemented as `SymbolicTermOrder` (`SYMORD`) in `src/algebra/sexpr.spad`. Checked exhaustively on 37 terms, i.e. all pairs and all 50,653 triples, in `sexpr2.input`, test case "Ord".
 
 **Remarks.**
 - $`\prec`$ is not a reduction order and plays no part in termination; the normalisers of §3.4 terminate by structural recursion.
