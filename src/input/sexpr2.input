@@ -338,6 +338,41 @@ g(t : SEI) : String == unparse(convert(t)@InputForm)
 testTrue("(g(0*u) = _"0_")@Boolean")
 testTrue("(g(0-v) = _"-(y)_")@Boolean")
 
+-------------------------------------------------------------
+testcase "Ord: the term order is a strict total order (spec 3.5)"
+-------------------------------------------------------------
+lt(a : InputForm, b : InputForm) : Boolean == smaller?(a, b)$SymbolicTermOrder
+ts : List InputForm := concat([parse(s)$InputForm for s in ["0", "1", "2", "-1", "1/2", "2/4", "3/2", "4/2", "x", "y", "z", "a1", "x+y", "y+x", "x+1", "1+x", "x*y", "y*x", "sin(x)", "sin(y)", "cos(x)", "f(x,y)", "f(x)", "f(y,x)", "x^2", "x^(1/2)", "-x", "-(x+y)", "(x+y)+z", "x+(y+z)", "1/x", "x/1", "1.5", "2.5"]], [convert(-3)@InputForm, convert(1.5::Float)@InputForm, convert("s")@InputForm])
+#ts
+nIrr := #[a for a in ts | lt(a, a)]
+nTot : Integer := 0
+for a in ts repeat
+  for b in ts repeat
+    if not (a = b)@Boolean and not (lt(a, b) or lt(b, a)) then nTot := nTot + 1
+    if lt(a, b) and lt(b, a) then nTot := nTot + 1
+nTrans : Integer := 0
+for a in ts repeat
+  for b in ts repeat
+    if lt(a, b) then
+      for c in ts repeat
+        if lt(b, c) and not lt(a, c) then nTrans := nTrans + 1
+testTrue("(nIrr = 0)@Boolean")
+testTrue("(nTot = 0)@Boolean")
+testTrue("(nTrans = 0)@Boolean")
+-- intended positions
+testTrue("lt(parse(_"1_")$InputForm, parse(_"x_")$InputForm)")
+testTrue("lt(parse(_"x_")$InputForm, parse(_"y_")$InputForm)")
+testTrue("lt(parse(_"x_")$InputForm, parse(_"sin(x)_")$InputForm)")
+testTrue("lt(parse(_"cos(x)_")$InputForm, parse(_"sin(x)_")$InputForm)")
+testTrue("lt(parse(_"sin(x)_")$InputForm, parse(_"sin(y)_")$InputForm)")
+testTrue("lt(parse(_"f(x)_")$InputForm, parse(_"f(x,y)_")$InputForm)")
+testTrue("lt(parse(_"1/2_")$InputForm, parse(_"1_")$InputForm)")
+testTrue("lt(parse(_"2_")$InputForm, parse(_"4/2_")$InputForm)")
+testTrue("lt(parse(_"1/2_")$InputForm, parse(_"2/4_")$InputForm)")
+testTrue("lt(convert(-3)@InputForm, parse(_"0_")$InputForm)")
+-- must fail: irreflexive
+xftestTrue("lt(parse(_"x_")$InputForm, parse(_"x_")$InputForm)")
+
 -------------
 -- Results --
 -------------
