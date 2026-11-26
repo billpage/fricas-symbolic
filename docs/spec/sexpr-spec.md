@@ -382,15 +382,15 @@ The same pairs with $`\cdot`$, $`1`$ and Ann are joined in the same way. Inv rew
 | V2 rules | each rule of $`A`$ fires where it should and nowhere else | `testEquals` on forms, plus `xftest…` for near misses |
 | V3 algorithms | integrals verified by differentiating back, sums against closed forms, limits, linear algebra | as in `gsexpr.input` |
 | V4 properties | for random terms $`t`$: $`[\![\mathrm{nf}_A t]\!] = [\![t]\!]`$, $`\mathrm{nf}_A(\mathrm{nf}_A t) = \mathrm{nf}_A t`$, and confluence (normal form independent of construction order) | a random term generator in a FriCAS `.input` file |
-| V5 formal, (I) | Planned in [`docs/plans/lean-presentation-axioms.md`](../plans/lean-presentation-axioms.md). Lean 4 with Mathlib: `inductive Term`; `eval : Term → K` into a field; `nf : Term → Term`. Prove (a) each rule of $`A_P`$ sound, (b) termination of `nf` (structural or size measure), (c) `eval (nf t) = eval t`, i.e. (Val), (d) `nf (nf t) = nf t`. | Mathlib's total division ($`x/0 = 0`$) differs from $`E`$'s partiality, so soundness lemmas must carry side conditions (e.g. $`1/(1/x) = x`$ holds in Mathlib for all $`x`$, but Cancels' $`x/x = 1`$ needs $`x \ne 0`$). This makes the partiality explicit. |
-| V5 formal, (II) | termination and confluence modulo AC of larger axiom sets | rewriting tools: Maude (Church–Rosser checker, AC), AProVE or TTT2 (termination), CSI with CeTA (certified confluence). Not installed yet; would be added to the container if wanted. |
+| V5 formal, (I) | Planned in [`docs/plans/lean-presentation-axioms.md`](../plans/lean-presentation-axioms.md), part 1, in Lean 4 with Mathlib in `lean/`: $`A_P`$ with Assoc and (AN) as a rewriting system, `Step` from this spec and `nf` mirroring the code; soundness by refinement of partial evaluation, (Val), termination, normal forms, confluence (L1–L9) | Mathlib's total division ($`x/0 = 0`$) differs from $`E`$'s partiality, so soundness lemmas must carry side conditions (e.g. $`1/(1/x) = x`$ holds in Mathlib for all $`x`$, but Cancels' $`x/x = 1`$ needs $`x \ne 0`$). This makes the partiality explicit. |
+| V5 formal, (II) | Planned in the same plan, parts 2–4 (revised 2026-11-26 for the ladder): Prop. 4 for $`\prec`$; each rung's $`T/{=_A}`$ isomorphic to a free algebra in Mathlib (`Multiset`, `Finsupp`, `MvPolynomial`, `FractionRing`), hence (N1) and (N2); soundness of every group, and `eval` of decision 0011 by the universal property | The ladder's normalisers build canonical forms directly, so no AC rewriting tools (Maude, AProVE, CeTA) are needed. Floats and (Disp) stay with the FriCAS tests |
 
 ## 7. Decisions for Bill
 
 1. Accept the two-constructor specification (§5) as the reference design.
 2. ~~$`A_P`$ as the default for `SymbolicExpression(R)`~~ Decided: yes, including Num (decision [0002](../decisions/0002-presentation-axioms.md)).
 3. ~~Whether $`A_P`$ should include an associativity axiom~~ Decided: no; it is the optional group Assoc, §4.1.1 (decision [0005](../decisions/0005-associativity-group.md)).
-4. Formal verification: start with Lean for $`A_P`$ (V5-I)? It is small and self-contained.
+4. ~~Formal verification: start with Lean for $`A_P`$ (V5-I)?~~ Decided: yes, in a separate conversation (Bill, 2026-11-26); the [plan](../plans/lean-presentation-axioms.md) was revised the same day to cover the ladder and the bridge.
 5. ~~Clean-up of `Symbolic(R, A)` for (II)~~ Hidden rewrites done (decision 0007); AC strategy decided: canonical forms of free algebras, the ladder of §3.4 (decision 0008).
 
 ## 8. Implementation status (2026-11-25)
