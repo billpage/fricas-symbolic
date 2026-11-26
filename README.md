@@ -12,7 +12,7 @@ Early development. The design is fixed by a mathematical specification, [`docs/s
 |---|---|---|---|
 | `GeneralSymbolicExpression(R, A)` | `src/algebra/gsexpr.spad` | A presentation of `Expression R`: every element carries its written form and its value. Spec §3.3, design (I). `R` may be `Float` or `DoubleFloat`, with decimal float numerals (decision 0010). | Prototype; passes its tests |
 | `SymbolicExpression(R)` | `src/algebra/gsexpr.spad` | `GeneralSymbolicExpression(R, A)` with the default axioms $`A_P`$ (decision 0002) | Passes its tests |
-| `SymbolicTerm(R, A)` | `src/algebra/symterm.spad` | Design (II): terms modulo the axiom groups $`A`$, equality by identity of normal forms (decisions 0008, 0009) | All groups, from $`A_P`$ to `ring` and `field` (plan steps 2–5) |
+| `SymbolicTerm(R, A)` | `src/algebra/symterm.spad` | Design (II): terms modulo the axiom groups $`A`$, equality by identity of normal forms (decisions 0008, 0009) | All groups, from $`A_P`$ to `ring` and `field` (plan steps 2–5); `eval` into any ring satisfying $`A`$, and read-back from forms (decision 0011) |
 
 [`ORIENTATION.md`](ORIENTATION.md) explains the goals, what is settled and what is open, and where to start reading.
 
