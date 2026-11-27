@@ -697,7 +697,7 @@ theorem S_mins [AddCommMonoid β] (k : α → Tree) (x : α × β) (acc : List (
   | cons y r ih =>
     by_cases h : k y.1 = k x.1
     · simp only [mins, h, ↓reduceIte, S_cons]
-      split_ifs <;> simp_all [add_assoc, add_comm, add_left_comm]
+      split_ifs <;> simp_all [add_assoc, add_comm]
     · simp only [mins, h, ↓reduceIte, S_cons, ih, add_assoc]
 
 theorem S_foldl [AddCommMonoid β] (k : α → Tree) (l acc : List (α × β)) (t : Tree) :
@@ -747,7 +747,7 @@ theorem nodup_mins [Add β] (k : α → Tree) (x : α × β) (acc : List (α × 
   induction acc with
   | nil => simp [mins]
   | cons w r ih =>
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hn
+    simp only [List.map_cons, List.nodup_cons, List.mem_map, not_exists, not_and] at hn
     unfold mins
     split_ifs with h
     · simpa using hn
@@ -894,7 +894,7 @@ theorem eq_of_strict (k : α → Tree) : ∀ {l l' : List α},
 theorem eq_of_perm_sorted : ∀ {l l' : List Tree}, l.Perm l' →
     l.Pairwise (fun x y => lt y x = false) → l'.Pairwise (fun x y => lt y x = false) → l = l'
   | [], [], _, _, _ => rfl
-  | [], b :: _, h, _, _ => absurd h.symm (List.Perm.nil_eq ▸ by simp)
+  | [], b :: _, h, _, _ => by simpa using h.length_eq
   | a :: _, [], h, _, _ => by simpa using h.length_eq
   | a :: as, b :: bs, h, hl, hl' => by
     rw [List.pairwise_cons] at hl hl'
