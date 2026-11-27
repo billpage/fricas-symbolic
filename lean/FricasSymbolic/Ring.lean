@@ -178,10 +178,12 @@ instance : CommRing (Q σ) where
     intro a b c; induction a using ind; induction b using ind; induction c using ind
     simp only [mk_add, mk_mul]; exact r (Root.distrib _ _ _)
   right_distrib := by
-    intro a b c; induction a using ind; induction b using ind; induction c using ind
+    intro a b c
+    refine ind (fun x => ?_) a; refine ind (fun y => ?_) b; refine ind (fun z => ?_) c
     simp only [mk_add, mk_mul]
-    rw [r (Root.mul_comm _ c), r (Root.distrib _ _ _), r (Root.mul_comm c _),
-      r (Root.mul_comm c _)]
+    exact sound (Equiv.trans' (Equiv.root (Root.mul_comm _ _))
+      (Equiv.trans' (Equiv.root (Root.distrib _ _ _))
+        (Equiv.add (Equiv.root (Root.mul_comm _ _)) (Equiv.root (Root.mul_comm _ _)))))
   mul_comm := by
     intro a b; induction a using ind; induction b using ind
     simp only [mk_mul]; exact r (Root.mul_comm _ _)
@@ -229,9 +231,6 @@ noncomputable def phi : RTerm σ → MvPolynomial σ ℚ
 
 theorem phi_root {s t : RTerm σ} (h : Root s t) : phi s = phi t := by
   cases h <;> simp [phi, map_add, map_mul, pow_succ] <;> ring_nf
-  all_goals first
-    | (rename_i hq; simp [hq])
-    | skip
 
 /-- Soundness ("→" of R4): every axiom holds in `MvPolynomial σ ℚ`. -/
 theorem phi_step {s t : RTerm σ} (h : Step s t) : phi s = phi t := by
@@ -253,7 +252,7 @@ noncomputable def psi : MvPolynomial σ ℚ →ₐ[ℚ] Q σ := aeval fun a => Q
 
 theorem psi_phi (t : RTerm σ) (ht : t.Defined) : psi (phi t) = Q.mk t := by
   induction t with
-  | num q => simp [psi, phi, aeval_C]
+  | num q => simp [psi, phi]
   | atom a => simp [psi, phi, aeval_X]
   | add a b iha ihb => simp only [phi, map_add, iha ht.1, ihb ht.2, Q.mk_add]
   | sub a b iha ihb => simp only [phi, map_sub, iha ht.1, ihb ht.2, Q.mk_sub]
@@ -261,7 +260,8 @@ theorem psi_phi (t : RTerm σ) (ht : t.Defined) : psi (phi t) = Q.mk t := by
   | mul a b iha ihb => simp only [phi, map_mul, iha ht.1, ihb ht.2, Q.mk_mul]
   | pow a n iha => simp only [phi, map_pow, iha ht, Q.mk_pow]
   | divn a q iha =>
-    simp only [phi, map_mul, iha ht.1, psi, aeval_C, Q.algebraMap_eq, Q.mk_mul]
+    have hc : psi (C q⁻¹ : MvPolynomial σ ℚ) = Q.mk (.num q⁻¹) := by simp [psi]
+    simp only [phi, map_mul, iha ht.1, hc, Q.mk_mul]
     exact (Q.r (Root.divn a q ht.2)).symm
 
 /-- **R4**: for terms without division by the numeral `0`, `s =_Ring t` exactly when they
@@ -292,14 +292,14 @@ def evalD : RTerm σ → D
 /-- E2: evaluation is `aeval f ∘ φ`, i.e. it factors through the polynomial ring. -/
 theorem E2_eval_eq_aeval (t : RTerm σ) : evalD f t = aeval f (phi t) := by
   induction t with
-  | num q => simp [evalD, phi, aeval_C]
+  | num q => simp [evalD, phi]
   | atom a => simp [evalD, phi, aeval_X]
   | add a b iha ihb => simp [evalD, phi, iha, ihb]
   | sub a b iha ihb => simp [evalD, phi, iha, ihb]
   | neg a iha => simp [evalD, phi, iha]
   | mul a b iha ihb => simp [evalD, phi, iha, ihb]
   | pow a n iha => simp [evalD, phi, iha]
-  | divn a q iha => simp [evalD, phi, iha, aeval_C]
+  | divn a q iha => simp [evalD, phi, iha]
 
 /-- E2: evaluation respects `=_Ring`: `eval` is well defined on `SymbolicTerm(R, A)`. -/
 theorem E2_eval_respects {s t : RTerm σ} (h : Equiv s t) : evalD f s = evalD f t := by
