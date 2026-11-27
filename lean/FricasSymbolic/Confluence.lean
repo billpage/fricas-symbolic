@@ -429,7 +429,7 @@ theorem sAdd_steps (x y : Term) : Steps A (.add x y) (sAdd A x y) := by
     rw [sAdd]; simp only [h1, h2, h3, h4, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
     simp only [Bool.and_eq_true, isNum_iff, isAdd_iff] at h
     obtain ⟨⟨⟨⟨⟨ha, hn⟩, han⟩, m, rfl⟩, x1, x2, rfl⟩, hx2⟩ := h
-    simp only [snd, isNum_iff] at hx2
+    simp only [snd] at hx2
     obtain ⟨p, rfl⟩ := hx2
     simp only [fst, snd, nv] at ih ⊢
     exact (Steps.root (Root.an_add x1 p m ha hn han)).trans ih
@@ -470,7 +470,7 @@ theorem sMul_steps (x y : Term) : Steps A (.mul x y) (sMul A x y) := by
     rw [sMul]; simp only [h1, h2, h3, h4, h5, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
     simp only [Bool.and_eq_true, isNum_iff, isMul_iff] at h
     obtain ⟨⟨⟨⟨⟨ha, hn⟩, han⟩, m, rfl⟩, x1, x2, rfl⟩, hx2⟩ := h
-    simp only [snd, isNum_iff] at hx2
+    simp only [snd] at hx2
     obtain ⟨p, rfl⟩ := hx2
     simp only [fst, snd, nv] at ih ⊢
     exact (Steps.root (Root.an_mul x1 p m ha hn han)).trans ih
@@ -514,7 +514,7 @@ theorem sDiv_steps (x y : Term) : Steps A (.div x y) (sDiv A x y) := by
     exact Steps.root (Root.id_div x hi)
   · simp only [Bool.and_eq_true, isLit_iff, isDiv_iff] at h3
     obtain ⟨⟨⟨hi, rfl⟩, a, b, rfl⟩, hf⟩ := h3
-    simp only [fst, isLit_iff] at hf
+    simp only [fst] at hf
     subst hf
     exact Steps.root (Root.inv_div b hi)
   · exact ReflTransGen.refl
@@ -549,5 +549,84 @@ theorem L8_steps_to_nf (t : Term) : Steps A t (nf A t) := by
   | div a b iha ihb =>
     exact (Steps.div_l b iha).trans ((Steps.div_r _ ihb).trans (sDiv_steps _ _))
   | pow a n iha => exact (Steps.pow n iha).trans (sPow_steps _ _)
+
+/-! ## L5, local identities: the root rules that need no associativity -/
+
+section local_identities
+
+variable (A)
+
+theorem sAdd_num_num (hn : A.num = true) (p q : ℚ) : sAdd A (.num p) (.num q) = .num (p + q) := by
+  rw [sAdd]; simp [hn, isNum, nv]
+
+theorem sMul_num_num (hn : A.num = true) (p q : ℚ) : sMul A (.num p) (.num q) = .num (p * q) := by
+  rw [sMul]; simp [hn, isNum, nv]
+
+theorem sAdd_zero_l (hi : A.id = true) (X : Term) : sAdd A (.num 0) X = X := by
+  rw [sAdd]; cases X <;> simp [hi, isNum, isLit, nv]
+
+theorem sAdd_zero_r (hi : A.id = true) (X : Term) : sAdd A X (.num 0) = X := by
+  rw [sAdd]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+
+theorem sSub_zero_r (hi : A.id = true) (X : Term) : sSub A X (.num 0) = X := by
+  unfold sSub; cases X <;> simp [hi, isNum, isLit, nv]
+
+theorem sSub_zero_l (hi : A.id = true) (hn : A.num = true) (X : Term) :
+    sSub A (.num 0) X = sNeg A X := by
+  unfold sSub sNeg; cases X <;> simp [hi, hn, isNum, isLit, nv]
+
+theorem sMul_one_l (hi : A.id = true) (X : Term) : sMul A (.num 1) X = X := by
+  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+
+theorem sMul_one_r (hi : A.id = true) (X : Term) : sMul A X (.num 1) = X := by
+  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+
+theorem sMul_zero_l (ha : A.ann = true) (X : Term) : sMul A (.num 0) X = .num 0 := by
+  rw [sMul]; cases X <;> simp [ha, isNum, isLit, nv]
+
+theorem sMul_zero_r (ha : A.ann = true) (X : Term) : sMul A X (.num 0) = .num 0 := by
+  rw [sMul]; cases X <;> simp [ha, isNum, isLit, nv]
+
+theorem sDiv_one_r (hi : A.id = true) (X : Term) : sDiv A X (.num 1) = X := by
+  unfold sDiv; cases X <;> simp [hi, isNum, isLit, nv]
+
+theorem sPow_one (hi : A.id = true) (X : Term) : sPow A X 1 = X := by
+  unfold sPow; cases X <;> simp [hi, isNum, nv]
+
+theorem sPow_zero (hi : A.id = true) (X : Term) : sPow A X 0 = .num 1 := by
+  unfold sPow; cases X <;> simp [hi, isNum, nv]
+
+theorem sNeg_sNeg (hi : A.inv = true) {X : Term} (hX : IsNF A X) : sNeg A (sNeg A X) = X := by
+  cases X with
+  | num q => by_cases hn : A.num = true <;> simp [sNeg, hi, hn, isNum, isNeg, nv, fst]
+  | neg a =>
+    rw [show sNeg A (.neg a) = a by simp [sNeg, hi, isNum, isNeg, fst]]
+    exact sNeg_eq_of_isNF hX
+  | _ => simp [sNeg, hi, isNum, isNeg, fst]
+
+theorem sDiv_inv (hi : A.inv = true) {X : Term} (hX : IsNF A X) :
+    sDiv A (.num 1) (sDiv A (.num 1) X) = X := by
+  cases X with
+  | num q =>
+    by_cases hn : A.num = true
+    · by_cases hq : q = 0
+      · subst hq; simp [sDiv, hi, hn, isNum, isLit, isDiv, nv, fst, snd]
+      · simp [sDiv, hi, hn, hq, isNum, isLit, isDiv, nv]
+    · by_cases hid : A.id = true ∧ q = 1
+      · obtain ⟨hid, rfl⟩ := hid; simp [sDiv, hi, hn, hid, isNum, isLit, isDiv, nv]
+      · simp only [not_and] at hid
+        simp [sDiv, hi, hn, isNum, isLit, isDiv, nv, fst, snd]
+        intro h1 h2; exact absurd h2 (hid h1)
+  | div a b =>
+    by_cases ha : a = .num 1
+    · subst ha
+      rw [show sDiv A (.num 1) (.div (.num 1) b) = b by
+        simp [sDiv, hi, isNum, isLit, isDiv, nv, fst, snd]]
+      exact sDiv_eq_of_isNF hX
+    · have : (a.isLit 1) = false := by simpa [isLit_iff] using ha
+      simp [sDiv, hi, this, isNum, isLit, isDiv, nv, fst, snd]
+  | _ => simp [sDiv, hi, isNum, isLit, isDiv, nv, fst, snd]
+
+end local_identities
 
 end FricasSymbolic
