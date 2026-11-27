@@ -320,7 +320,7 @@ Branch `claude/lean-e1`, `Groups.lean`, commit `32e28aa`, Lean 4.36.0 and Mathli
 
 **Side conditions.** Only rules that divide or take a negative power need care, and there "the left side is defined" is exactly the condition needed. For example, $`x^m x^n \to x^{m+n}`$ with $`x = 0`$ is defined only for $`m, n \ge 0`$, where $`0^{m+n} = 0^m 0^n`$ ($`0^0 = 1`$, as in FriCAS). $`(x^m)^n \to x^{mn}`$ with $`x = 0`$ and $`m > 0`$ needs $`n \ge 0`$ on the left, since $`0^m = 0`$. No rule needs $`x \ne 0`$ as an extra hypothesis.
 
-**For the spec.** The table above could replace the group names in spec §3.4 ("Axiom groups and admissible sets"), so that the spec, the Spad code and Lean list the same rules. That is a change to what the constructors promise, so it is for Bill to decide (AGENTS.md).
+**In the spec.** Decision [0013](../decisions/0013-group-rules.md) (Bill, 2026-11-27) put this table into spec §3.4, so the spec, the Spad code and `Ladder` list the same rules. FriCAS agrees with each reading (run `20261127-153137-group-rules-probe`).
 
 ## 7. Repository layout and environment
 

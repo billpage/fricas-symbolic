@@ -8,10 +8,9 @@ import Mathlib.Tactic.Ring
 Plan §6, E1; spec §2.3, condition (S) and Lemma 1.
 
 The groups `identities`, `annihilation`, `involutions`, `numerals` and `associativity`
-(with (AN)) are part 1's `Root` rules. The spec names the axioms of the other groups
-(§3.4, "Axiom groups and admissible sets") without listing them. `Ladder` lists them, as
-read from the spec's tables and checked against the clauses of `src/algebra/gsexpr.spad`
-that each group enables. Each rule is oriented as the normaliser applies it; `n`, `m`
+(with (AN)) are part 1's `Root` rules. `Ladder` lists the rules of the other groups as spec §3.4
+("Axiom groups and admissible sets") states them since decision 0013, checked against
+the clauses of `src/algebra/gsexpr.spad` that each group enables. Each rule is oriented as the normaliser applies it; `n`, `m`
 are numerals (`.num`):
 
 * `commutativity`: $x+y → y+x$, $x·y → y·x$.

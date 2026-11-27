@@ -218,12 +218,14 @@ The Ring and Field rungs are not `Expression`. Their equality is polynomial (rat
 | `involutions` | Inv: $`-(-x),\ 1/(1/x)`$ | — | |
 | `numerals` | Num: fold operations on numerals | — | |
 | `associativity` | A for $`+`$ and $`\cdot`$; with `numerals` also (AN) (§4.1.1) | — | P2, M2 |
-| `commutativity` | C for $`+`$ and $`\cdot`$ | — | P1, M1; with `associativity` P3, M3 |
-| `linear` | Doubles, Cancels, signed sums | `commutativity`, `associativity`, `identities`, `numerals` | P4 |
-| `powers` | Squares: products as power products with exponents $`\ge 1`$ | `commutativity`, `associativity`, `identities`, `numerals` | M4 |
-| `quotients` | Divides, $`x/y \approx x \cdot y^{-1}`$: exponents in $`\mathbb{Z}`$ | `powers` | M5 |
-| `ring` | distributivity: polynomials in the atoms | `linear`, `powers` | Ring |
-| `field` | reduced fractions | `ring`, `quotients` | Field |
+| `commutativity` | C: $`x+y \to y+x,\ x\cdot y \to y\cdot x`$ | — | P1, M1; with `associativity` P3, M3 |
+| `linear` | Doubles, Cancels, signed sums, scalar multiplication: $`x-y \to x+(-1)\cdot y,\ -x \to (-1)\cdot x,\ n\cdot x+m\cdot x \to (n+m)\cdot x,\ n\cdot(m\cdot x) \to (nm)\cdot x,\ n\cdot(x+y) \to n\cdot x+n\cdot y,\ 0\cdot x \to 0`$ | `commutativity`, `associativity`, `identities`, `numerals` | P4 |
+| `powers` | Squares, power products: $`x^m x^n \to x^{m+n},\ (x^m)^n \to x^{mn},\ (x y)^n \to x^n y^n`$ for $`m, n \ge 0`$ | `commutativity`, `associativity`, `identities`, `numerals` | M4 |
+| `quotients` | $`x/y \to x\cdot y^{-1}`$, and the rules of `powers` for all $`m, n \in \mathbb{Z}`$; Divides follows: $`x\cdot x^{-1} \to x^0 \to 1`$ | `powers` | M5 |
+| `ring` | distributivity, $`x\cdot(y+z) \to x\cdot y+x\cdot z`$; division by a numeral, $`x/q \to q^{-1}\cdot x`$ for $`q \ne 0`$ | `linear`, `powers` | Ring |
+| `field` | none of its own: with `ring` and `quotients` the theory is that of reduced fractions | `ring`, `quotients` | Field |
+
+In the table $`n, m`$ are numerals and $`x, y, z`$ any terms (decision [0013](../decisions/0013-group-rules.md)). Each rule is written in the direction the normalisers apply it, and is sound wherever its left side is defined: for the rules that divide or take a negative power, that is exactly the condition needed (Lemma 1; in Lean, plan §6.1). Under `linear` alone $`x/2`$ is an atom, and under `powers` alone $`x^{-1}`$ is an atom; division by a numeral is scaling only with `ring`, and a negative exponent only with `quotients`.
 
 $`A`$ is **admissible** if every name in it is a group of this table, and the groups it requires are in $`A`$ too; moreover `ring` and `quotients` together require `field` (decision 0009, amended: without `field`, $`(y+1)^{-1}(y+1)`$ would distribute to $`(y+1)^{-1}y + (y+1)^{-1}`$ instead of becoming $`1`$). Requirements are listed, not implied, so the list shows everything that applies. A constructor rejects an inadmissible $`A`$ when it is instantiated, with an error naming the unknown group or the missing requirement. Both constructors implement every group (plan steps 3–5). The empty list is rungs P0/M0: no rewriting. $`A_P`$, with or without `associativity`, is admissible (Theorem 3). AntiCommutative of 2017 is not a group: it is unsound for $`E`$ (§4.2) and has no rung yet.
 
