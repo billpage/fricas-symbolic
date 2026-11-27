@@ -178,8 +178,7 @@ instance : CommRing (Q σ) where
     intro a b c; induction a using ind; induction b using ind; induction c using ind
     simp only [mk_add, mk_mul]; exact r (Root.distrib _ _ _)
   right_distrib := by
-    intro a b c
-    refine ind (fun x => ?_) a; refine ind (fun y => ?_) b; refine ind (fun z => ?_) c
+    intro a b c; induction a using ind; induction b using ind; induction c using ind
     simp only [mk_add, mk_mul]
     exact sound (Equiv.trans' (Equiv.root (Root.mul_comm _ _))
       (Equiv.trans' (Equiv.root (Root.distrib _ _ _))
