@@ -1,5 +1,7 @@
 import FricasSymbolic.RingMirror
 import Mathlib.Algebra.MvPolynomial.Basic
+import Mathlib.Tactic.Ring
+import Mathlib.Tactic.Abel
 
 namespace FricasSymbolic.RingMirror
 open FricasSymbolic.Order Tree MvPolynomial
@@ -141,5 +143,207 @@ theorem rd_mulChain (c : ℚ) (fs : List Tree) : rd (mulChain c fs) = C c * (fs.
     obtain ⟨rfl, hfs⟩ := h
     obtain ⟨r, rs, rfl⟩ := List.exists_cons_of_ne_nil hfs
     simp [rd_foldl_mul]
+
+/-! ## Merging and sorting, generically -/
+
+section Generic
+variable {α β γ : Type*}
+
+/-- One step of `mergeF` and `mergeT`: `x` added to the entry with the same key, or
+appended. -/
+def mins [Add β] (k : α → Tree) (x : α × β) : List (α × β) → List (α × β)
+  | [] => [x]
+  | y :: r => if k y.1 = k x.1 then (y.1, y.2 + x.2) :: r else y :: mins k x r
+
+theorem step_eq [Add β] (k : α → Tree) (x : α × β) (acc : List (α × β)) :
+    (match acc.findIdx? (fun g => teq (k g.1) (k x.1)) with
+      | some i => acc.modify i (fun g => (g.1, g.2 + x.2))
+      | none => acc ++ [x]) = mins k x acc := by
+  induction acc with
+  | nil => simp [mins]
+  | cons y r ih =>
+    rw [List.findIdx?_cons]
+    by_cases h : k y.1 = k x.1
+    · simp [h, teq_refl, mins]
+    · have h' : teq (k y.1) (k x.1) = false := by simpa [teq_eq_decide] using h
+      simp only [h', mins, h, Bool.false_eq_true, ↓reduceIte]
+      cases hr : r.findIdx? (fun g => teq (k g.1) (k x.1)) with
+      | none => simp only [hr] at ih; simp [← ih]
+      | some i => simp only [hr] at ih; simp [← ih]
+
+theorem sum_mins [Add β] [AddCommMonoid γ] (k : α → Tree) (v : Tree → β → γ)
+    (hv : ∀ t a b, v t (a + b) = v t a + v t b) (x : α × β) (acc : List (α × β)) :
+    ((mins k x acc).map fun y => v (k y.1) y.2).sum
+      = (acc.map fun y => v (k y.1) y.2).sum + v (k x.1) x.2 := by
+  induction acc with
+  | nil => simp [mins]
+  | cons y r ih =>
+    by_cases h : k y.1 = k x.1
+    · simp only [mins, h, ↓reduceIte, List.map_cons, List.sum_cons, hv]
+      abel
+    · simp only [mins, h, ↓reduceIte, List.map_cons, List.sum_cons, ih]
+      abel
+
+theorem sum_foldl_mins [Add β] [AddCommMonoid γ] (k : α → Tree) (v : Tree → β → γ)
+    (hv : ∀ t a b, v t (a + b) = v t a + v t b) (l acc : List (α × β)) :
+    ((l.foldl (fun acc x => mins k x acc) acc).map fun y => v (k y.1) y.2).sum
+      = (acc.map fun y => v (k y.1) y.2).sum + (l.map fun y => v (k y.1) y.2).sum := by
+  induction l generalizing acc with
+  | nil => simp
+  | cons x l ih =>
+    simp only [List.foldl_cons, ih, sum_mins k v hv, List.map_cons, List.sum_cons]
+    abel
+
+theorem prod_mins [Add β] [CommMonoid γ] (k : α → Tree) (v : Tree → β → γ)
+    (hv : ∀ t a b, v t (a + b) = v t a * v t b) (x : α × β) (acc : List (α × β)) :
+    ((mins k x acc).map fun y => v (k y.1) y.2).prod
+      = (acc.map fun y => v (k y.1) y.2).prod * v (k x.1) x.2 := by
+  induction acc with
+  | nil => simp [mins]
+  | cons y r ih =>
+    by_cases h : k y.1 = k x.1
+    · simp only [mins, h, ↓reduceIte, List.map_cons, List.prod_cons, hv]
+      rw [← h]; ac_rfl
+    · simp only [mins, h, ↓reduceIte, List.map_cons, List.prod_cons, ih]
+      ac_rfl
+
+theorem prod_foldl_mins [Add β] [CommMonoid γ] (k : α → Tree) (v : Tree → β → γ)
+    (hv : ∀ t a b, v t (a + b) = v t a * v t b) (l acc : List (α × β)) :
+    ((l.foldl (fun acc x => mins k x acc) acc).map fun y => v (k y.1) y.2).prod
+      = (acc.map fun y => v (k y.1) y.2).prod * (l.map fun y => v (k y.1) y.2).prod := by
+  induction l generalizing acc with
+  | nil => simp
+  | cons x l ih =>
+    simp only [List.foldl_cons, ih, prod_mins k v hv, List.map_cons, List.prod_cons]
+    ac_rfl
+
+theorem mins_map {β' : Type*} [Add β] [Add β'] (k : α → Tree) (f : β → β')
+    (hf : ∀ a b, f (a + b) = f a + f b) (x : α × β) (acc : List (α × β)) :
+    mins k (x.1, f x.2) (acc.map fun y => (y.1, f y.2))
+      = (mins k x acc).map fun y => (y.1, f y.2) := by
+  induction acc with
+  | nil => simp [mins]
+  | cons y r ih => by_cases h : k y.1 = k x.1 <;> simp [mins, h, ih, hf]
+
+theorem foldl_mins_map {β' : Type*} [Add β] [Add β'] (k : α → Tree) (f : β → β')
+    (hf : ∀ a b, f (a + b) = f a + f b) (l acc : List (α × β)) :
+    (l.map fun y => (y.1, f y.2)).foldl (fun acc x => mins k x acc)
+        (acc.map fun y => (y.1, f y.2))
+      = (l.foldl (fun acc x => mins k x acc) acc).map fun y => (y.1, f y.2) := by
+  induction l generalizing acc with
+  | nil => simp
+  | cons x l ih => simp only [List.map_cons, List.foldl_cons, mins_map k f hf, ih]
+
+/-- Insertion by key, the shape of `insertLt` and `insertTerm`. -/
+def insBy (k : α → Tree) (a : α) : List α → List α
+  | [] => [a]
+  | b :: bs => if lt (k a) (k b) then a :: b :: bs else b :: insBy k a bs
+
+theorem insBy_perm (k : α → Tree) (a : α) (l : List α) : (insBy k a l).Perm (a :: l) := by
+  induction l with
+  | nil => simp [insBy]
+  | cons b bs ih =>
+    unfold insBy
+    split_ifs
+    · exact List.Perm.refl _
+    · exact ((ih.cons b).trans (List.Perm.swap a b bs))
+
+theorem foldr_insBy_perm (k : α → Tree) (l : List α) : (l.foldr (insBy k) []).Perm l := by
+  induction l with
+  | nil => simp
+  | cons a l ih => exact (insBy_perm k a _).trans (ih.cons a)
+
+end Generic
+
+theorem insertLt_eq (a : Tree) (l : List Tree) : insertLt a l = insBy id a l := by
+  induction l with
+  | nil => rfl
+  | cons b bs ih => simp [insertLt, insBy, ih]
+
+theorem insertTerm_eq (a : List Tree × ℚ) (l : List (List Tree × ℚ)) :
+    insertTerm a l = insBy (fun x => mulChain 1 x.1) a l := by
+  induction l with
+  | nil => rfl
+  | cons b bs ih => simp [insertTerm, insBy, ih]
+
+theorem sortLt_eq (l : List Tree) : sortLt l = l.foldr (insBy id) [] := by
+  unfold sortLt
+  congr 1
+  funext a l
+  exact insertLt_eq a l
+
+theorem mergeF_eq (fs : List (Tree × ℤ)) :
+    mergeF fs = (fs.foldl (fun acc x => mins id x acc) []).filter (·.2 ≠ 0) := by
+  unfold mergeF
+  congr 1
+  congr 1
+  funext acc x
+  exact step_eq id x acc
+
+theorem mergeT_eq (ts : List (List Tree × ℚ)) :
+    mergeT ts = (ts.foldl (fun acc x => mins (fun fs => mulChain 1 fs) x acc) []).filter
+      (·.2 ≠ 0) := by
+  unfold mergeT
+  congr 1
+  congr 1
+  funext acc x
+  exact step_eq (fun fs => mulChain 1 fs) x acc
+
+/-- `mergeF` on natural exponents. -/
+def mergeN (L : List (Tree × ℕ)) : List (Tree × ℕ) :=
+  (L.foldl (fun acc x => mins id x acc) []).filter (·.2 ≠ 0)
+
+theorem mergeF_cast (L : List (Tree × ℕ)) :
+    mergeF (L.map fun x => (x.1, (x.2 : ℤ))) = (mergeN L).map fun x => (x.1, (x.2 : ℤ)) := by
+  rw [mergeF_eq, mergeN]
+  have h := foldl_mins_map id (fun n : ℕ => (n : ℤ)) (fun a b => by push_cast; rfl) L []
+  simp only [List.map_nil] at h
+  rw [h, List.filter_map]
+  congr 1
+  apply List.filter_congr
+  intro x _
+  simp
+
+theorem prod_mergeN {γ : Type*} [CommMonoid γ] (v : Tree → γ) (L : List (Tree × ℕ)) :
+    ((mergeN L).map fun x => v x.1 ^ x.2).prod = (L.map fun x => v x.1 ^ x.2).prod := by
+  unfold mergeN
+  have hf : ∀ l : List (Tree × ℕ), ((l.filter (·.2 ≠ 0)).map fun x => v x.1 ^ x.2).prod
+      = (l.map fun x => v x.1 ^ x.2).prod := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons x l ih => by_cases h : x.2 = 0 <;> simp [List.filter_cons, h, ih]
+  rw [hf]
+  have := prod_foldl_mins id (fun t (n : ℕ) => v t ^ n) (fun t a b => pow_add _ _ _) L []
+  simpa using this
+
+/-! ## Read-back is correct -/
+
+theorem rd_facNode (b : Tree) (e : ℕ) (he : e ≠ 0) : rd (facNode b e) = rd b ^ e := by
+  unfold facNode
+  by_cases h1 : e = 1
+  · subst h1; simp
+  · rw [if_neg (by exact_mod_cast h1)]
+    have : intNode (e : ℤ) = int (e : ℤ) := by simp [intNode]
+    rw [arith, this, rd_pow]
+
+/-- The polynomial of `p` with each index `i` read as the tree `al[i]`. -/
+noncomputable def ev (al : List Tree) (p : Poly) : MvPolynomial Tree ℚ :=
+  (p.map fun x => C x.2 * (x.1.map fun y => rd (al.getD y.1 (int 0)) ^ y.2).prod).sum
+
+theorem rd_mono (al : List Tree) (m : List (ℕ × ℕ)) :
+    rd (mulChain 1 (facTrees al m)) = (m.map fun y => rd (al.getD y.1 (int 0)) ^ y.2).prod := by
+  rw [rd_mulChain, map_one, one_mul, facTrees, sortLt_eq,
+    ((foldr_insBy_perm id _).map rd).prod_eq]
+  have hL : (m.map fun (y : ℕ × ℕ) => (al.getD y.1 (int 0), (y.2 : ℤ)))
+      = (m.map fun y => (al.getD y.1 (int 0), y.2)).map fun x => (x.1, (x.2 : ℤ)) := by
+    simp
+  rw [hL, mergeF_cast, List.map_map, List.map_map]
+  have hm : ∀ x ∈ mergeN (m.map fun y => (al.getD y.1 (int 0), y.2)), x.2 ≠ 0 := by
+    intro x hx
+    simpa [mergeN] using (List.mem_filter.1 hx).2
+  rw [List.map_congr_left (fun x hx => rd_facNode x.1 x.2 (hm x hx))]
+  rw [prod_mergeN rd]
+  simp [List.map_map]
 
 end FricasSymbolic.RingMirror
