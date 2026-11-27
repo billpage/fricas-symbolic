@@ -17,6 +17,7 @@ recorded results are in [`../docs/plans/lean-presentation-axioms.md`](../docs/pl
 | `FricasSymbolic/Order.lean`, `crosscheck/ordercheck.spad` | part 2: `InputForm` trees and the term order mirrored from `SymbolicTermOrder`, with its differential test |
 | `FricasSymbolic/OrderProofs.lean` | O1, O2: the term order is a strict total order (Prop. 4) |
 | `FricasSymbolic/Ring.lean` | R4, E2: the Ring rung is `MvPolynomial σ ℚ`, and `eval` is its universal property |
+| `FricasSymbolic/RingMirror.lean`, `crosscheck/ringcheck.spad` | the Ring rung's constructors mirrored from `gsexpr.spad` (`ratoms`, `toF`, `linBuild`, `prodBuild`), with its differential test |
 | `FricasSymbolic/Confluence.lean` | L4, L5, L6, L8, L9: normal forms, termination, confluence (Theorem 3) |
 | `Axioms.lean` | `#print axioms` of the cited theorems (not part of the library) |
 

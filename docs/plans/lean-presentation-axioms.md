@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. R4 and E2 are proved (§5.5): Ring terms are equal under the axioms exactly when they are the same polynomial, and `eval` is the universal map. Next: the mirror of the Spad Ring normaliser (§5.5). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. R4 and E2 are proved (§5.5): Ring terms are equal under the axioms exactly when they are the same polynomial, and `eval` is the universal map. The mirror of the Spad Ring normaliser agrees with FriCAS on 2,700 random terms (§5.5); its two theorems are next. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -256,11 +256,18 @@ Branch `claude/lean-ring` (on top of `claude/lean-order`), `Ring.lean`. `lean_bu
 
 **In words.** Two Ring terms are equal under the Ring axioms exactly when they are the same polynomial over $`\mathbb{Q}`$ in their atoms: $`\mathbb{Q}[\sigma]`$ is the free commutative $`\mathbb{Q}`$-algebra. And for any commutative ring `D` containing $`\mathbb{Q}`$, evaluation of terms is well defined modulo the axioms and is the unique algebra map extending the values of the atoms. That is decision 0011's `eval` for the rung `ring`, with exactly the categories `SymbolicTermFunctions2` checks.
 
-**Next for the Ring rung: the mirror** (§5.3, option 2). The Spad constructors are `fromF ∘ op ∘ toF`. So the mirror is:
-1. a computable canonical polynomial type over the atoms, with `toF`;
-2. `fromF` restricted to constant denominators (`linOf`, `linBuild`, `prodBuild`), producing the Spad trees in the order of part 2;
-3. a differential test against `GeneralSymbolicExpression(Integer, [..., ring])`;
-4. the theorems that the canonical type is injective into `MvPolynomial` and that $`\varphi`$ of the read-back is the polynomial. With R4, these give (N1) and (N2) for the Spad Ring normaliser.
+**The mirror** (§5.3, option 2; `RingMirror.lean`, 2026-11-27). The Spad constructors of the rung `ring` are `fromF ∘ op ∘ toF`, and `RingMirror.lean` follows that code on the trees of part 2 (`Order.Tree`, the `InputForm` of a node). The pieces mirrored are:
+- `ratoms`, `toF` (with `intExp` and `rpow`), and `fromF` for the constant denominators of this rung, which is `linOf`: `toLin`, `linBuild`, `mergeT`, and monomials from `prodBuild`, `mergeF`, `facNode` and `mulChain`;
+- the clauses of `+`, `-`, `*`, `/` and `^` in front of the Ring clause: numeral folding, the identities, annihilation and involutions;
+- the leaves `numNode` and `intNode`.
+
+The polynomial arithmetic is naive (lists of terms), because `linBuild` merges equal monomials and drops zero coefficients, as in the Spad code.
+
+**Differential test** (`RingMirror.Check`; `lean/crosscheck/ringcheck.spad`). The same pseudo-random terms are built on both sides: symbols, numerals, $`+`$, $`-`$, $`\cdot`$, division by a numeral, division by a nonzero term (an atom of the rung), and powers with exponents $`-1`$ to $`3`$ (negative exponents are atoms). For $`A_1`$ = `[commutativity, associativity, identities, numerals, linear, powers, ring]` and $`A_2 = A_1`$ + `[annihilation, involutions]`, seeds 20261126, 7 and 42, 300 terms of depth 3 and 150 of depth 4, the checksums of the printed forms agree: 2,700 terms (runs `20261127-141927-ringcheck-fricas`, `…-141928-ringmirror-crosscheck`). The spec's examples agree too: $`x(x+1)`$ gives `x+x^2`, $`(x+1)(x-1)`$ gives `x^2-1`, $`y-2x+1`$ gives `(-(2*x))+y+1` (run `…-141846-ringcheck-probe`). An earlier mismatch came from Lisp's printer, which labels a subtree that occurs twice (`#1=(/ y z)` … `#1#`); the Spad helper now prints forms itself.
+
+**Still to do for the Ring rung.** Two theorems about the mirror, which with R4 give (N1) and (N2) for the Spad normaliser:
+1. **Read-back is correct:** reading the tree `fromP al p` back with `toF` gives the polynomial of `p`, when the trees in `al` are distinct atoms of the rung.
+2. **Read-back is canonical:** `fromP` depends only on the polynomial (as an element of `MvPolynomial Tree ℚ`). This needs the merge functions and the sorting by the strict total order of part 2.
 
 ## 6. Part 4: soundness and the bridge
 
