@@ -757,7 +757,8 @@ theorem sAdd_assoc (ha : A.assoc = true) (han : A.an = true) (X Y Z : Term)
       intro h; simp only [Bool.and_eq_true] at h; exact c1 ⟨h.1.1, h.1.2, h.2⟩
     have g2 : ¬ (A.id && Y.isLit 0) = true := by simpa [isLit_iff] using c2
     have g3 : ¬ (A.id && Z.isLit 0) = true := by simpa [isLit_iff] using c3
-    have g4 : ¬ (A.assoc && Z.isAdd) = true := by simpa using c4
+    have g4 : ¬ (A.assoc && Z.isAdd) = true := by
+      intro h; simp only [Bool.and_eq_true] at h; exact c4 h.2
     have g5 : ¬ (A.assoc && A.num && A.an && Z.isNum && Y.isAdd && Y.snd.isNum) = true := by
       intro h; simp only [Bool.and_eq_true] at h
       exact c5 ⟨h.1.1.1.1.2, h.1.1.2, h.1.2, h.2⟩
@@ -767,9 +768,11 @@ theorem sAdd_assoc (ha : A.assoc = true) (han : A.an = true) (X Y Z : Term)
     rw [e, sAdd_add_right A ha Y Z hYZ X]
 termination_by (Z.size, Y.size)
 decreasing_by
-  all_goals first
-    | exact Prod.Lex.left _ _ (by simp only [size]; omega)
-    | exact Prod.Lex.right' _ (by simp [size]) (by simp only [size]; omega)
+  all_goals
+    subst_vars
+    first
+      | exact Prod.Lex.left _ _ (by simp only [size]; omega)
+      | exact Prod.Lex.right' _ (by simp [size]) (by simp only [size]; omega)
 
 end assoc_add
 
