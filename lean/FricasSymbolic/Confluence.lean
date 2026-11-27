@@ -940,8 +940,8 @@ theorem L5_root (hid : A.id = true → A.num = true) (han : A.an = true) {s t : 
   | id_pow0 x hi => simp only [nf]; exact sPow_zero A hi _
   | ann_l x h => simp only [nf]; exact sMul_zero_l A h _
   | ann_r x h => simp only [nf]; exact sMul_zero_r A h _
-  | inv_neg x h => simp only [nf]; exact sNeg_sNeg A h (L4_nf_isNF x)
-  | inv_div x h => simp only [nf]; exact sDiv_inv A h (L4_nf_isNF x)
+  | inv_neg x h => simp only [nf]; exact sNeg_sNeg A h (L4_nf_isNF _)
+  | inv_div x h => simp only [nf]; exact sDiv_inv A h (L4_nf_isNF _)
   | num_add p q h => simp only [nf]; exact sAdd_num_num A h p q
   | num_sub p q h => simp only [nf]; unfold sSub; simp [h, isNum, nv]
   | num_mul p q h => simp only [nf]; exact sMul_num_num A h p q
@@ -949,9 +949,10 @@ theorem L5_root (hid : A.id = true → A.num = true) (han : A.an = true) {s t : 
   | num_div p q h hq => simp only [nf]; unfold sDiv; simp [h, hq, isNum, nv]
   | num_pow p n h hp =>
     simp only [nf]; unfold sPow
-    have : (!((Term.num p).nv == 0 && decide (n < 0))) = true := by
-      simpa [nv, not_and, not_lt] using hp
-    simp [h, isNum, this, nv]
+    by_cases hp0 : p = 0
+    · have hn : ¬ n < 0 := fun hn => hp ⟨hp0, hn⟩
+      simp [h, isNum, nv, hp0, hn]
+    · simp [h, isNum, nv, hp0]
   | assoc_add x y z ha =>
     simp only [nf]
     exact sAdd_assoc A ha han _ _ _ (L4_nf_isNF x) (L4_nf_isNF y) (L4_nf_isNF z)
