@@ -30,7 +30,7 @@ def SizeMuLt (t s : Term) : Prop :=
 theorem root_decreases {A : Ax} {s t : Term} (h : Root A s t) : SizeMuLt t s := by
   cases h with
   | id_pow0 x _ => have := size_pos x; simp [SizeMuLt, size]; omega
-  | _ => simp [SizeMuLt, size, mu]; try omega
+  | _ => simp [SizeMuLt, size, mu]
 
 theorem step_decreases {A : Ax} {s t : Term} (h : Step A s t) : SizeMuLt t s := by
   induction h with
@@ -241,5 +241,133 @@ theorem L6_nf_of_isNF {t : Term} (h : IsNF A t) : nf A t = t := by
   | mul a b iha ihb => simp only [nf, iha h.mul_l, ihb h.mul_r]; exact sMul_eq_of_isNF h
   | div a b iha ihb => simp only [nf, iha h.div_l, ihb h.div_r]; exact sDiv_eq_of_isNF h
   | pow a n iha => simp only [nf, iha h.pow']; exact sPow_eq_of_isNF h
+
+/-! ## L4: the smart constructors build normal forms -/
+
+theorem isNum_iff {t : Term} : t.isNum = true ↔ ∃ q, t = .num q := by
+  cases t <;> simp [isNum]
+
+theorem isLit_iff {t : Term} {q : ℚ} : t.isLit q = true ↔ t = .num q := by
+  cases t <;> simp [isLit, isNum, nv]
+
+theorem isAdd_iff {t : Term} : t.isAdd = true ↔ ∃ a b, t = .add a b := by
+  cases t <;> simp [isAdd]
+
+theorem isMul_iff {t : Term} : t.isMul = true ↔ ∃ a b, t = .mul a b := by
+  cases t <;> simp [isMul]
+
+theorem isDiv_iff {t : Term} : t.isDiv = true ↔ ∃ a b, t = .div a b := by
+  cases t <;> simp [isDiv]
+
+theorem isNeg_iff {t : Term} : t.isNeg = true ↔ ∃ a, t = .neg a := by
+  cases t <;> simp [isNeg]
+
+theorem sAdd_isNF (x y : Term) : IsNF A x → IsNF A y → IsNF A (sAdd A x y) := by
+  induction x, y using sAdd.induct A with
+  | case1 x y h =>
+    intro _ _; rw [sAdd]; simp only [h, ↓reduceIte]; exact IsNF.num _
+  | case2 x y h1 h =>
+    intro _ hy; rw [sAdd]; simp only [h1, h, Bool.false_eq_true, ↓reduceIte]; exact hy
+  | case3 x y h1 h2 h =>
+    intro hx _; rw [sAdd]; simp only [h1, h2, h, Bool.false_eq_true, ↓reduceIte]; exact hx
+  | case4 x y h1 h2 h3 h _ _ ih1 ih2 =>
+    intro hx hy
+    rw [sAdd]; simp only [h1, h2, h3, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true] at h
+    have hy' : IsNF A (.add y.fst y.snd) := isAdd_eq h.2 ▸ hy
+    exact ih2 (ih1 hx hy'.add_l) hy'.add_r
+  | case5 x y h1 h2 h3 h4 h _ _ ih =>
+    intro hx _
+    rw [sAdd]; simp only [h1, h2, h3, h4, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true] at h
+    have hx' : IsNF A (.add x.fst x.snd) := isAdd_eq h.1.2 ▸ hx
+    exact ih hx'.add_l (IsNF.num _)
+  | case6 x y h1 h2 h3 h4 h5 =>
+    intro hx hy
+    rw [sAdd]; simp only [h1, h2, h3, h4, h5, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    refine IsNF.add hx hy fun t r => ?_
+    cases r <;> simp_all [isNum, isLit, nv, isAdd, snd]
+
+theorem sMul_isNF (x y : Term) : IsNF A x → IsNF A y → IsNF A (sMul A x y) := by
+  induction x, y using sMul.induct A with
+  | case1 x y h =>
+    intro _ _; rw [sMul]; simp only [h, ↓reduceIte]; exact IsNF.num _
+  | case2 x y h1 h =>
+    intro _ _; rw [sMul]; simp only [h1, h, Bool.false_eq_true, ↓reduceIte]; exact IsNF.num _
+  | case3 x y h1 h2 h =>
+    intro _ hy; rw [sMul]; simp only [h1, h2, h, Bool.false_eq_true, ↓reduceIte]; exact hy
+  | case4 x y h1 h2 h3 h =>
+    intro hx _; rw [sMul]; simp only [h1, h2, h3, h, Bool.false_eq_true, ↓reduceIte]; exact hx
+  | case5 x y h1 h2 h3 h4 h _ _ ih1 ih2 =>
+    intro hx hy
+    rw [sMul]; simp only [h1, h2, h3, h4, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true] at h
+    have hy' : IsNF A (.mul y.fst y.snd) := isMul_eq h.2 ▸ hy
+    exact ih2 (ih1 hx hy'.mul_l) hy'.mul_r
+  | case6 x y h1 h2 h3 h4 h5 h _ _ ih =>
+    intro hx _
+    rw [sMul]; simp only [h1, h2, h3, h4, h5, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true] at h
+    have hx' : IsNF A (.mul x.fst x.snd) := isMul_eq h.1.2 ▸ hx
+    exact ih hx'.mul_l (IsNF.num _)
+  | case7 x y h1 h2 h3 h4 h5 h6 =>
+    intro hx hy
+    rw [sMul]; simp only [h1, h2, h3, h4, h5, h6, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    refine IsNF.mul hx hy fun t r => ?_
+    cases r <;> simp_all [isNum, isLit, nv, isMul, snd]
+
+theorem sNeg_isNF {x : Term} (hx : IsNF A x) : IsNF A (sNeg A x) := by
+  unfold sNeg
+  split_ifs with h1 h2
+  · exact IsNF.num _
+  · simp only [Bool.and_eq_true] at h2
+    have hx' : IsNF A (.neg x.fst) := isNeg_eq h2.2 ▸ hx
+    exact hx'.neg'
+  · refine IsNF.neg hx fun t r => ?_
+    cases r <;> simp_all [isNum, isNeg]
+
+theorem sSub_isNF {x y : Term} (hx : IsNF A x) (hy : IsNF A y) : IsNF A (sSub A x y) := by
+  unfold sSub
+  split_ifs with h1 h2 h3
+  · exact IsNF.num _
+  · exact hx
+  · exact sNeg_isNF hy
+  · refine IsNF.sub hx hy fun t r => ?_
+    cases r <;> simp_all [isNum, isLit, nv]
+
+theorem sDiv_isNF {x y : Term} (hx : IsNF A x) (hy : IsNF A y) : IsNF A (sDiv A x y) := by
+  unfold sDiv
+  split_ifs with h1 h2 h3
+  · exact IsNF.num _
+  · exact hx
+  · simp only [Bool.and_eq_true] at h3
+    have hy' : IsNF A (.div y.fst y.snd) := isDiv_eq h3.1.2 ▸ hy
+    exact hy'.div_r
+  · refine IsNF.div hx hy fun t r => ?_
+    cases r <;> simp_all [isNum, isLit, nv, isDiv, fst]
+
+theorem sPow_isNF {x : Term} {n : ℤ} (hx : IsNF A x) : IsNF A (sPow A x n) := by
+  unfold sPow
+  split_ifs with h1 h2 h3
+  · exact IsNF.num _
+  · exact hx
+  · exact IsNF.num _
+  · refine IsNF.pow hx fun t r => ?_
+    cases r <;> simp_all [isNum, nv]
+
+/-- L4: `nf A t` is a normal form. -/
+theorem L4_nf_isNF (t : Term) : IsNF A (nf A t) := by
+  induction t with
+  | num q => exact IsNF.num q
+  | var s => exact IsNF.var s
+  | add a b iha ihb => exact sAdd_isNF _ _ iha ihb
+  | sub a b iha ihb => exact sSub_isNF iha ihb
+  | neg a iha => exact sNeg_isNF iha
+  | mul a b iha ihb => exact sMul_isNF _ _ iha ihb
+  | div a b iha ihb => exact sDiv_isNF iha ihb
+  | pow a n iha => exact sPow_isNF iha
+
+/-- Idempotence (with L6). -/
+theorem nf_nf (t : Term) : nf A (nf A t) = nf A t := L6_nf_of_isNF (L4_nf_isNF t)
 
 end FricasSymbolic
