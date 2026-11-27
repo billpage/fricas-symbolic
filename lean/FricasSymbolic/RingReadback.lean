@@ -88,20 +88,23 @@ noncomputable def rd (t : Tree) : MvPolynomial Tree ℚ :=
     | none => X t
   | _ => X t
 
+theorem ite_false_cond {α : Type*} {c : Bool} (h : c = false) (a b : α) :
+    (if c = true then a else b) = b := by simp [h]
+
 theorem rd_num {t : Tree} (h : isNum t = true) : rd t = C (val t) := by
-  rw [rd, if_pos h]
+  unfold rd; simp [h]
 
 theorem rd_numNode (q : ℚ) : rd (numNode q) = C q := by
   rw [rd_num (isNum_numNode q), val_numNode]
 
 theorem rd_add (a b : Tree) : rd (node (sym "+") [a, b]) = rd a + rd b := by
-  rw [rd, if_neg (by simp [isNum_node2])]
+  rw [rd, ite_false_cond (isNum_node2 (h := "+") (by decide) a b)]
 
 theorem rd_sub (a b : Tree) : rd (node (sym "-") [a, b]) = rd a - rd b := by
-  rw [rd, if_neg (by simp [isNum_node2])]
+  rw [rd, ite_false_cond (isNum_node2 (h := "-") (by decide) a b)]
 
 theorem rd_mul (a b : Tree) : rd (node (sym "*") [a, b]) = rd a * rd b := by
-  rw [rd, if_neg (by simp [isNum_node2])]
+  rw [rd, ite_false_cond (isNum_node2 (h := "*") (by decide) a b)]
 
 theorem rd_neg (a : Tree) : rd (node (sym "-") [a]) = - rd a := by
   by_cases h : isNum a = true
@@ -115,25 +118,26 @@ theorem rd_neg (a : Tree) : rd (node (sym "-") [a]) = - rd a := by
   · have h2 : isNum (node (sym "-") [a]) = false := by
       simp only [isNum, numeralForm, beq_self_eq_true, ↓reduceIte, Option.isSome_map]
       simpa [isNum] using h
-    rw [rd, if_neg (by simp [h2])]
+    rw [rd, ite_false_cond h2]
 
 theorem rd_pow (b : Tree) (e : ℕ) : rd (node (sym "^") [b, int e]) = rd b ^ e := by
-  rw [rd, if_neg (by simp [isNum_node2])]
+  rw [rd, ite_false_cond (isNum_node2 (h := "^") (by decide) b (int e))]
   simp [rpow, intExp, numeralForm]
 
 theorem rd_foldl_mul (rs : List Tree) (r : Tree) :
     rd (rs.foldl (fun acc t => arith "*" [acc, t]) r) = rd r * (rs.map rd).prod := by
   induction rs generalizing r with
   | nil => simp
-  | cons t rs ih => simp only [List.foldl_cons, ih, arith, rd_mul, List.map_cons,
-      List.prod_cons, mul_assoc]
+  | cons t rs ih =>
+    rw [List.foldl_cons, ih]
+    simp only [arith, rd_mul, List.map_cons, List.prod_cons, mul_assoc]
 
 theorem rd_mulChain (c : ℚ) (fs : List Tree) : rd (mulChain c fs) = C c * (fs.map rd).prod := by
   unfold mulChain
   by_cases h : c ≠ 1 ∨ fs = []
   · simp only [h, ↓reduceIte, rd_foldl_mul, rd_numNode]
   · simp only [h, ↓reduceIte]
-    push_neg at h
+    simp only [ne_eq, not_or, not_not] at h
     obtain ⟨rfl, hfs⟩ := h
     obtain ⟨r, rs, rfl⟩ := List.exists_cons_of_ne_nil hfs
     simp [rd_foldl_mul]
