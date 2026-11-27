@@ -34,12 +34,12 @@ LeanOrderCheck() : with
         d = 0 => leaf()
         k := pick 10
         k = 4 =>
-            a := gen(d - 1)
-            convert([sy '_-, a])$INF
+            g : INF := gen(d - 1)
+            convert([sy '_-, g])$INF
         k = 5 =>
-            a := pick 7 - 3
-            b := pick 5 - 2
-            convert([sy '_/, it a, it b])$INF
+            qa : Integer := pick 7 - 3
+            qb : Integer := pick 5 - 2
+            convert([sy '_/, it qa, it qb])$INF
         k = 6 =>
             m := pick 7 - 3
             e := pick 5 - 2
