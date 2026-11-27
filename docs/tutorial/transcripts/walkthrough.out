@@ -1,0 +1,1168 @@
+status: ok
+variant: release, output: 1d
+script: /home/wspage/fricas-work/host-runs/20261127-152119-tut-regen-walkthrough/20261127-152119-tut-regen-walkthrough.input
+---
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is now explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is now explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is now explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is now explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is now explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is now explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is now explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is now explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is already explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is already explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is already explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is already explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is already explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is already explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is already explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is already explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)system curl -sSfo t.input https://raw.githubusercontent.com/billpage/fricas-symbolic/e06c23c0da33057d0659c0eea8c8c270e16b47e5/docs/tutorial/tutorial.input && sha256sum t.input
+
+48199ae684341b9cea1ce35b7247a0a981512495790d69b2f0a85595c0a5d30b  t.input
+)read t.input
+
+-- Interpreter transcript behind docs/tutorial/tutorial.md.
+--
+-- Every code block and every output shown in the tutorial comes from running
+-- this file, section by section (the lines "-- ==== name" mark the sections).
+-- It is a walk-through, not a test: the tests are src/input/gsexpr.input and
+-- src/input/symterm.input.
+--
+-- To run it with FriCAS 1.4.0 or later:
+--   )compile src/algebra/gsexpr.spad
+--   )compile src/algebra/symterm.spad
+--   )read docs/tutorial/tutorial.input
+-- (or `make tutorial`).  Results are shown in FriCAS's one-line form
+-- (Format1D), which can be pasted back as input; in an ordinary terminal
+-- session the same values are printed in the two-dimensional form.
+
+)set break resume
+
+-- ==== motivation
+x : Expression Integer := 'x
+
+x
+
+   Type: Expression(Integer)
+y : Expression Integer := 'y
+
+y
+
+   Type: Expression(Integer)
+(x+1)^2 - (x^2+2*x+1)
+
+0
+
+   Type: Expression(Integer)
+(x+1)^2 - x^2
+
+2*x+1
+
+   Type: Expression(Integer)
+cos(x)*sin(y) - cos(y)*sin(x)
+
+cos(x)*sin(y)-cos(y)*sin(x)
+
+   Type: Expression(Integer)
+(cos(x)*sin(y) - cos(y)*sin(x))*cos(x)
+
+cos(x)^2*sin(y)-cos(x)*cos(y)*sin(x)
+
+   Type: Expression(Integer)
+
+-- ==== quick-start
+)clear all
+
+   All user variables and function definitions have been cleared.
+SE ==> SymbolicExpression Integer
+
+   Type: Void
+x : SE := 'x
+
+x
+
+   Type: SymbolicExpression(Integer)
+y : SE := 'y
+
+y
+
+   Type: SymbolicExpression(Integer)
+e := (x+1)^2 - (x^2+2*x+1)
+
+(x+1)^2-(x^2+2*x+1)
+
+   Type: SymbolicExpression(Integer)
+form e
+
+(- (^ (+ x 1) 2) (+ (+ (^ x 2) (* 2 x)) 1))
+
+   Type: InputForm
+value e
+
+0
+
+   Type: Expression(Integer)
+zero? e
+
+true
+
+   Type: Boolean
+b := (x+1)^2 - x^2
+
+(x+1)^2-x^2
+
+   Type: SymbolicExpression(Integer)
+b
+
+(x+1)^2-x^2
+
+   Type: SymbolicExpression(Integer)
+zero? b
+
+false
+
+   Type: Boolean
+value b
+
+2*x+1
+
+   Type: Expression(Integer)
+eval((x+1)^2, x = y+1)
+
+(y+1+1)^2
+
+   Type: SymbolicExpression(Integer)
+form eval((x+1)^2, x = y+1)
+
+(^ (+ (+ y 1) 1) 2)
+
+   Type: InputForm
+
+-- ==== equality-is-value
+a := (x+1)^2
+
+(x+1)^2
+
+   Type: SymbolicExpression(Integer)
+(a = x^2+2*x+1)@Boolean
+
+true
+
+   Type: Boolean
+(a - (x^2+2*x+1) = 0)@Boolean
+
+true
+
+   Type: Boolean
+(a = (x+1)*(x+1))@Boolean
+
+true
+
+   Type: Boolean
+
+-- ==== calculus
+F := integrate((x+1)^2, 'x)
+
+(x^3+3*x^2+3*x)/3
+
+   Type: Union(SymbolicExpression(Integer),...)
+zero?(D(F, 'x) - (x+1)^2)
+
+true
+
+   Type: Boolean
+H := integrate(sin(x)*cos(x), 'x)
+
+-cos(x)^2/2
+
+   Type: Union(SymbolicExpression(Integer),...)
+zero?(D(H, 'x) - sin(x)*cos(x))
+
+true
+
+   Type: Boolean
+check(F) and check(H)
+
+true
+
+   Type: Boolean
+limit(sin(x)/x, x = 0)
+
+1
+
+   Type: Union(OrderedCompletion(SymbolicExpression(Integer)),...)
+n : SE := 'n
+
+n
+
+   Type: SymbolicExpression(Integer)
+D(x^n, 'x)
+
+n*x^(n-1)
+
+   Type: SymbolicExpression(Integer)
+D(x^n, 'x) - n*x^(n-1)
+
+n*x^(n-1)-n*x^(n-1)
+
+   Type: SymbolicExpression(Integer)
+zero? %
+
+true
+
+   Type: Boolean
+
+-- ==== rules
+t1 := cos(x)*sin(y) - cos(y)*sin(x)
+
+cos(x)*sin(y)-cos(y)*sin(x)
+
+   Type: SymbolicExpression(Integer)
+rs := _rule(cos(x)*sin(y)-sin(x)*cos(y), sin(y-x))
+
+%O+(cos(x)*sin(y)-sin(x)*cos(y))==%O+sin(y-x)
+
+   Type: RewriteRule(Integer,Integer,SymbolicExpression(Integer))
+rc := _rule(cos(x)*cos(y)-sin(x)*sin(y), cos(x+y))
+
+%P+(cos(x)*cos(y)-sin(x)*sin(y))==%P+cos(x+y)
+
+   Type: RewriteRule(Integer,Integer,SymbolicExpression(Integer))
+rs t1
+
+sin(y-x)
+
+   Type: SymbolicExpression(Integer)
+(rs t1 = sin(y-x))@Boolean
+
+true
+
+   Type: Boolean
+t1 = sin(y-x)
+
+cos(x)*sin(y)-cos(y)*sin(x)=sin(y-x)
+
+   Type: Equation(SymbolicExpression(Integer))
+t2 := - sin(x)*sin(y) + cos(x)*cos(y)
+
+-sin(x)*sin(y)+cos(x)*cos(y)
+
+   Type: SymbolicExpression(Integer)
+rc t2
+
+cos(y+x)
+
+   Type: SymbolicExpression(Integer)
+w := 'w
+
+w
+
+   Type: Variable(w)
+big := tan(x)*tan(y) + t1*cos(w) + t2*w + 5
+
+tan(x)*tan(y)+(cos(x)*sin(y)-cos(y)*sin(x))*cos(w)+(-sin(x)*sin(y)+cos(x)*cos(y))*w+5
+
+   Type: SymbolicExpression(Integer)
+rc rs big
+
+tan(x)*tan(y)+sin(y+(-1)*x)*cos(w)+cos(y+x)*w+5
+
+   Type: SymbolicExpression(Integer)
+check(rc rs big)
+
+true
+
+   Type: Boolean
+
+-- ==== rules-in-expression
+)clear all
+
+   All user variables and function definitions have been cleared.
+x : Expression Integer := 'x
+
+x
+
+   Type: Expression(Integer)
+y : Expression Integer := 'y
+
+y
+
+   Type: Expression(Integer)
+w : Expression Integer := 'w
+
+w
+
+   Type: Expression(Integer)
+t1 := cos(x)*sin(y) - cos(y)*sin(x)
+
+cos(x)*sin(y)-cos(y)*sin(x)
+
+   Type: Expression(Integer)
+t2 := - sin(x)*sin(y) + cos(x)*cos(y)
+
+-sin(x)*sin(y)+cos(x)*cos(y)
+
+   Type: Expression(Integer)
+rs := _rule(cos(x)*sin(y)-sin(x)*cos(y), sin(y-x))
+
+cos(x)*sin(y)-cos(y)*sin(x)+%Q==sin(y-x)+%Q
+
+   Type: RewriteRule(Integer,Integer,Expression(Integer))
+rc := _rule(cos(x)*cos(y)-sin(x)*sin(y), cos(x+y))
+
+-sin(x)*sin(y)+cos(x)*cos(y)+%R==cos(y+x)+%R
+
+   Type: RewriteRule(Integer,Integer,Expression(Integer))
+rs t1
+
+sin(y-x)
+
+   Type: Expression(Integer)
+rc t2
+
+cos(y+x)
+
+   Type: Expression(Integer)
+big := tan(x)*tan(y) + t1*cos(w) + t2*w + 5
+
+tan(x)*tan(y)+(-w*sin(x)+cos(w)*cos(x))*sin(y)-cos(w)*cos(y)*sin(x)+w*cos(x)*cos(y)+5
+
+   Type: Expression(Integer)
+rc rs big
+
+tan(x)*tan(y)+(-w*sin(x)+cos(w)*cos(x))*sin(y)-cos(w)*cos(y)*sin(x)+w*cos(x)*cos(y)+5
+
+   Type: Expression(Integer)
+
+-- ==== axioms-identities-only
+)clear all
+
+   All user variables and function definitions have been cleared.
+GI ==> GeneralSymbolicExpression(Integer, [identities])
+
+   Type: Void
+u : GI := 'u
+
+u
+
+   Type: GeneralSymbolicExpression(Integer,[identities])
+form(u+0)
+
+u
+
+   Type: InputForm
+form(1*u)
+
+u
+
+   Type: InputForm
+form((1::GI)+2)
+
+(+ 1 2)
+
+   Type: InputForm
+value((1::GI)+2)
+
+3
+
+   Type: Expression(Integer)
+form(0*u)
+
+(* 0 u)
+
+   Type: InputForm
+form(-(-u))
+
+(- (- u))
+
+   Type: InputForm
+
+-- ==== axioms-ap
+)clear all
+
+   All user variables and function definitions have been cleared.
+u : SymbolicExpression Integer := 'u
+
+u
+
+   Type: SymbolicExpression(Integer)
+form(u+0)
+
+u
+
+   Type: InputForm
+form((1::SymbolicExpression Integer)+2)
+
+3
+
+   Type: InputForm
+form(0*u)
+
+0
+
+   Type: InputForm
+form(-(-u))
+
+u
+
+   Type: InputForm
+form(1/(1/u))
+
+u
+
+   Type: InputForm
+value(0*u)
+
+0
+
+   Type: Expression(Integer)
+(u+u = 2*u)@Boolean
+
+true
+
+   Type: Boolean
+zero?(u+u-2*u)
+
+true
+
+   Type: Boolean
+
+-- ==== presentation-vs-value
+)clear all
+
+   All user variables and function definitions have been cleared.
+GE ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+
+   Type: Void
+u : GE := 'u
+
+u
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+v : GE := 'v
+
+v
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+(u+v = v+u)@Boolean
+
+true
+
+   Type: Boolean
+zero?(u+v-(v+u))
+
+true
+
+   Type: Boolean
+GC ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, commutativity])
+
+   Type: Void
+s : GC := 'u
+
+u
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals, commutativity])
+t : GC := 'v
+
+v
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals, commutativity])
+form(t+s)
+
+(+ u v)
+
+   Type: InputForm
+(t+s = s+t)@Boolean
+
+true
+
+   Type: Boolean
+
+-- ==== disp
+)clear all
+
+   All user variables and function definitions have been cleared.
+SE ==> SymbolicExpression Integer
+
+   Type: Void
+x : SE := 'x
+
+x
+
+   Type: SymbolicExpression(Integer)
+y : SE := 'y
+
+y
+
+   Type: SymbolicExpression(Integer)
+rt(t : SE) : Boolean == (parse(unparse form t)$InputForm = form t)@Boolean
+
+   Function declaration rt : SymbolicExpression(Integer) -> Boolean has been added to workspace.
+   Type: Void
+rt((x+1)^2 - (x^2+2*x+1))
+
+   Compiling function rt with type SymbolicExpression(Integer) -> Boolean 
+
+true
+
+   Type: Boolean
+rt(sin(x+y)^2 + cos(x)*y)
+
+true
+
+   Type: Boolean
+rt(x - (y - 1))
+
+true
+
+   Type: Boolean
+rt(1/(x+y))
+
+true
+
+   Type: Boolean
+unparse form(x - (y - 1))
+
+"x-(y-1)"
+
+   Type: String
+
+-- ==== term-rungs-none
+)clear all
+
+   All user variables and function definitions have been cleared.
+T0 ==> SymbolicTerm(Integer, [])
+
+   Type: Void
+x : T0 := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[])
+y : T0 := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[])
+(x+0 = x)@Boolean
+
+false
+
+   Type: Boolean
+(x+y = y+x)@Boolean
+
+false
+
+   Type: Boolean
+form(x+0)
+
+(+ x 0)
+
+   Type: InputForm
+form((1::T0)+1+1)
+
+(+ (+ 1 1) 1)
+
+   Type: InputForm
+v0 := (x+0)::Expression Integer
+
+x
+
+   Type: Expression(Integer)
+v0
+
+x
+
+   Type: Expression(Integer)
+
+-- ==== term-rungs-ap
+)clear all
+
+   All user variables and function definitions have been cleared.
+TP ==> SymbolicTerm(Integer, [identities, annihilation, involutions, numerals])
+
+   Type: Void
+x : TP := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[identities, annihilation, involutions, numerals])
+y : TP := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[identities, annihilation, involutions, numerals])
+(x+0 = x)@Boolean
+
+true
+
+   Type: Boolean
+(0*x = 0)@Boolean
+
+true
+
+   Type: Boolean
+(-(-x) = x)@Boolean
+
+true
+
+   Type: Boolean
+((1::TP)+2 = 3)@Boolean
+
+true
+
+   Type: Boolean
+(x+y = y+x)@Boolean
+
+false
+
+   Type: Boolean
+((x+1)+2 = x+3)@Boolean
+
+false
+
+   Type: Boolean
+
+-- ==== term-rungs-assoc
+)clear all
+
+   All user variables and function definitions have been cleared.
+TA ==> SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])
+
+   Type: Void
+x : TA := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[identities, annihilation, involutions, numerals, associativity])
+y : TA := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[identities, annihilation, involutions, numerals, associativity])
+((x+1)+2 = x+3)@Boolean
+
+true
+
+   Type: Boolean
+(x+(y+1) = (x+y)+1)@Boolean
+
+true
+
+   Type: Boolean
+(x+y = y+x)@Boolean
+
+false
+
+   Type: Boolean
+form(x+(y+1)+2)
+
+(+ (+ x y) 3)
+
+   Type: InputForm
+
+-- ==== term-rungs-linear
+)clear all
+
+   All user variables and function definitions have been cleared.
+TL ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+
+   Type: Void
+x : TL := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear])
+y : TL := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear])
+(x+y = y+x)@Boolean
+
+true
+
+   Type: Boolean
+(2*x+3*x = 5*x)@Boolean
+
+true
+
+   Type: Boolean
+(y-2*x+1 = 1-2*x+y)@Boolean
+
+true
+
+   Type: Boolean
+form(y-2*x+1)
+
+(+ (+ (- (* 2 x)) y) 1)
+
+   Type: InputForm
+(x*y = y*x)@Boolean
+
+true
+
+   Type: Boolean
+(x*y+x*y = 2*(x*y))@Boolean
+
+true
+
+   Type: Boolean
+(x*(y+1) = x*y+x)@Boolean
+
+false
+
+   Type: Boolean
+
+-- ==== term-rungs-ring
+)clear all
+
+   All user variables and function definitions have been cleared.
+TR ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, ring])
+
+   Type: Void
+x : TR := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, ring])
+y : TR := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, ring])
+((x+y)^2 = x^2+2*x*y+y^2)@Boolean
+
+true
+
+   Type: Boolean
+((x+1)*(x-1) = x^2-1)@Boolean
+
+true
+
+   Type: Boolean
+form((x+1)*(x-1))
+
+(- (^ x 2) 1)
+
+   Type: InputForm
+(sin(x)*(sin(x)+1) = sin(x)^2+sin(x))@Boolean
+
+true
+
+   Type: Boolean
+(sin(x)^2+cos(x)^2 = 1)@Boolean
+
+false
+
+   Type: Boolean
+(x/y*y = x)@Boolean
+
+false
+
+   Type: Boolean
+
+-- ==== term-rungs-field
+)clear all
+
+   All user variables and function definitions have been cleared.
+TF ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+
+   Type: Void
+x : TF := 'x
+
+x
+
+Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+y : TF := 'y
+
+y
+
+Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+(x/y*y = x)@Boolean
+
+true
+
+   Type: Boolean
+((x^2-1)/(x-1) = x+1)@Boolean
+
+true
+
+   Type: Boolean
+form((x^2-1)/(x-1))
+
+(+ x 1)
+
+   Type: InputForm
+((x^2-1)/(x-1))::Expression Integer
+
+x+1
+
+   Type: Expression(Integer)
+(sin(x)^2+cos(x)^2 = 1)@Boolean
+
+false
+
+   Type: Boolean
+
+-- ==== bridge-matrices
+)clear all
+
+   All user variables and function definitions have been cleared.
+TN ==> SymbolicTerm(Integer, [associativity, identities])
+
+   Type: Void
+M2 ==> SquareMatrix(2, Fraction Integer)
+
+   Type: Void
+p : TN := 'p
+
+p
+
+   Type: SymbolicTerm(Integer,[associativity, identities])
+q : TN := 'q
+
+q
+
+   Type: SymbolicTerm(Integer,[associativity, identities])
+mp : M2 := matrix [[1, 2], [3, 4]]
+
+[[1, 2], [3, 4]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+mq : M2 := matrix [[0, 1], [1, 0]]
+
+[[0, 1], [1, 0]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+ev(t : TN) : M2 == eval(t, (s : Symbol) : M2 +-> (s = 'p => mp; mq))$SymbolicTermFunctions2(Integer, [associativity, identities], M2)
+
+   Function declaration ev : SymbolicTerm(Integer,[associativity,identities]) -> SquareMatrix(2,Fraction(Integer))
+      has been added to workspace.
+   Type: Void
+(p*q = q*p)@Boolean
+
+false
+
+   Type: Boolean
+ev(p*q)
+
+   Compiling function ev with type SymbolicTerm(Integer,[associativity,identities]) -> SquareMatrix(2,Fraction(
+      Integer)) 
+
+[[2, 1], [4, 3]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+ev(q*p)
+
+[[3, 4], [1, 2]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+ev((p+q)^2)
+
+[[13, 15], [20, 28]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+(mp+mq)^2
+
+[[13, 15], [20, 28]]
+
+   Type: SquareMatrix(2,Fraction(Integer))
+
+-- ==== bridge-refused
+)clear all
+
+   All user variables and function definitions have been cleared.
+AC ==> [identities, numerals, associativity, commutativity]
+
+   Type: Void
+M2 ==> SquareMatrix(2, Fraction Integer)
+
+   Type: Void
+q : SymbolicTerm(Integer, AC) := 'q
+
+q
+
+   Type: SymbolicTerm(Integer,[identities, numerals, associativity, commutativity])
+eval(q, (s : Symbol) : M2 +-> 1)$SymbolicTermFunctions2(Integer, AC, M2)
+
+   >> Error detected within library code:
+   SymbolicTermFunctions2: axiom group commutativity needs a commutative ring D
+
+   Continuing to read the file...
+
+TS ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+
+   Type: Void
+r : TS := 'r
+
+r
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear])
+eval(sin(r), (s : Symbol) : Polynomial Fraction Integer +-> 1)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear], Polynomial Fraction Integer)
+
+   >> Error detected within library code:
+   InputFormEvaluation: no interpretation in D of the operator sin
+
+   Continuing to read the file...
+
+-- ==== bridge-field
+)clear all
+
+   All user variables and function definitions have been cleared.
+TF ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+
+   Type: Void
+FP ==> Fraction Polynomial Integer
+
+   Type: Void
+x : TF := 'x
+
+x
+
+Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+y : TF := 'y
+
+y
+
+Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+t := (x^2-1)/(x-1) + y/2
+
+x+1/2*y+1
+
+Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+toFP(t : TF) : FP == eval(t, (s : Symbol) : FP +-> s::FP)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], FP)
+
+   Function declaration toFP : SymbolicTerm(Integer,[commutativity,associativity,identities,numerals,linear,powers
+      ,quotients,ring,field]) -> Fraction(Polynomial(Integer)) has been added to workspace.
+   Type: Void
+toFP t
+
+   Compiling function toFP with type SymbolicTerm(Integer,[commutativity,associativity,identities,numerals,linear,
+      powers,quotients,ring,field]) -> Fraction(Polynomial(Integer)) 
+
+(y+2*x+2)/2
+
+   Type: Fraction(Polynomial(Integer))
+eval(t, (s : Symbol) : Float +-> (s = 'x => 2.0; 0.5))$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Float)
+
+3.25
+
+   Type: Float
+
+-- ==== bridge-readback
+)clear all
+
+   All user variables and function definitions have been cleared.
+T0 ==> SymbolicTerm(Integer, [])
+
+   Type: Void
+TL ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+
+   Type: Void
+a : T0 := 'x
+
+x
+
+   Type: SymbolicTerm(Integer,[])
+b : T0 := 'y
+
+y
+
+   Type: SymbolicTerm(Integer,[])
+w := (a + a) + 0*b
+
+x+x+0*y
+
+   Type: SymbolicTerm(Integer,[])
+form w
+
+(+ (+ x x) (* 0 y))
+
+   Type: InputForm
+nf := convert(form w)@TL
+
+2*x
+
+   Type: SymbolicTerm(Integer,[commutativity, associativity, identities, numerals, linear])
+form nf
+
+(* 2 x)
+
+   Type: InputForm
+convert(form nf)@T0
+
+2*x
+
+   Type: SymbolicTerm(Integer,[])
+(convert(form w)@T0 = w)@Boolean
+
+true
+
+   Type: Boolean
+
+-- ==== conversions
+)clear all
+
+   All user variables and function definitions have been cleared.
+SE ==> SymbolicExpression Integer
+
+   Type: Void
+z := 5
+
+5
+
+   Type: PositiveInteger
+ez := ('z)::Expression Integer + 1
+
+z+1
+
+   Type: Expression(Integer)
+sz := ez :: SE
+
+z+1
+
+   Type: SymbolicExpression(Integer)
+form sz
+
+(+ z 1)
+
+   Type: InputForm
+value sz
+
+z+1
+
+   Type: Expression(Integer)
+check sz
+
+true
+
+   Type: Boolean
+ex : Expression Integer := (sin('x)+1)^2
+
+sin(x)^2+2*sin(x)+1
+
+   Type: Expression(Integer)
+sx := ex :: SE
+
+sin(x)^2+2*sin(x)+1
+
+   Type: SymbolicExpression(Integer)
+form sx
+
+(+ (+ (^ (sin x) 2) (* 2 (sin x))) 1)
+
+   Type: InputForm
+value sx
+
+sin(x)^2+2*sin(x)+1
+
+   Type: Expression(Integer)
+
+-- ==== floats
+)clear all
+
+   All user variables and function definitions have been cleared.
+GF ==> GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])
+
+   Type: Void
+x : GF := 'x
+
+x
+
+   Type: GeneralSymbolicExpression(Float,[identities, annihilation, involutions, numerals])
+form(x + 1.5)
+
+(+ x (($elt (Float) float) 15 -1 10))
+
+   Type: InputForm
+form((1.5 :: GF) + 2.25)
+
+(($elt (Float) float) 375 -2 10)
+
+   Type: InputForm
+value((1.5 :: GF) + 2.25)
+
+3.75
+
+   Type: Expression(Float)
+form(0.0*x)
+
+(($elt (Float) float) 0 0 10)
+
+   Type: InputForm
+form(-(-x))
+
+x
+
+   Type: InputForm
+
+-- ==== admissibility
+)clear all
+
+   All user variables and function definitions have been cleared.
+0 :: GeneralSymbolicExpression(Integer, [linear])
+
+   >> Error detected within library code:
+   GeneralSymbolicExpression: axiom group linear requires commutativity
+
+   Continuing to read the file...
+
+0 :: GeneralSymbolicExpression(Integer, [foo])
+
+   >> Error detected within library code:
+   GeneralSymbolicExpression: unknown axiom group foo
+
+   Continuing to read the file...
+
+0 :: SymbolicTerm(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring])
+
+   >> Error detected within library code:
+   GeneralSymbolicExpression: axiom groups ring and quotients together require field
+
+   Continuing to read the file...
+
+0 :: SymbolicTerm(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])
+
+0
+
+Type: SymbolicTerm(Integer,[identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])
+-- ==== end

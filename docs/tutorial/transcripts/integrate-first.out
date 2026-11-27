@@ -1,0 +1,146 @@
+status: ok
+variant: release, output: 1d
+script: /home/wspage/fricas-work/host-runs/20261127-152121-tut-regen-integrate-first/20261127-152121-tut-regen-integrate-first.input
+---
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is now explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is now explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is now explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is now explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is now explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is now explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is now explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is now explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is already explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is already explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is already explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is already explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is already explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is already explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is already explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is already explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)system curl -sSfo k.input https://raw.githubusercontent.com/billpage/fricas-symbolic/e06c23c0da33057d0659c0eea8c8c270e16b47e5/docs/tutorial/known-issue-integrate-first.input && sha256sum k.input
+
+8ecdc49cef35d69fc81d0918e9c32c56e9f206674ee1757c47d9493d4a1d6b42  k.input
+)read k.input
+
+-- Reproduction of the known problem with SymbolicExpression(Integer)
+-- described in docs/tutorial/tutorial.md, section "Known issues": the first
+-- library algorithm called in a session is integrate.
+--
+-- Run it in a FRESH FriCAS session (the result depends on what the session has
+-- done before; compare known-issue-sum-first.input):
+--   )compile src/algebra/gsexpr.spad
+--   )read docs/tutorial/known-issue-integrate-first.input
+-- Commit 54811c7, FriCAS 1.4.0.  GeneralSymbolicExpression(Integer, A_P) is the
+-- domain that SymbolicExpression(Integer) is defined to be; it is the control.
+
+)set break resume
+
+-- ==== setup
+SE ==> SymbolicExpression Integer
+
+   Type: Void
+GA ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+
+   Type: Void
+x : SE := 'x
+
+x
+
+   Type: SymbolicExpression(Integer)
+y : GA := 'y
+
+y
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+
+-- ==== integral-atan
+integrate(1/(x^2+1), 'x)
+
+0
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(1/(y^2+1), 'y)
+
+atan(y)
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+integrate(1/(x^2+2), 'x)
+
+0
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(1/(y^2+2), 'y)
+
+atan((y*nthRoot(2, 2))/2)/nthRoot(2, 2)
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+integrate(x/(x^2+1), 'x)
+
+log(x^2+1)/2
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(y/(y^2+1), 'y)
+
+log(y^2+1)/2
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+
+-- ==== sums
+sum(x, 'x=1..10)
+
+100
+
+   Type: SymbolicExpression(Integer)
+sum(x, 'x)
+
+(x-1)*(x-1)
+
+   Type: SymbolicExpression(Integer)
+sum(y, 'y=1..10)
+
+55
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+sum(y, 'y)
+
+(y-1)*(1/2+1/2*(y-1))
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+-- ==== end

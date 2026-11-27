@@ -1,0 +1,156 @@
+status: ok
+variant: release, output: 1d
+script: /home/wspage/fricas-work/host-runs/20261127-152122-tut-regen-sum-first/20261127-152122-tut-regen-sum-first.input
+---
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is now explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is now explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is now explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is now explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is now explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is now explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is now explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is now explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)lib )dir /home/fricas/work/runs/ASUS-20261127-145024-fs-compile
+
+   SymbolicTermFunctions2 is already explicitly exposed in frame initial 
+   SymbolicTermFunctions2 will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTF2.NRLIB/SYMTF2
+   SymbolicTerm is already explicitly exposed in frame initial 
+   SymbolicTerm will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMTERM.NRLIB/SYMTERM
+   SymbolicTermOrder is already explicitly exposed in frame initial 
+   SymbolicTermOrder will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMORD.NRLIB/SYMORD
+   SymbolicNumeral is already explicitly exposed in frame initial 
+   SymbolicNumeral will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMNUM.NRLIB/SYMNUM
+   SymbolicAxiomGroups is already explicitly exposed in frame initial 
+   SymbolicAxiomGroups will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SYMGRP.NRLIB/SYMGRP
+   SymbolicExpression is already explicitly exposed in frame initial 
+   SymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/SEXPR.NRLIB/SEXPR
+   InputFormEvaluation is already explicitly exposed in frame initial 
+   InputFormEvaluation will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/INFEVAL.NRLIB/INFEVAL
+   GeneralSymbolicExpression is already explicitly exposed in frame initial 
+   GeneralSymbolicExpression will be automatically loaded when needed from 
+      /home/fricas/work/runs/ASUS-20261127-145024-fs-compile/GSEXPR.NRLIB/GSEXPR
+)system curl -sSfo k.input https://raw.githubusercontent.com/billpage/fricas-symbolic/e06c23c0da33057d0659c0eea8c8c270e16b47e5/docs/tutorial/known-issue-sum-first.input && sha256sum k.input
+
+f0ef0af73f59855f56d37d38607809fdd7fa2c61d114f31a99a02459bcc4f857  k.input
+)read k.input
+
+-- Control for known-issue-integrate-first.input: the same commands, but the
+-- first library algorithm called in the session is sum.  Run it in a FRESH
+-- FriCAS session:
+--   )compile src/algebra/gsexpr.spad
+--   )read docs/tutorial/known-issue-sum-first.input
+-- Commit 54811c7, FriCAS 1.4.0.
+
+)set break resume
+
+-- ==== setup
+SE ==> SymbolicExpression Integer
+
+   Type: Void
+GA ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+
+   Type: Void
+x : SE := 'x
+
+x
+
+   Type: SymbolicExpression(Integer)
+y : GA := 'y
+
+y
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+
+-- ==== sums
+sum(x, 'x=1..10)
+
+55
+
+   Type: SymbolicExpression(Integer)
+sum(x, 'x)
+
+(x-1)*(1/2+1/2*(x-1))
+
+   Type: SymbolicExpression(Integer)
+sum(y, 'y=1..10)
+
+55
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+sum(y, 'y)
+
+(y-1)*(1/2+1/2*(y-1))
+
+   Type: GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals])
+
+-- ==== integral-atan
+integrate(1/(x^2+1), 'x)
+
+0
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(1/(y^2+1), 'y)
+
+atan(y)
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+integrate(1/(x^2+2), 'x)
+
+0
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(1/(y^2+2), 'y)
+
+atan((y*nthRoot(2, 2))/2)/nthRoot(2, 2)
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+integrate(x/(x^2+1), 'x)
+
+log(x^2+1)/2
+
+   Type: Union(SymbolicExpression(Integer),...)
+integrate(y/(y^2+1), 'y)
+
+log(y^2+1)/2
+
+   Type: Union(GeneralSymbolicExpression(Integer,[identities, annihilation, involutions, numerals]),...)
+
+-- ==== sum-division
+sum(x^2, 'x=1..3)
+
+81/5
+
+   Type: SymbolicExpression(Integer)
+sum(y^2, 'y=1..3)
+
+   >> Error detected within library code:
+   catdef: division by zero
+
+   Continuing to read the file...
+
+-- ==== end

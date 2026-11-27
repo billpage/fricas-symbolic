@@ -775,17 +775,19 @@ On `GeneralSymbolicExpression` it raises `catdef: division by zero`. The value o
 
 ## 8. How this document was checked
 
-All runs: FriCAS 1.4.0 (release), SBCL 2.6.10, 2026-11-27. The libraries are those compiled from `src/algebra/gsexpr.spad` and `symterm.spad` at commit `54811c7` (compile run `ASUS-20261127-145024-fs-compile`). The scripts are fetched from GitHub at a commit hash, so the record is exact: `tutorial.input` at `383ea5b`, the `known-issue-*.input` scripts at `fb0269f`.
+All runs: FriCAS 1.4.0 (release), SBCL 2.6.10, 2026-11-27. The libraries are those compiled from `src/algebra/gsexpr.spad` and `symterm.spad` at commit `54811c7` (compile run `ASUS-20261127-145024-fs-compile`). The scripts are fetched from GitHub at a commit hash, so the record is exact.
 
 | What | Run | Result |
 |---|---|---|
 | `src/input/gsexpr.input` | `tut-record-gsexpr` | 199 tests, unexpected failures 0, expected failures 19, unexpected passes 0 |
 | `src/input/symterm.input` | `tut-record-symterm` | 239 tests, unexpected failures 0, expected failures 16, unexpected passes 0 |
-| `docs/tutorial/tutorial.input` | `tut-walkthrough-v4` | every transcript above; 5 intended library errors (use cases 7 and 9) |
-| `known-issue-integrate-first.input` | `tut-known-issue-integrate-first` | known issue 1 |
-| `known-issue-sum-first.input` | `tut-known-issue-sum-first` | known issues 1 and 2 |
+| `docs/tutorial/tutorial.input` at `e06c23c` | `tut-regen-walkthrough` | every transcript above; 5 intended library errors (use cases 7 and 9) |
+| `known-issue-integrate-first.input` at `e06c23c` | `tut-regen-integrate-first` | known issue 1 |
+| `known-issue-sum-first.input` at `e06c23c` | `tut-regen-sum-first` | known issues 1 and 2 |
 
-A CI job would need FriCAS installed; this repository's CI is not set up for that, so these runs are the record.
+The three transcripts are kept in [`transcripts/`](transcripts/), and this document is generated from them by [`tools/tutorial/build_tutorial.py`](../../tools/tutorial/build_tutorial.py) (see [`tools/tutorial/README.md`](../../tools/tutorial/README.md)): edit `tutorial.src.md`, not `tutorial.md`. Re-recording from `e06c23c` gave this document byte for byte, as the earlier runs on which the first draft was based had done. `make tutorial` runs the walk-through in a fresh session that compiles the source itself (the 5 intended library errors appear and the true/false results agree), but its log is in FriCAS's two-dimensional form with equation numbers and is not what the generator reads.
+
+A CI job would need FriCAS installed; this repository's CI is not set up for that, so these runs are the record. The generator itself needs no FriCAS: `make tutorial-md-check` fails if `tutorial.md` no longer matches its template and transcripts.
 
 ## 9. Where this can go
 
