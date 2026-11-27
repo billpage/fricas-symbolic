@@ -487,7 +487,7 @@ theorem O2_total {a b : Tree} (h : a ≠ b) : lt a b = true ∨ lt b a = true :=
   (good_depth (depth a + depth b + 1)).total a b (by omega) (by omega) h
 
 /-- Prop. 4 in Mathlib's terms: `lt` is a strict total order on trees. -/
-instance : IsStrictTotalOrder Tree (fun a b => lt a b = true) where
+instance isStrictTotalOrder : IsStrictTotalOrder Tree (fun a b => lt a b = true) where
   irrefl a := by simp [O1_irrefl]
   trans _ _ _ := O1_trans
   trichotomous a b h1 h2 := by
