@@ -1025,4 +1025,187 @@ theorem N_of_key {L L' : List (Tree × ℕ)} (hL : ∀ x ∈ L, IsAtom x.1)
   rw [rd_facs_atoms hL, rd_facs_atoms hL'] at this
   exact monomial_left_injective one_ne_zero this
 
+/-! ### Polynomials: the tree depends only on the polynomial -/
+
+/-- `p` is well formed over `al`: the trees of `al` are atoms of the rung, the indices of `p`
+are in range, and its exponents are positive (as `toF` produces them). -/
+def WF (al : List Tree) (p : Poly) : Prop :=
+  (∀ a ∈ al, IsAtom a) ∧ ∀ x ∈ p, ∀ y ∈ x.1, y.1 < al.length ∧ y.2 ≠ 0
+
+theorem atoms_Lof {al : List Tree} {p : Poly} (hw : WF al p) {x : List (ℕ × ℕ) × ℚ}
+    (hx : x ∈ p) : ∀ z ∈ Lof al x.1, IsAtom z.1 := by
+  intro z hz
+  obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hz
+  have hi := (hw.2 x hx y hy).1
+  apply hw.1
+  simp only [List.getD_eq_getElem _ _ hi, List.getElem_mem]
+
+theorem N_Lof_ne_zero {al : List Tree} {p : Poly} (hw : WF al p) {x : List (ℕ × ℕ) × ℚ}
+    (hx : x ∈ p) (hne : x.1 ≠ []) : N (Lof al x.1) ≠ 0 := by
+  obtain ⟨y, m, hm⟩ := List.exists_cons_of_ne_nil hne
+  have he := (hw.2 x hx y (by simp [hm])).2
+  intro h0
+  have := congrArg (· (al.getD y.1 (int 0))) h0
+  simp only [N_apply, Lof, hm, List.map_cons, S_cons, id, ↓reduceIte, Finsupp.coe_zero,
+    Pi.zero_apply] at this
+  omega
+
+theorem coeff_sum_monomial (q : Poly) (f : List (ℕ × ℕ) × ℚ → (Tree →₀ ℕ)) (n : Tree →₀ ℕ) :
+    coeff n ((q.map fun x => monomial (f x) x.2).sum)
+      = ((q.filter fun x => f x = n).map (·.2)).sum := by
+  induction q with
+  | nil => simp
+  | cons x q ih =>
+    rw [List.map_cons, List.sum_cons, coeff_add, ih, coeff_monomial]
+    by_cases h : f x = n <;> simp [List.filter_cons, h]
+
+theorem ev_eq {al : List Tree} {p : Poly} (hw : WF al p) :
+    ev al p = (p.map fun x => monomial (N (Lof al x.1)) x.2).sum := by
+  unfold ev
+  congr 1
+  apply List.map_congr_left
+  intro x hx
+  have : (x.1.map fun y => rd (al.getD y.1 (int 0)) ^ y.2)
+      = (Lof al x.1).map fun z => (X z.1 : MvPolynomial Tree ℚ) ^ z.2 := by
+    unfold Lof
+    rw [List.map_map]
+    apply List.map_congr_left
+    intro y hy
+    have := (atoms_Lof hw hx) (al.getD y.1 (int 0), y.2) (List.mem_map.2 ⟨y, hy, rfl⟩)
+    simp [this.1]
+  rw [this, prod_X, C_mul_monomial, mul_one]
+
+theorem coeff_ev {al : List Tree} {p : Poly} (hw : WF al p) (n : Tree →₀ ℕ) :
+    coeff n (ev al p) = ((p.filter fun x => N (Lof al x.1) = n).map (·.2)).sum := by
+  rw [ev_eq hw, coeff_sum_monomial]
+
+/-- The non-constant terms of `p`, with their factor trees, as `fromP` lists them. -/
+def tsOf (al : List Tree) (p : Poly) : List (List Tree × ℚ) :=
+  (p.filter (·.1 ≠ [])).map fun x => (facTrees al x.1, x.2)
+
+theorem S_tsOf {al : List Tree} {p : Poly} (hw : WF al p) {L : List (Tree × ℕ)}
+    (hL : ∀ z ∈ L, IsAtom z.1) (hN : N L ≠ 0) :
+    S (fun fs => mulChain 1 fs) (tsOf al p) (mulChain 1 (facs L)) = coeff (N L) (ev al p) := by
+  rw [coeff_ev hw]
+  unfold S tsOf
+  rw [List.filter_map, List.map_map, List.filter_filter]
+  congr 1
+  apply congrArg
+  apply List.filter_congr
+  intro x hx
+  rw [Bool.eq_iff_iff]
+  simp only [Function.comp_apply, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+  rw [facTrees_eq]
+  constructor
+  · rintro ⟨h1, h2⟩
+    exact N_of_key (atoms_Lof hw hx) hL h1
+  · intro h
+    refine ⟨by rw [facs_congr h], fun h0 => hN ?_⟩
+    rw [← h, h0]
+    simp [Lof, N]
+
+/-- The sorted, merged terms of `p`, as `linBuild` computes them. -/
+def msOf (al : List Tree) (p : Poly) : List (List Tree × ℚ) :=
+  (mergeT (tsOf al p)).foldr insertTerm []
+
+theorem msOf_perm (al : List Tree) (p : Poly) : (msOf al p).Perm (mergeT (tsOf al p)) := by
+  have e : (mergeT (tsOf al p)).foldr insertTerm []
+      = (mergeT (tsOf al p)).foldr (insBy (fun x => mulChain 1 x.1)) [] := by
+    congr 1; funext a l; exact insertTerm_eq a l
+  unfold msOf
+  rw [e]
+  exact foldr_insBy_perm _ _
+
+theorem mergeT_R (ts : List (List Tree × ℚ)) :
+    mergeT ts = (R (fun fs => mulChain 1 fs) ts).filter (·.2 ≠ 0) := mergeT_eq ts
+
+theorem mem_msOf {al : List Tree} {p : Poly} (hw : WF al p) (fs : List Tree) (c : ℚ) :
+    (fs, c) ∈ msOf al p ↔ c ≠ 0 ∧ ∃ L : List (Tree × ℕ), (∀ z ∈ L, IsAtom z.1) ∧ N L ≠ 0 ∧
+      fs = facs L ∧ c = coeff (N L) (ev al p) := by
+  rw [(msOf_perm al p).mem_iff, mergeT_R, List.mem_filter]
+  simp only [ne_eq, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
+  have from_ts : ∀ z ∈ tsOf al p, ∃ x ∈ p, x.1 ≠ [] ∧ z = (facs (Lof al x.1), x.2) := by
+    intro z hz
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hz
+    rw [List.mem_filter] at hx
+    exact ⟨x, hx.1, by simpa using hx.2, by rw [facTrees_eq]⟩
+  constructor
+  · rintro ⟨hm, hc⟩
+    obtain ⟨z, hz, e⟩ := origin_foldl _ _ [] _ hm
+    obtain ⟨x, hx, hne, rfl⟩ := from_ts z (by simpa using hz)
+    refine ⟨hc, Lof al x.1, atoms_Lof hw hx, N_Lof_ne_zero hw hx hne, e.symm, ?_⟩
+    rw [R_val _ _ _ hm]
+    simp only at e
+    rw [← e, S_tsOf hw (atoms_Lof hw hx) (N_Lof_ne_zero hw hx hne)]
+  · rintro ⟨hc, L, hL, hN, rfl, hcv⟩
+    have hf : (p.filter fun x => N (Lof al x.1) = N L) ≠ [] := by
+      intro h0
+      rw [coeff_ev hw, h0] at hcv
+      simp at hcv
+      exact hc hcv
+    obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil _ hf
+    rw [List.mem_filter, decide_eq_true_eq] at hx
+    have hne : x.1 ≠ [] := fun h0 => hN (by rw [← hx.2, h0]; simp [Lof, N])
+    have hz : (facs (Lof al x.1), x.2) ∈ tsOf al p := by
+      unfold tsOf
+      exact List.mem_map.2 ⟨x, List.mem_filter.2 ⟨hx.1, by simpa using hne⟩,
+        by rw [facTrees_eq]⟩
+    obtain ⟨y, hy, ek⟩ := cover_foldl (fun fs => mulChain 1 fs) _ [] _ (by simpa using hz)
+    obtain ⟨w, hw', ew⟩ := origin_foldl _ _ [] _ hy
+    obtain ⟨x', hx', hne', rfl⟩ := from_ts w (by simpa using hw')
+    simp only at ew ek
+    rw [← ew] at ek
+    have hN' : N (Lof al x'.1) = N L :=
+      (N_of_key (atoms_Lof hw hx') (atoms_Lof hw hx.1) ek).trans hx.2
+    have hy1 : y.1 = facs L := by rw [← ew, facs_congr hN']
+    have hy2 : y.2 = c := by
+      rw [R_val _ _ _ hy, hy1, hcv]
+      exact S_tsOf hw hL hN
+    have : y = (facs L, c) := Prod.ext hy1 hy2
+    subst this
+    exact ⟨hy, hc⟩
+
+theorem msOf_sorted (al : List Tree) (p : Poly) :
+    (msOf al p).Pairwise fun a b => lt (mulChain 1 a.1) (mulChain 1 b.1) = true := by
+  have h1 : (msOf al p).Pairwise fun a b => lt (mulChain 1 b.1) (mulChain 1 a.1) = false := by
+    have e : msOf al p = (mergeT (tsOf al p)).foldr (insBy (fun x => mulChain 1 x.1)) [] := by
+      unfold msOf; congr 1; funext a l; exact insertTerm_eq a l
+    rw [e]
+    exact foldr_insBy_sorted _ _
+  have h2 : ((msOf al p).map fun a => mulChain 1 a.1).Nodup := by
+    apply ((msOf_perm al p).map _).nodup_iff.2
+    rw [mergeT_R]
+    exact (nodup_foldl (fun fs => mulChain 1 fs) _ [] (by simp)).sublist
+      (List.Sublist.map _ List.filter_sublist)
+  rw [List.Nodup, List.pairwise_map] at h2
+  refine (h1.and h2).imp fun {a b} ⟨hab, hne⟩ => ?_
+  rcases O2_total hne with h | h
+  · exact h
+  · rw [hab] at h; contradiction
+
+theorem c0_eq {al : List Tree} {p : Poly} (hw : WF al p) :
+    (p.filter (·.1 = [])).foldl (fun s t => s + t.2) 0 = coeff 0 (ev al p) := by
+  rw [foldl_add_snd, zero_add, coeff_ev hw]
+  congr 2
+  apply List.filter_congr
+  intro x hx
+  rw [Bool.eq_iff_iff, decide_eq_true_eq, decide_eq_true_eq]
+  constructor
+  · intro h; simp [h, Lof, N]
+  · intro h; by_contra hne; exact N_Lof_ne_zero hw hx hne h
+
+/-- **Read-back is canonical.** Over atoms of the rung, the tree `fromP al p` depends only on
+the polynomial `p` denotes. -/
+theorem fromP_canonical {al al' : List Tree} {p p' : Poly} (hw : WF al p) (hw' : WF al' p')
+    (h : ev al p = ev al' p') : fromP al p = fromP al' p' := by
+  have hms : msOf al p = msOf al' p' := by
+    apply eq_of_strict (fun x => mulChain 1 x.1) (msOf_sorted al p) (msOf_sorted al' p')
+    rintro ⟨fs, c⟩
+    rw [mem_msOf hw, mem_msOf hw', h]
+  unfold fromP linBuild
+  dsimp only
+  rw [c0_eq hw, c0_eq hw', h]
+  unfold msOf tsOf at hms
+  rw [hms]
+
 end FricasSymbolic.RingMirror
