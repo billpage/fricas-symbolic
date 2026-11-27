@@ -331,4 +331,23 @@ theorem E1_steps {A : Ax} {G : Group → Prop} {s t : Term}
   | refl => intro K _ _ _ ρ v hs; exact hs
   | tail _ hst ih => exact fun K _ _ _ ρ v hs => E1_step hst K ρ v (ih K ρ v hs)
 
+/-! ## Regressions: what E1 does not allow -/
+
+/-- The rules are sound only in their direction: read right to left, `quo_add` with
+`x = 0`, `m = 1`, `n = -1` turns the defined `0^0 = 1` into the undefined `0^1·0^(-1)`. -/
+theorem quo_add_reversed_unsound :
+    ¬ Refines (.mul (.pow (.num 0) 1) (.pow (.num 0) (-1))) (.pow (.num 0) (1 + -1)) := by
+  intro h
+  have := h ℚ (fun _ => 0) 1 (by simp [eval])
+  simp [eval] at this
+
+/-- The 2017 AntiCommutative axiom $x·y → -(y·x)$ is not sound (spec §4.2), which is why
+decision 0009 gives it no group. -/
+theorem anticommutative_unsound :
+    ¬ Refines (.neg (.mul (.var "x") (.var "x"))) (.mul (.var "x") (.var "x")) := by
+  intro h
+  have := h ℚ (fun _ => 1) 1 (by simp [eval])
+  simp [eval] at this
+  norm_num at this
+
 end FricasSymbolic
