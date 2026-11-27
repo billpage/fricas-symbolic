@@ -69,6 +69,14 @@ def kind (t : Tree) : ℕ :=
 /-- The value of a numeral (`0` for other trees, where it is not used). -/
 def val (t : Tree) : ℚ := ((numeralForm t).map (·.2)).getD 0
 
+/-- The comparisons of kinds 2–4: symbols, strings and other atoms by their strings;
+`none` for two trees of another kind. -/
+def atomLt : Tree → Tree → Option Bool
+  | sym a, sym b => some (decide (a < b))
+  | str a, str b => some (decide (a < b))
+  | atom a, atom b => some (decide (a < b))
+  | _, _ => none
+
 mutual
 
 /-- `smaller?` of `SymbolicTermOrder`. -/
@@ -77,11 +85,9 @@ def lt (s t : Tree) : Bool :=
   else if kind s ≤ 1 then
     if val s ≠ val t then decide (val s < val t) else structural s t
   else
-    match s, t with
-    | sym a, sym b => decide (a < b)
-    | str a, str b => decide (a < b)
-    | atom a, atom b => decide (a < b)
-    | _, _ => structural s t
+    match atomLt s t with
+    | some r => r
+    | none => structural s t
 termination_by (sizeOf s + sizeOf t, 1)
 
 /-- `structural?`: atoms before compounds; compounds by head, arity, arguments. -/
