@@ -36,3 +36,15 @@ import FricasSymbolic
 #print axioms FricasSymbolic.Ring.E2_eval_eq_aeval
 #print axioms FricasSymbolic.Ring.E2_eval_respects
 #print axioms FricasSymbolic.Ring.E2_unique
+#print axioms FricasSymbolic.RingMirror.rd_fromP
+#print axioms FricasSymbolic.RingMirror.rd_rAdd
+#print axioms FricasSymbolic.RingMirror.rd_rSub
+#print axioms FricasSymbolic.RingMirror.rd_rNeg
+#print axioms FricasSymbolic.RingMirror.rd_rMul
+#print axioms FricasSymbolic.RingMirror.rd_rDiv
+#print axioms FricasSymbolic.RingMirror.rd_rPow
+#print axioms FricasSymbolic.RingMirror.fromP_canonical
+#print axioms FricasSymbolic.RingMirror.NF_canonical
+#print axioms FricasSymbolic.RingMirror.rd_nfR
+#print axioms FricasSymbolic.RingMirror.NF_nfR
+#print axioms FricasSymbolic.RingMirror.nfR_eq_iff
