@@ -410,4 +410,28 @@ testTrue("(dd(d + 0.2) = _"0.3_")@Boolean")
 testTrue("(dd(x * d) = _"x*0.1_")@Boolean")
 testTrue("check(d + 0.2) and check(x * d)")
 
+testcase "Id: -0 -> 0 joins 0-0 without Num (decision 0012, Theorem 3)"
+z1 : GeneralSymbolicExpression(Integer, [identities]) := 0
+z2 : GeneralSymbolicExpression(Integer, [identities, annihilation]) := 0
+z3 : GeneralSymbolicExpression(Integer, [identities, involutions]) := 0
+z4 : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions]) := 0
+z5 : GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals]) := 0
+-- 0-0 and -0 are equal under Id (x-0 -> x, 0-x -> -x): one normal form, 0
+testTrue("(unparse(form(z1 - z1)) = _"0_") and (unparse(form(-z1)) = _"0_")")
+testTrue("(unparse(form(z2 - z2)) = _"0_") and (unparse(form(-z2)) = _"0_")")
+testTrue("(unparse(form(z3 - z3)) = _"0_") and (unparse(form(-z3)) = _"0_")")
+testTrue("(unparse(form(z4 - z4)) = _"0_") and (unparse(form(-z4)) = _"0_")")
+testTrue("(unparse(form(z5 - z5)) = _"0_") and (unparse(form(-z5)) = _"0_")")
+-- the new overlap with Inv: -(-0)
+testTrue("(unparse(form(-(-z3))) = _"0_") and (unparse(form(-(-z4))) = _"0_")")
+testTrue("check(-z1) and check(z1 - z1) and check(-(-z3))")
+-- without Id the written form stays
+w0 : GeneralSymbolicExpression(Integer, [involutions]) := 0
+testTrue("(unparse(form(-w0)) = _"-(0)_")@Boolean")
+testTrue("(unparse(form(w0 - w0)) = _"0-0_")@Boolean")
+-- a float zero (decision 0010)
+f1 : GeneralSymbolicExpression(Float, [identities]) := 0
+testTrue("(form(-f1) = form f1)@Boolean")
+xftestTrue("(unparse(form(-z1)) = _"-(0)_")@Boolean")
+
 statistics()

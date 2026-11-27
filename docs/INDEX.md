@@ -32,13 +32,13 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | `eval` (bridge) | §3.2 | $`T/{=_A}`$ is free in the variety of $`A`$: `eval` extends any map of the symbols into a ring $`D`$ satisfying $`A`$; read-back from forms | Implemented (decision 0011): `SymbolicTermFunctions2`, `InputFormEvaluation` | symterm: "bridge: eval is the homomorphism extending phi" (random terms against a model), "adding and dropping axioms by read-back", "without commutativity, into matrices", "refused targets" (must fail), "float numerals" |
 | Prop. 4, (Ord) | §3.5 | $`\prec`$ is a strict total order | Proved; implemented as `SymbolicTermOrder` (in `gsexpr.spad`) | gsexpr: "Ord: the term order is a strict total order" (37 terms, all pairs and triples); symterm: "term order on numerals: exact, then float, by value" |
 | Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved | via (Val) |
-| Theorem 3 | §4.1, §4.1.1 | $`A_P`$ sound, terminating, confluent; extended to $`A_P \cup \mathrm{Assoc}`$ in §4.1.1 | Proved (sketch: critical pairs listed) | — (V4: confluence by construction order; V5: Lean) |
+| Theorem 3 | §4.1, §4.1.1 | $`A_P`$ sound, terminating, confluent; extended to $`A_P \cup \mathrm{Assoc}`$ in §4.1.1 | Proved (sketch: critical pairs listed); the pair $`0-0`$ without Num was missing (Lean L10) and is joined by $`-0\to 0`$ since decision 0012 | gsexpr: "Id: -0 -> 0 joins 0-0 without Num"; Lean part 1: L1, L2, L7 proved, confluence (L4–L6, L8) in progress |
 
 ## Axiom groups
 
 | Label | Section | Rules | Standing | Tests |
 |---|---|---|---|---|
-| Id | §4.1 | $`0+x,\ x+0,\ x-0,\ 0-x,\ 1\cdot x,\ x\cdot 1,\ x/1,\ x^1,\ x^0`$ | Implemented in `GeneralSymbolicExpression` (`identities`) | gsexpr: "presentation axioms A_P"; "identities only …" |
+| Id | §4.1 | $`0+x,\ x+0,\ x-0,\ 0-x,\ -0,\ 1\cdot x,\ x\cdot 1,\ x/1,\ x^1,\ x^0`$ | Implemented in both constructors (`identities`); $`-0\to 0`$ added by decision 0012 | gsexpr: "presentation axioms A_P"; "identities only …"; "Id: -0 -> 0 joins 0-0 without Num"; symterm: "Id: -0 -> 0 in SymbolicTerm" |
 | Ann | §4.1 | $`0\cdot x,\ x\cdot 0`$ | Implemented (`annihilation`) | gsexpr: "presentation axioms A_P" |
 | Inv | §4.1 | $`-(-x),\ 1/(1/x)`$ | Implemented (`involutions`) | gsexpr: "presentation axioms A_P"; "identities only …" (must not fire) |
 | Assoc (optional) | §4.1.1 | $`x \circ (y \circ z) \to (x \circ y) \circ z`$, $`\circ \in \{+, \cdot\}`$ | Implemented (`associativity`), with the completion rule (AN); sound, terminating and confluent with $`A_P`$ | gsexpr: "Assoc: rules (A) and (AN)"; "Assoc: not in A_P"; "Assoc: all bracketings agree" (6250 expressions) |

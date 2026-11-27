@@ -772,6 +772,8 @@ GeneralSymbolicExpression(R, A) : Exports == Implementation where
     - x : % ==
         v := - value x
         NUM and numeral? x => numNode(- numVal x)
+        -- -0 -> 0 (Id, decision 0012): joins 0-0, also without Num
+        ID and lit?(x, 0) => numNode 0
         RING => ring1(x, (f : FPR) : FPR +-> - f)
         LINR => scaled(-1, x)
         INV and hd x = '_- and #(kids x) = 1 => first kids x
