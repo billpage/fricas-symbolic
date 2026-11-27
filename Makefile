@@ -2,6 +2,7 @@
 #
 #   make check        compile each package and run its unit tests
 #   make check-gsexpr / make check-symterm   one package only
+#   make tutorial     run docs/tutorial/tutorial.input; the log is build/tutorial/run.log
 #   make lint         check the math in the markdown documents
 #   make clean
 #
@@ -15,7 +16,7 @@ FRICAS ?= fricas
 BUILD  := build
 TOP    := $(CURDIR)
 
-.PHONY: check check-gsexpr check-symterm lint clean
+.PHONY: check check-gsexpr check-symterm tutorial lint clean
 
 check: check-gsexpr check-symterm
 
@@ -34,6 +35,17 @@ check-gsexpr:
 check-symterm:
 	$(call fricas_check,symterm,src/algebra/gsexpr.spad src/algebra/symterm.spad,src/input/symterm.input)
 
+
+# The tutorial is a walk-through, not a test: it is judged by reading the log.
+# Five library errors are intended (docs/tutorial/tutorial.md, use cases 7 and 9).
+tutorial:
+	rm -rf $(BUILD)/tutorial && mkdir -p $(BUILD)/tutorial
+	( printf ')compile %s\n' $(TOP)/src/algebra/gsexpr.spad; \
+	  printf ')compile %s\n' $(TOP)/src/algebra/symterm.spad; \
+	  printf ')read %s\n)quit\n' $(TOP)/docs/tutorial/tutorial.input ) > $(BUILD)/tutorial/run.input
+	cd $(BUILD)/tutorial && $(FRICAS) -nosman < run.input > run.log 2>&1 || true
+	@echo "log: $(BUILD)/tutorial/run.log"
+	@echo "library errors in the log (5 are intended): $$(grep -c 'Error detected within library code' $(BUILD)/tutorial/run.log)"
 
 lint:
 	python3 tools/check_md_math.py docs/ references/ README.md ORIENTATION.md \

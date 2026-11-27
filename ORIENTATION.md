@@ -45,7 +45,8 @@ An analogy: a pair is like writing $`\tfrac{6}{8}`$ on paper while knowing it is
 
 ## 4. Where to start
 
-1. [Spec §§1–3](docs/spec/sexpr-spec.md): goals, framework, the two constructors.
-2. [`GLOSSARY.md`](GLOSSARY.md) for the words.
-3. `make check`, then the tests in `src/input/gsexpr.input`, which read as worked examples.
-4. The [notes](docs/notes/) for how the design got here.
+1. [Tutorial](docs/tutorial/tutorial.md), if you want to see the domains at work first.
+2. [Spec §§1–3](docs/spec/sexpr-spec.md): goals, framework, the two constructors.
+3. [`GLOSSARY.md`](GLOSSARY.md) for the words.
+4. `make check`, then the tests in `src/input/gsexpr.input`, which read as worked examples.
+5. The [notes](docs/notes/) for how the design got here.
