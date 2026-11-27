@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 7,000 random terms. Theorem 3 holds wherever Id comes with Num; question 5 (§8) decides how the spec handles the rest. Next: part 2. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Next: part 2. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -101,9 +101,9 @@ Points where the Lean functions cannot copy the Spad code literally:
 | L7 | Regression: without (AN), L5 fails; the witness is the step `x + (1+2) → (x+1)+2` (by (A)), whose two sides get `x+3` and `(x+1)+2` | §4.1.1 |
 | L8 | `Relation.ReflTransGen (Step A) t (nf A t)`: the normaliser only takes steps of the axioms | |
 | L9 | `Step A` is well founded (its converse is `WellFounded`), by the measure $`(\lvert t\rvert, \mu(t))`$ | (T), §4.1.1 |
-| L10 | With Id and without Num, `0 - 0` steps to the distinct normal forms `0` (by $`x-0\to x`$) and `-0` (by $`0-x\to -x`$), so $`=_A`$ does not determine `nf` | Theorem 3 (see below) |
+| L10 | With Id as before decision 0012 (without $`-0\to 0`$) and without Num, `0 - 0` steps to the distinct normal forms `0` (by $`x-0\to x`$) and `-0` (by $`0-x\to -x`$), so $`=_A`$ does not determine `nf` | Theorem 3, decision 0012 |
 
-**L10 is a counterexample to spec Theorem 3** as stated ("$`A_P`$ and every union of its groups is … confluent"). The proof joins the overlap $`0-0`$ through Num ($`-0 \to 0`$), which a union without Num does not have. FriCAS agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form `0` and `-0` has form `(- 0)`, with or without Ann and Inv (run `20261126-184235-id-zero-minus-zero`). The other root overlaps of $`A_P`$ do not need Num. L5 is therefore proved under the hypothesis `A.id → A.num`, together with `A.an` (L7 shows that one is needed too). Both hypotheses are necessary: L7 and L10 are the counterexamples without them.
+**L10 is a counterexample to spec Theorem 3** as stated ("$`A_P`$ and every union of its groups is … confluent"). The proof joins the overlap $`0-0`$ through Num ($`-0 \to 0`$), which a union without Num does not have. FriCAS agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form `0` and `-0` has form `(- 0)`, with or without Ann and Inv (run `20261126-184235-id-zero-minus-zero`). The other root overlaps of $`A_P`$ do not need Num. **Resolved by decision 0012 (Bill, 2026-11-26, option (a)):** Id contains $`-0\to 0`$. In Lean, `Root` gains `id_neg_zero` and `sNeg` the matching clause. A flag `Ax.negzero` (always `true` in the package, like `an`) lets L10 state the old rule set, so L10 is now a regression test like L7. L5 is proved under the hypotheses `A.id → A.num ∨ A.negzero` and `A.an`. Both hold for every `A` the package offers (`eqA_iff_nf_eq'`), and L10 and L7 show that neither can be dropped.
 
 L4, L5 and L8 together give the Church–Rosser property: if $`s =_A t`$ then $`s \to^* \mathrm{nf}(s) = \mathrm{nf}(t) \;{}^*\!\!\leftarrow t`$, with $`\mathrm{nf}(s)`$ a normal form. So $`\mathrm{nf}`$ chooses exactly one normal form per $`=_A`$ class. Without L8, nothing ties $`\mathrm{nf}(t)`$ to $`t`$: L2 relates their values, not their classes. Termination of the rewriting relation is L9; L3 only says that one strategy, bottom-up, ends. This route avoids formalising Newman's lemma and critical pairs in general.
 
@@ -121,9 +121,11 @@ Commit `3f47236` on `claude/lean-part1`, Lean 4.36.0 and Mathlib v4.36.0, 2026-1
 | L2 | `nf_refines` | the same for `nf`, by induction on the term: (Val) |
 | L3 | the definitions of `sAdd`, `sMul` and `nf` | Lean accepts them only with a termination proof: `termination_by (y.size, x.size)` for `sAdd` and `sMul`, structural recursion for `nf` |
 | L7 | `L7_without_AN`, `L7_with_AN` | with (AN) switched off, the (A) step `x+(1+2) → (x+1)+2` joins terms whose normal forms are `x+3` and `(x+1)+2`; with (AN) both are `x+3` |
-| L10 | `L10_id_without_num`, `L10_not_confluent` | for `A = {Id}`: `0-0` steps to `0` and to `-0`, both normal forms; hence some $`s =_A t`$ have $`\mathrm{nf}(s) \ne \mathrm{nf}(t)`$ |
+| L10 | `L10_id_without_num`, `L10_not_confluent`, `L10_with_negzero` | for `A = {Id}` without $`-0\to 0`$: `0-0` steps to `0` and to `-0`, both normal forms, so some $`s =_A t`$ have $`\mathrm{nf}(s) \ne \mathrm{nf}(t)`$; with the rule (decision 0012), both normalise to `0` |
 
-**Termination, normal forms and confluence** (`Confluence.lean`). Commit `c58a2d1` on `claude/lean-confluence`, `lean_build` status `ok` (log `20261126-204506-build-fricas-symbolic`); `#print axioms` of every theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261126-204522-axioms-part1-confluence`).
+**Termination, normal forms and confluence** (`Confluence.lean`). Commit `ffee161` on `claude/lean-confluence` (after merging decision 0012), `lean_build` status `ok` (log `20261126-223605-build-fricas-symbolic`); `#print axioms` of every theorem below and above lists only `propext`, `Classical.choice` and `Quot.sound` (runs `20261126-204522-axioms-part1-confluence` and `20261126-223634-part1-0012-axioms-crosscheck`).
+
+**Differential test after decision 0012.** At `ffee161`, with `gsexpr.spad` containing the new clause, the checksums agree for 14 axiom sets (the 13 above and Id+Inv), each at depth 4 (400 terms, seed 20261126) and depth 6 (300 terms, seed 7): 9,800 terms (runs `20261126-223637-crosscheck-fricas-0012` and `20261126-223634-part1-0012-axioms-crosscheck`). The sets with Id and without Num changed checksum from the earlier runs on both sides, as the new rule predicts.
 
 | No. | Lean | What it says |
 |---|---|---|
@@ -132,10 +134,10 @@ Commit `3f47236` on `claude/lean-part1`, Lean 4.36.0 and Mathlib v4.36.0, 2026-1
 | L6 | `L6_nf_of_isNF`, `nf_nf` | for every `A`, `nf` fixes normal forms, hence is idempotent |
 | L8 | `L8_steps_to_nf` | for every `A`, $`t \to^* \mathrm{nf}(t)`$: each clause of each smart constructor is a sequence of rule applications |
 | — | `sAdd_assoc`, `sMul_assoc`, `sAdd_an`, `sMul_an` | with associativity and (AN), the smart constructors for $`+`$ and $`\cdot`$ are associative on normal forms, and satisfy (AN) on them |
-| L5 | `L5_step`, `L5_eqA`, `eqA_iff_nf_eq` | if Id comes with Num and (AN) is on: $`s =_A t \iff \mathrm{nf}(s) = \mathrm{nf}(t)`$ |
+| L5 | `L5_step`, `L5_eqA`, `eqA_iff_nf_eq`, `eqA_iff_nf_eq'` | if Id comes with Num or with $`-0\to 0`$, and (AN) is on: $`s =_A t \iff \mathrm{nf}(s) = \mathrm{nf}(t)`$. `eqA_iff_nf_eq'` states it for every `A` the package offers, with no hypothesis |
 | — | `church_rosser`, `unique_nf` | under the same hypotheses: $`s =_A t`$ implies a common reduct, and two normal forms equal under $`A`$ are the same term |
 
-**In words.** `EqA A` is the equivalence relation generated by the rules of spec §4.1 and §4.1.1 applied anywhere in a term: the equational theory $`=_A`$ of §2.3, with Num's side conditions. `nf A` is the function that `GeneralSymbolicExpression(R, A)` computes when it builds a term bottom-up (§3.3, with the differential test). So `eqA_iff_nf_eq` says that for every union of the groups Id, Ann, Inv, Num and Assoc in which Id comes with Num, the domain's normal form decides $`=_A`$. With L9 (termination) and L1 (soundness) this is Theorem 3 for those unions. It covers every combination the package offers except those with Id and without Num, where L10 shows the theorem is false.
+**In words.** `EqA A` is the equivalence relation generated by the rules of spec §4.1 and §4.1.1 applied anywhere in a term: the equational theory $`=_A`$ of §2.3, with Num's side conditions. `nf A` is the function that `GeneralSymbolicExpression(R, A)` computes when it builds a term bottom-up (§3.3, with the differential test). So `eqA_iff_nf_eq'` says that for every union of the groups Id, Ann, Inv, Num and Assoc, the domain's normal form decides $`=_A`$. With L9 (termination) and L1 (soundness) this is Theorem 3 as amended by decision 0012. Without the amendment, L10 shows the theorem is false for Id without Num.
 
 **How the proof goes.** L5's root cases reduce to identities between smart constructors on normal forms (`L5_root`). All are local except associativity. `sAdd_assoc` follows the clauses of `sAdd A Y Z`, by well-founded recursion on $`(\lvert Z\rvert, \lvert Y\rvert)`$. Its two key lemmas are `sAdd_an`, which is (AN) on normal forms by induction on the left operand, and `sAdd_add_right`, which says $`W + (Z_1+Z_2) = (W+Z_1)+Z_2`$ for a normal form $`Z_1+Z_2`$. The (AN) case of the recursion is exactly the critical pair $`x+(1+2)`$ of 2026-11-26: it needs `sAdd_an`, which needs (AN). `sMul_assoc` is the same, with three more cases for annihilation and the identity.
 
@@ -281,14 +283,14 @@ Work cycle: edit, commit, push a `claude/<topic>` branch, `lean_build("fricas-sy
 
    E3's remark that weaker structures would do for some groups stays a remark: the theorems use the categories FriCAS checks.
 
-**Open, for Bill:**
+**Decided after the first round:**
 
-5. **Theorem 3 and Id without Num** (L10). Three ways to repair the spec, each with a decision record and a matching change to `gsexpr.spad`:
+5. **Theorem 3 and Id without Num** (L10). **Decided (Bill, 2026-11-26): option (a), decision [0012](../decisions/0012-minus-zero.md).** The three ways to repair the spec were:
    - (a) add $`-0 \to 0`$ to Id. It is sound, shrinks the term, and is what Knuth–Bendix completion adds; the Spad change is one clause in unary `-`;
    - (b) make Id require Num (`SymbolicAxiomGroups.requires`). This removes `[identities]` alone, which the tests use for G1 and G3;
    - (c) weaken Theorem 3 to unions in which Id comes with Num, and document the two normal forms of `0 - 0` otherwise.
 
-   Recommended: (a). It keeps every combination the package offers, and it is the smallest change to the presentation.
+   (a) keeps every combination the package offers, and it is the smallest change to the presentation.
 
 ## 9. Done when
 
