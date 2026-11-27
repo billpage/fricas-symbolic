@@ -58,28 +58,28 @@ theorem kind_node (h : Tree) (as : List Tree) :
   · simp
   · cases f <;> simp
 
-theorem kind_eq_two {t : Tree} (h : kind t = 2) : ∃ a, t = sym a := by
+theorem kind_eq_two {t : Tree} (hk : kind t = 2) : ∃ a, t = sym a := by
   cases t with
   | sym a => exact ⟨a, rfl⟩
-  | node h as => rcases kind_node h as with e | e | e <;> omega
-  | _ => simp [kind, numeralForm] at h
+  | node g as => rcases kind_node g as with e | e | e <;> omega
+  | _ => simp [kind, numeralForm] at hk
 
-theorem kind_eq_three {t : Tree} (h : kind t = 3) : ∃ a, t = str a := by
+theorem kind_eq_three {t : Tree} (hk : kind t = 3) : ∃ a, t = str a := by
   cases t with
   | str a => exact ⟨a, rfl⟩
-  | node h as => rcases kind_node h as with e | e | e <;> omega
-  | _ => simp [kind, numeralForm] at h
+  | node g as => rcases kind_node g as with e | e | e <;> omega
+  | _ => simp [kind, numeralForm] at hk
 
-theorem kind_eq_four {t : Tree} (h : kind t = 4) : ∃ a, t = atom a := by
+theorem kind_eq_four {t : Tree} (hk : kind t = 4) : ∃ a, t = atom a := by
   cases t with
   | atom a => exact ⟨a, rfl⟩
-  | node h as => rcases kind_node h as with e | e | e <;> omega
-  | _ => simp [kind, numeralForm] at h
+  | node g as => rcases kind_node g as with e | e | e <;> omega
+  | _ => simp [kind, numeralForm] at hk
 
-theorem kind_eq_five {t : Tree} (h : kind t = 5) : ∃ g as, t = node g as := by
+theorem kind_eq_five {t : Tree} (hk : kind t = 5) : ∃ g as, t = node g as := by
   cases t with
   | node g as => exact ⟨g, as, rfl⟩
-  | _ => simp [kind, numeralForm] at h
+  | _ => simp [kind, numeralForm] at hk
 
 theorem kind_le_five (t : Tree) : kind t ≤ 5 := by
   unfold kind
@@ -102,9 +102,7 @@ theorem eq_of_numeral_atoms {s t : Tree} (hs : isAtom s = true) (ht : isAtom t =
 theorem lt_def (s t : Tree) :
     lt s t = if kind s ≠ kind t then decide (kind s < kind t)
       else if kind s ≤ 1 then (if val s ≠ val t then decide (val s < val t) else structural s t)
-      else match atomLt s t with
-        | some r => r
-        | none => structural s t := by
+      else (atomLt s t).getD (structural s t) := by
   rw [lt]
 
 theorem structural_node (hs ht : Tree) (as bs : List Tree) :
@@ -127,10 +125,10 @@ theorem ltList_cons (a b : Tree) (as bs : List Tree) :
   rw [ltList]
 
 @[simp] theorem ltList_nil_left (bs : List Tree) : ltList [] bs = false := by
-  cases bs <;> rw [ltList]
+  cases bs <;> rw [ltList] <;> simp
 
 @[simp] theorem ltList_nil_right (as : List Tree) : ltList as [] = false := by
-  cases as <;> rw [ltList]
+  cases as <;> rw [ltList] <;> simp
 
 /-! ## Strict total orders on a set of trees -/
 

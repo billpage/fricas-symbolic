@@ -84,10 +84,7 @@ def lt (s t : Tree) : Bool :=
   if kind s ≠ kind t then decide (kind s < kind t)
   else if kind s ≤ 1 then
     if val s ≠ val t then decide (val s < val t) else structural s t
-  else
-    match atomLt s t with
-    | some r => r
-    | none => structural s t
+  else (atomLt s t).getD (structural s t)
 termination_by (sizeOf s + sizeOf t, 1)
 
 /-- `structural?`: atoms before compounds; compounds by head, arity, arguments. -/
