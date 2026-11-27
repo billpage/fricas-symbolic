@@ -133,8 +133,8 @@ y : T0 := 'y
 (x+y = y+x)@Boolean
 form(x+0)
 form((1::T0)+1+1)
-value := (x+0)::Expression Integer
-value
+v0 := (x+0)::Expression Integer
+v0
 
 -- ==== term-rungs-ap
 )clear all
