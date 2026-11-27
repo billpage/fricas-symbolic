@@ -17,20 +17,17 @@ LeanRingCheck(A : List Symbol) : with
         setref(st, (deref st * 1103515245 + 12345) rem 2147483648)
         deref st
     pick(n : Integer) : Integer == (nxt() quo 65536) rem n
-    fstr(t : G) : String ==
-        s := PRINC_-TO_-STRING(form t)$Lisp pretend String
-        r : List Character := empty()
-        skip := false
-        for j in 1..#s repeat
-            c := s.j
-            if c = char(10) then
-                r := cons(char " ", r)
-                skip := true
-            else if skip and c = char " " then skip := true
-            else
-                skip := false
-                r := cons(c, r)
-        construct(reverse! r)$String
+    -- the form printed by hand: PRINC-TO-STRING would print a subtree that
+    -- occurs twice with Lisp's shared-structure labels (#1= ... #1#)
+    istr(f : InputForm) : String ==
+        integer?(f)$InputForm => string(integer(f)$InputForm)
+        symbol?(f)$InputForm => string(symbol(f)$InputForm)
+        atom?(f)$InputForm => unparse(f)$InputForm
+        l := destruct(f)$InputForm
+        r := concat("(", istr first l)
+        for a in rest l repeat r := concat([r, " ", istr a])
+        concat(r, ")")
+    fstr(t : G) : String == istr form t
     leaf(safe : Boolean) : G ==
         j := pick 7
         j = 0 => (if safe then 3 else 0)::Integer::G
