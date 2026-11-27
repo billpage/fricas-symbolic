@@ -1,6 +1,7 @@
 import FricasSymbolic.RingMirror
 import FricasSymbolic.OrderProofs
 import FricasSymbolic.Ring
+import Mathlib.Algebra.MvPolynomial.Rename
 import Mathlib.Algebra.MvPolynomial.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Abel
@@ -1245,7 +1246,7 @@ theorem AtomsOK_num {t : Tree} (h : isNum t = true) : AtomsOK t := by
   unfold ratoms at ha
   simpa [h] using ha
 
-theorem AtomsOK_node2 {s : String} (hs : s ≠ "/") (hs' : s ≠ "^") {a b : Tree}
+theorem AtomsOK_node2 {s : String} {a b : Tree}
     (ha : AtomsOK a) (hb : AtomsOK b)
     (hr : ∀ l, ratoms l (node (sym s) [a, b]) = ratoms (ratoms l a) b) :
     AtomsOK (node (sym s) [a, b]) := by
@@ -1257,17 +1258,17 @@ theorem AtomsOK_node2 {s : String} (hs : s ≠ "/") (hs' : s ≠ "^") {a b : Tre
 
 theorem AtomsOK_add {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
     AtomsOK (node (sym "+") [a, b]) :=
-  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+  AtomsOK_node2 ha hb fun l => by
     rw [ratoms, ite_false_cond (isNum_node2 (h := "+") (by decide) a b)]
 
 theorem AtomsOK_sub {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
     AtomsOK (node (sym "-") [a, b]) :=
-  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+  AtomsOK_node2 ha hb fun l => by
     rw [ratoms, ite_false_cond (isNum_node2 (h := "-") (by decide) a b)]
 
 theorem AtomsOK_mul {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
     AtomsOK (node (sym "*") [a, b]) :=
-  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+  AtomsOK_node2 ha hb fun l => by
     rw [ratoms, ite_false_cond (isNum_node2 (h := "*") (by decide) a b)]
 
 theorem AtomsOK_neg {a : Tree} (ha : AtomsOK a) : AtomsOK (node (sym "-") [a]) := by
@@ -1291,8 +1292,7 @@ theorem AtomsOK_facNode {b : Tree} (hb : IsAtom b) (e : ℕ) : AtomsOK (facNode 
   · intro l x hx
     have : intNode (e : ℤ) = int (e : ℤ) := by simp [intNode]
     rw [arith, this, ratoms, ite_false_cond (isNum_node2 (h := "^") (by decide) b _)] at hx
-    simp only [rpow, intExp, numeralForm, Rat.den_natCast, ↓reduceIte, Rat.num_natCast,
-      Nat.cast_nonneg, Int.toNat_natCast] at hx
+    simp only [rpow, intExp, numeralForm] at hx
     exact AtomsOK_atom hb l x hx
 
 theorem foldl_induct {α : Type*} (P : Tree → Prop) (g : Tree → α → Tree) (l : List α)
@@ -1321,6 +1321,12 @@ theorem AtomsOK_mulChain (c : ℚ) {fs : List Tree} (h : ∀ f ∈ fs, AtomsOK f
     exact foldl_induct _ _ rs r (h' r (by simp))
       (fun acc t ht hacc => AtomsOK_mul hacc (h' t (by simp [ht])))
 
+theorem AtomsOK_ite {c : Prop} [Decidable c] {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
+    AtomsOK (if c then a else b) := by
+  split_ifs
+  · exact ha
+  · exact hb
+
 theorem AtomsOK_trm (fs : List Tree) (c : ℚ) (h : ∀ f ∈ fs, AtomsOK f) :
     AtomsOK (if |c| = 1 then mulChain 1 fs else mulChain |c| fs) := by
   split_ifs
@@ -1348,24 +1354,24 @@ theorem AtomsOK_linBuild (c0 : ℚ) (ts : List (List Tree × ℚ))
   | cons e rest =>
     obtain ⟨fs, c⟩ := e
     dsimp only
-    have hfirst : AtomsOK (if 0 < c then (if |c| = 1 then mulChain 1 fs else mulChain |c| fs)
-        else arith "-" [if |c| = 1 then mulChain 1 fs else mulChain |c| fs]) := by
-      have := AtomsOK_trm fs c (hms (fs, c) (by simp))
-      split_ifs
-      · exact this
-      · exact AtomsOK_neg this
-    have hacc := foldl_induct AtomsOK _ rest _ hfirst (fun acc x hx hacc => by
-      obtain ⟨fs', c'⟩ := x
-      have := AtomsOK_trm fs' c' (hms (fs', c') (by simp [hx]))
-      dsimp only
-      split_ifs
-      · exact AtomsOK_add hacc this
-      · exact AtomsOK_sub hacc this)
+    have htrm : ∀ y ∈ (fs, c) :: rest,
+        AtomsOK (if |y.2| = 1 then mulChain 1 y.1 else mulChain |y.2| y.1) :=
+      fun y hy => AtomsOK_trm _ _ (hms y hy)
     have hn := AtomsOK_num (isNum_numNode |c0|)
-    split_ifs
-    · exact hacc
-    · exact AtomsOK_add hacc hn
-    · exact AtomsOK_sub hacc hn
+    have hacc : ∀ g : Tree → List Tree × ℚ → Tree,
+        (∀ acc x, x ∈ rest → AtomsOK acc → AtomsOK (g acc x)) →
+        AtomsOK (rest.foldl g (if 0 < c then (if |c| = 1 then mulChain 1 fs else mulChain |c| fs)
+          else arith "-" [if |c| = 1 then mulChain 1 fs else mulChain |c| fs])) := by
+      intro g hg
+      apply foldl_induct _ g rest _ _ hg
+      exact AtomsOK_ite (htrm (fs, c) (by simp)) (AtomsOK_neg (htrm (fs, c) (by simp)))
+    have hg : ∀ acc x, x ∈ rest → AtomsOK acc →
+        AtomsOK (if 0 < x.2 then arith "+" [acc, if |x.2| = 1 then mulChain 1 x.1
+          else mulChain |x.2| x.1] else arith "-" [acc, if |x.2| = 1 then mulChain 1 x.1
+          else mulChain |x.2| x.1]) := fun acc x hx h =>
+      AtomsOK_ite (AtomsOK_add h (htrm x (by simp [hx]))) (AtomsOK_sub h (htrm x (by simp [hx])))
+    have := hacc _ hg
+    exact AtomsOK_ite this (AtomsOK_ite (AtomsOK_add this hn) (AtomsOK_sub this hn))
 
 theorem AtomsOK_fromP {al : List Tree} {p : Poly} (hw : WF al p) : AtomsOK (fromP al p) := by
   unfold fromP
@@ -1579,10 +1585,10 @@ theorem isAtom_sym (a : String) : IsAtom (sym a) := by
   have hn : isNum (sym a) = false := by simp [isNum, numeralForm]
   constructor
   · rw [rd]
-    all_goals first | simp [hn] | (intros; simp_all)
+    all_goals simp [hn]
   · intro l
     rw [ratoms]
-    all_goals first | simp [hn] | (intros; simp_all)
+    all_goals simp [hn]
 
 open FricasSymbolic.Ring in
 /-- (N1) for the mirror: the normal form reads back as the polynomial the term denotes. -/
