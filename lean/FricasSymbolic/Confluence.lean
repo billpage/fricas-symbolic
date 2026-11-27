@@ -582,6 +582,7 @@ theorem sMul_one_l (hi : A.id = true) (X : Term) : sMul A (.num 1) X = X := by
 
 theorem sMul_one_r (hi : A.id = true) (X : Term) : sMul A X (.num 1) = X := by
   rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv]
+  intro _; split_ifs <;> simp_all
 
 theorem sMul_zero_l (ha : A.ann = true) (X : Term) : sMul A (.num 0) X = .num 0 := by
   rw [sMul]; cases X <;> simp [ha, isNum, isLit, nv]
@@ -652,7 +653,7 @@ theorem sDiv_inv (hi : A.inv = true) {X : Term} (hX : IsNF A X) :
         simp only [fst, h3, g2, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
         simp [isNum]
       rw [e, sDiv_one_div A hi]
-  · rw [sDiv_one_plain A (by simpa using h1) (by simpa using h2), sDiv_one_div A hi]
+  · rw [sDiv_one_plain A (X := X) (by simpa using h1) (by simpa using h2), sDiv_one_div A hi]
 
 end local_identities
 
