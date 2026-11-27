@@ -10,3 +10,4 @@ import FricasSymbolic.Confluence
 import FricasSymbolic.Order
 import FricasSymbolic.OrderProofs
 import FricasSymbolic.Ring
+import FricasSymbolic.RingMirror
