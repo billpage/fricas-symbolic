@@ -566,7 +566,8 @@ theorem sAdd_zero_l (hi : A.id = true) (X : Term) : sAdd A (.num 0) X = X := by
   rw [sAdd]; cases X <;> simp [hi, isNum, isLit, nv]
 
 theorem sAdd_zero_r (hi : A.id = true) (X : Term) : sAdd A X (.num 0) = X := by
-  rw [sAdd]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+  rw [sAdd]; cases X <;> simp [hi, isNum, isLit, nv]
+  intro _ h; exact h.symm
 
 theorem sSub_zero_r (hi : A.id = true) (X : Term) : sSub A X (.num 0) = X := by
   unfold sSub; cases X <;> simp [hi, isNum, isLit, nv]
@@ -576,10 +577,11 @@ theorem sSub_zero_l (hi : A.id = true) (hn : A.num = true) (X : Term) :
   unfold sSub sNeg; cases X <;> simp [hi, hn, isNum, isLit, nv]
 
 theorem sMul_one_l (hi : A.id = true) (X : Term) : sMul A (.num 1) X = X := by
-  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv]
+  intro _ _ h; exact h.symm
 
 theorem sMul_one_r (hi : A.id = true) (X : Term) : sMul A X (.num 1) = X := by
-  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv] <;> try (split_ifs <;> simp_all)
+  rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv]
 
 theorem sMul_zero_l (ha : A.ann = true) (X : Term) : sMul A (.num 0) X = .num 0 := by
   rw [sMul]; cases X <;> simp [ha, isNum, isLit, nv]
@@ -604,28 +606,53 @@ theorem sNeg_sNeg (hi : A.inv = true) {X : Term} (hX : IsNF A X) : sNeg A (sNeg 
     exact sNeg_eq_of_isNF hX
   | _ => simp [sNeg, hi, isNum, isNeg, fst]
 
+theorem sDiv_one_div (hi : A.inv = true) (X : Term) :
+    sDiv A (.num 1) (.div (.num 1) X) = X := by
+  unfold sDiv; simp [hi, isNum, isLit, isDiv, nv, fst, snd]
+
+theorem sDiv_one_plain {X : Term} (h1 : X.isNum = false) (h2 : X.isDiv = false) :
+    sDiv A (.num 1) X = .div (.num 1) X := by
+  unfold sDiv; simp [h1, h2, isLit]
+
 theorem sDiv_inv (hi : A.inv = true) {X : Term} (hX : IsNF A X) :
     sDiv A (.num 1) (sDiv A (.num 1) X) = X := by
-  cases X with
-  | num q =>
+  by_cases h1 : X.isNum = true
+  · obtain ⟨q, rfl⟩ := isNum_iff.1 h1
     by_cases hn : A.num = true
     · by_cases hq : q = 0
-      · subst hq; simp [sDiv, hi, hn, isNum, isLit, isDiv, nv, fst, snd]
-      · simp [sDiv, hi, hn, hq, isNum, isLit, isDiv, nv]
+      · subst hq
+        have e : sDiv A (.num 1) (.num 0) = .div (.num 1) (.num 0) := by
+          unfold sDiv; simp [isNum, isLit, isDiv, nv]
+        rw [e, sDiv_one_div A hi]
+      · have e : sDiv A (.num 1) (.num q) = .num q⁻¹ := by
+          unfold sDiv; simp [hn, hq, isNum, nv]
+        rw [e]; unfold sDiv; simp [hn, hq, isNum, nv]
     · by_cases hid : A.id = true ∧ q = 1
-      · obtain ⟨hid, rfl⟩ := hid; simp [sDiv, hi, hn, hid, isNum, isLit, isDiv, nv]
-      · simp only [not_and] at hid
-        simp [sDiv, hi, hn, isNum, isLit, isDiv, nv, fst, snd]
-        intro h1 h2; exact absurd h2 (hid h1)
-  | div a b =>
+      · obtain ⟨hid, rfl⟩ := hid
+        have e : sDiv A (.num 1) (.num 1) = .num 1 := by
+          unfold sDiv; simp [hn, hid, isNum, isLit, nv]
+        rw [e, e]
+      · have e : sDiv A (.num 1) (.num q) = .div (.num 1) (.num q) := by
+          unfold sDiv
+          have : ¬ (A.id && (Term.num q).isLit 1) = true := by
+            simpa [isLit, isNum, nv] using hid
+          simp only [this, Bool.false_eq_true, ↓reduceIte]
+          simp [hn, isDiv]
+        rw [e, sDiv_one_div A hi]
+  by_cases h2 : X.isDiv = true
+  · obtain ⟨a, b, rfl⟩ := isDiv_iff.1 h2
     by_cases ha : a = .num 1
     · subst ha
-      rw [show sDiv A (.num 1) (.div (.num 1) b) = b by
-        simp [sDiv, hi, isNum, isLit, isDiv, nv, fst, snd]]
+      rw [show sDiv A (.num 1) (.div (.num 1) b) = b from sDiv_one_div A hi b]
       exact sDiv_eq_of_isNF hX
-    · have : (a.isLit 1) = false := by simpa [isLit_iff] using ha
-      simp [sDiv, hi, this, isNum, isLit, isDiv, nv, fst, snd]
-  | _ => simp [sDiv, hi, isNum, isLit, isDiv, nv, fst, snd]
+    · have h3 : a.isLit 1 = false := Bool.eq_false_iff.2 fun h => ha (isLit_iff.1 h)
+      have e : sDiv A (.num 1) (.div a b) = .div (.num 1) (.div a b) := by
+        unfold sDiv
+        have g2 : (Term.div a b).isLit 1 = false := rfl
+        simp only [fst, h3, g2, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
+        simp [isNum]
+      rw [e, sDiv_one_div A hi]
+  · rw [sDiv_one_plain A (by simpa using h1) (by simpa using h2), sDiv_one_div A hi]
 
 end local_identities
 
