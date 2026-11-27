@@ -464,4 +464,206 @@ theorem rd_fromP (al : List Tree) (p : Poly) : rd (fromP al p) = ev al p := by
     intro x _
     simp [rd_mono]
 
+/-! ## Reading the operands: `toF` agrees with `rd` -/
+
+theorem mem_addAtom {l : List Tree} {t x : Tree} : x ∈ addAtom l t ↔ x ∈ l ∨ x = t := by
+  unfold addAtom
+  split_ifs with h
+  · obtain ⟨y, hy, e⟩ := List.any_eq_true.1 h
+    rw [teq_iff] at e
+    subst e
+    constructor
+    · exact Or.inl
+    · rintro (h | rfl) <;> assumption
+  · simp
+
+theorem sub_ratoms (l : List Tree) (t : Tree) (x : Tree) (h : x ∈ l) : x ∈ ratoms l t := by
+  fun_induction ratoms l t <;> simp_all [mem_addAtom]
+
+theorem atomIdx_spec {al : List Tree} {t : Tree} (h : t ∈ al) :
+    al.getD (atomIdx al t) (int 0) = t := by
+  unfold atomIdx
+  induction al with
+  | nil => simp at h
+  | cons y r ih =>
+    rw [List.findIdx?_cons]
+    by_cases hy : y = t
+    · subst hy; simp [teq_refl]
+    · have hy' : teq y t = false := by simpa [teq_eq_decide] using hy
+      have hr : t ∈ r := by
+        rcases List.mem_cons.1 h with h | h
+        · exact absurd h.symm hy
+        · exact h
+      have := ih hr
+      simp only [hy', Bool.false_eq_true, ↓reduceIte]
+      cases hf : r.findIdx? (fun x => teq x t) with
+      | none =>
+        rw [hf] at this
+        simp at this
+        rw [List.findIdx?_eq_none_iff] at hf
+        simpa [teq_refl] using hf t hr
+      | some i => rw [hf] at this; simpa using this
+
+theorem ev_pconst (al : List Tree) (q : ℚ) : ev al (pconst q) = C q := by simp [ev, pconst]
+
+theorem ev_pvar (al : List Tree) (i : ℕ) : ev al (pvar i) = rd (al.getD i (int 0)) := by
+  simp [ev, pvar]
+
+theorem ev_append (al : List Tree) (p q : Poly) : ev al (p ++ q) = ev al p + ev al q := by
+  simp [ev]
+
+theorem ev_cons (al : List Tree) (x : List (ℕ × ℕ) × ℚ) (p : Poly) :
+    ev al (x :: p) = C x.2 * (x.1.map fun y => rd (al.getD y.1 (int 0)) ^ y.2).prod
+      + ev al p := by
+  simp [ev]
+
+theorem ev_pneg (al : List Tree) (p : Poly) : ev al (pneg p) = - ev al p := by
+  induction p with
+  | nil => simp [pneg, ev]
+  | cons x p ih =>
+    have : pneg (x :: p) = (x.1, -x.2) :: pneg p := rfl
+    rw [this, ev_cons, ev_cons, ih, map_neg]; ring
+
+theorem ev_pscale (al : List Tree) (k : ℚ) (p : Poly) : ev al (pscale k p) = C k * ev al p := by
+  induction p with
+  | nil => simp [pscale, ev]
+  | cons x p ih =>
+    have : pscale k (x :: p) = (x.1, k * x.2) :: pscale k p := rfl
+    rw [this, ev_cons, ev_cons, ih, map_mul]; ring
+
+theorem ev_pmul (al : List Tree) (p q : Poly) : ev al (pmul p q) = ev al p * ev al q := by
+  induction p with
+  | nil => simp [pmul, ev]
+  | cons x p ih =>
+    have : pmul (x :: p) q = (q.map fun y => (x.1 ++ y.1, x.2 * y.2)) ++ pmul p q := by
+      simp [pmul]
+    rw [this, ev_append, ih, ev_cons, add_mul]
+    congr 1
+    clear ih this
+    induction q with
+    | nil => simp [ev]
+    | cons y q ihq =>
+      rw [List.map_cons, ev_cons, ev_cons, ihq]
+      simp only [List.map_append, List.prod_append, map_mul]
+      ring
+
+theorem ev_ppow (al : List Tree) (p : Poly) (n : ℕ) : ev al (ppow p n) = ev al p ^ n := by
+  induction n with
+  | zero => simp [ppow, ev_pconst]
+  | succ n ih => rw [ppow, ev_pmul, ih, pow_succ]
+
+/-- The operands read as polynomials over the atom list are their read-backs, when the
+atom list holds their atoms. -/
+theorem ev_toF (al l : List Tree) (t : Tree) (h : ∀ a ∈ ratoms l t, a ∈ al) :
+    ev al (toF al t) = rd t := by
+  have atom : ∀ t, t ∈ al → (toF al t = pvar (atomIdx al t)) → ev al (toF al t) = rd t := by
+    intro t ht e
+    rw [e, ev_pvar, atomIdx_spec ht]
+  fun_induction ratoms l t
+  case case1 t l hn =>
+    have : toF al t = pconst (val t) := by unfold toF; simp [hn]
+    rw [this, ev_pconst, rd_num hn]
+  case case2 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "+") (by decide) a b), rd_add, ev_append,
+      iha (fun x hx => h x (sub_ratoms _ b x hx)), ihb h]
+  case case3 l a hn iha =>
+    rw [toF, ite_false_cond (by simpa using hn), rd_neg, ev_pneg, iha h]
+  case case4 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "-") (by decide) a b), rd_sub, ev_append,
+      ev_pneg, iha (fun x hx => h x (sub_ratoms _ b x hx)), ihb h, sub_eq_add_neg]
+  case case5 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "*") (by decide) a b), rd_mul, ev_pmul,
+      iha (fun x hx => h x (sub_ratoms _ b x hx)), ihb h]
+  case case6 l a b hb hn iha ihb =>
+    have e1 : toF al (node (sym "/") [a, b]) = pscale (val b)⁻¹ (toF al a) := by
+      rw [toF, ite_false_cond (by simpa using hn)]; simp [hb]
+    have e2 : rd (node (sym "/") [a, b]) = C (val b)⁻¹ * rd a := by
+      rw [rd, ite_false_cond (by simpa using hn)]; simp [hb]
+    rw [e1, e2, ev_pscale, iha (fun x hx => h x (sub_ratoms _ b x hx))]
+  case case7 l a b hb hn =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF, ite_false_cond (by simpa using hn)]; simp [hb]
+  case case8 l b e n hr hn ihb =>
+    have e1 : toF al (node (sym "^") [b, e]) = ppow (toF al b) n := by
+      rw [toF, ite_false_cond (by simpa using hn)]; simp [hr]
+    have e2 : rd (node (sym "^") [b, e]) = rd b ^ n := by
+      rw [rd, ite_false_cond (by simpa using hn)]; simp [hr]
+    rw [e1, e2, ev_ppow, ihb h]
+  case case9 l b e hr hn =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF, ite_false_cond (by simpa using hn)]; simp [hr]
+  case case10 t l hn h1 h2 h3 h4 h5 h6 =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF]
+    all_goals first | assumption | simp [hn]
+
+/-! ## The constructors compute in the polynomial ring over the atoms -/
+
+theorem rd_ring1 (x : Tree) (f : Poly → Poly) (F : MvPolynomial Tree ℚ → MvPolynomial Tree ℚ)
+    (hf : ∀ al p, ev al (f p) = F (ev al p)) : rd (ring1 x f) = F (rd x) := by
+  unfold ring1
+  rw [rd_fromP, hf, ev_toF _ [] x (fun a ha => ha)]
+
+theorem rd_ring2 (x y : Tree) (f : Poly → Poly → Poly)
+    (F : MvPolynomial Tree ℚ → MvPolynomial Tree ℚ → MvPolynomial Tree ℚ)
+    (hf : ∀ al p q, ev al (f p q) = F (ev al p) (ev al q)) :
+    rd (ring2 x y f) = F (rd x) (rd y) := by
+  unfold ring2
+  rw [rd_fromP, hf, ev_toF _ [] x (fun a ha => sub_ratoms _ y a ha),
+    ev_toF _ (ratoms [] x) y (fun a ha => ha)]
+
+theorem rd_lit {t : Tree} {q : ℚ} (h : lit t q = true) : rd t = C q := by
+  simp only [lit, Bool.and_eq_true, beq_iff_eq] at h
+  rw [rd_num h.1, h.2]
+
+theorem rd_rAdd (x y : Tree) : rd (rAdd x y) = rd x + rd y := by
+  unfold rAdd
+  split_ifs with h
+  · simp only [Bool.and_eq_true] at h
+    rw [rd_numNode, rd_num h.1, rd_num h.2, map_add]
+  · exact rd_ring2 x y _ (· + ·) (fun al p q => ev_append al p q)
+
+theorem rd_rSub (x y : Tree) : rd (rSub x y) = rd x - rd y := by
+  unfold rSub
+  split_ifs with h
+  · simp only [Bool.and_eq_true] at h
+    rw [rd_numNode, rd_num h.1, rd_num h.2, map_sub]
+  · exact rd_ring2 x y _ (· - ·) (fun al p q => by rw [ev_append, ev_pneg, sub_eq_add_neg])
+
+theorem rd_rNeg (x : Tree) : rd (rNeg x) = - rd x := by
+  unfold rNeg
+  split_ifs with h
+  · rw [rd_numNode, rd_num h, map_neg]
+  · exact rd_ring1 x _ (- ·) (fun al p => ev_pneg al p)
+
+theorem rd_rMul (A : RAx) (x y : Tree) : rd (rMul A x y) = rd x * rd y := by
+  unfold rMul
+  split_ifs with h1 h2 h3 h4
+  · simp only [Bool.and_eq_true] at h1
+    rw [rd_numNode, rd_num h1.1, rd_num h1.2, map_mul]
+  · simp only [Bool.and_eq_true, Bool.or_eq_true] at h2
+    rcases h2.2 with h | h <;> simp [rd_numNode, rd_lit h]
+  · rw [rd_lit h3, map_one, one_mul]
+  · rw [rd_lit h4, map_one, mul_one]
+  · exact rd_ring2 x y _ (· * ·) (fun al p q => ev_pmul al p q)
+
+theorem rd_rDiv (A : RAx) (x y : Tree) (hy : isNum y = true) :
+    rd (rDiv A x y) = C (val y)⁻¹ * rd x := by
+  unfold rDiv
+  split_ifs with h1
+  · simp only [Bool.and_eq_true] at h1
+    rw [rd_numNode, rd_num h1.1, div_eq_inv_mul, map_mul]
+  · exact rd_ring2 x y _ (fun p _ => C (val y)⁻¹ * p) (fun al p q => ev_pscale al _ p)
+
+theorem rd_rPow (x : Tree) (n : ℕ) : rd (rPow x n) = rd x ^ n := by
+  unfold rPow
+  split_ifs with h1 h2 h3 h4
+  · rw [rd_numNode, rd_num h1, zpow_natCast, map_pow]
+  · have : n = 1 := by exact_mod_cast h2
+    rw [this, pow_one]
+  · have : n = 0 := by exact_mod_cast h3
+    rw [this, rd_numNode, pow_zero, map_one]
+  · exact rd_ring1 x _ (· ^ n) (fun al p => by simpa using ev_ppow al p n)
+  · exact absurd (Int.natCast_nonneg n) h4
+
 end FricasSymbolic.RingMirror
