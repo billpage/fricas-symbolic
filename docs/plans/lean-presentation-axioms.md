@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Next: part 2. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. Next: Ring and the bridge (R4, E2). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -162,6 +162,26 @@ with numeral recognition `numeral? : Tree → Option (Bool × ℚ)` as in `numer
 
 `Tree` is a nested inductive type (a `List Tree` inside), so the recursion goes through a mutual or `List`-aware definition. Mathlib's `List.Lex` gives the argument comparison. The proof in the spec is by induction on $`\max(\lvert s\rvert, \lvert t\rvert)`$.
 
+### 4.1 Recorded results (2026-11-26)
+
+Branch `claude/lean-order`, commit `d31fe49`, Lean 4.36.0 and Mathlib v4.36.0. `lean_build` status `ok` (log `20261126-233138-build-fricas-symbolic`). `#print axioms` of every theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261126-233148-axioms-part2`).
+
+**The mirror** (`Order.lean`). `Tree` models `InputForm` trees: integer atoms, float atoms, symbols, strings, other atoms, and compound forms `(head arg₁ … argₙ)`. `numeralForm`, `kind`, `lt` (`smaller?`), `structural` (`structural?`) and `ltList` (its argument loop) follow the Spad code clause by clause. Float numerals are included (Bill, 2026-11-26): a float atom by its exact value, a float literal `(float m e b)` or `(($elt DoubleFloat float) m e b)` by its tree. Checked against FriCAS, or stated as assumptions:
+
+- `Symbol`'s `smaller?` and `String`'s `<` are the order of Lean's `String` (by character code): checked on symbols `X, a, ab, b, float, sin, x, x1, y` and strings `"", "B", "a", "ab", "b"` (runs `20261126-232443-order-probe`, `…-232458-order-probe-2`).
+- Two distinct float atoms have distinct values: integral doubles convert to integer atoms, and `0.0` and `-0.0` both to the integer `0` (checked), so the gap a signed zero could open does not arise.
+- Other atoms compare by `unparse`, so they are modelled by that string. This assumes `unparse` is injective on them (assumption; no such atoms occur in the package's forms).
+
+**Differential test** (`Order.lean`, `Check`; `lean/crosscheck/ordercheck.spad`). Both sides generate the same pseudo-random trees: numerals of every form, quotients with zero denominators, float literals with bases 0–3, compound trees with numeral and compound heads. Each side compares all ordered pairs. For seeds 20261126, 7 and 42, 60 trees at depths 3 and 4, the count of `true` results and the checksum agree: 21,600 comparisons (runs `20261126-232647-ordercheck-fricas`, `…-232630-ordercheck-lean`, and `…-233122-part2-axioms-crosscheck` after the last change to `lt`).
+
+| No. | Lean (`OrderProofs.lean`) | What it says |
+|---|---|---|
+| O1 | `O1_irrefl`, `O1_trans` | `lt t t = false`; `lt a b` and `lt b c` give `lt a c`, for all trees |
+| O2 | `O2_total` | `a ≠ b` gives `lt a b` or `lt b a` |
+| — | `isStrictTotalOrder` | Mathlib's `IsStrictTotalOrder Tree (lt · · = true)` |
+
+**In words.** Prop. 4 holds for `SymbolicTermOrder` as written, on every tree of the model, float numerals included: the order is a strict total order. The proof (`good_depth`) is by strong induction on depth. If `lt` is a strict total order on the trees of depth $`< d`$, then the argument loop is a strict order on lists of them, total on distinct lists of the same length. `structural` is then a strict order, total unless both trees are atoms. And `lt` is a strict total order on the trees of depth $`< d+1`$, being lexicographic in kind, then value, string or nothing, then `structural`. The one place `structural` cannot separate two trees, two distinct atoms, never arises: two numeral atoms of the same kind and value are the same atom.
+
 ## 5. Part 3: the rungs are free algebras
 
 The ladder's normalisers are not rewriting systems (decision 0008). They compute the canonical element of a free algebra directly. So the statement to prove is an isomorphism, not confluence: $`T/{=_A} \cong F_A`$ for a known free algebra $`F_A`$. (N1) and (N2) then follow.
@@ -251,7 +271,8 @@ lean/
     ├── Rewriting.lean      part 1: Root, Step, IsNF, EqA from the spec (done)
     ├── Regressions.lean    part 1: L7, L10                             (done)
     ├── Confluence.lean     part 1: L4–L6, L8, L9; Theorem 3          (done)
-    ├── Order.lean          part 2: Tree, numeral?, lt; O1–O2
+    ├── Order.lean          part 2: Tree, numeralForm, lt; differential test  (done)
+    ├── OrderProofs.lean    part 2: O1, O2                              (done)
     ├── ATerm.lean          part 3: terms over atoms, Step and Equiv per rung
     ├── Rungs.lean          part 3: R1–R6
     └── Bridge.lean         part 4: E1–E4

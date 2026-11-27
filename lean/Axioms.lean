@@ -28,3 +28,7 @@ import FricasSymbolic
 #print axioms FricasSymbolic.unique_nf
 #print axioms FricasSymbolic.L10_with_negzero
 #print axioms FricasSymbolic.eqA_iff_nf_eq'
+#print axioms FricasSymbolic.Order.Tree.O1_irrefl
+#print axioms FricasSymbolic.Order.Tree.O1_trans
+#print axioms FricasSymbolic.Order.Tree.O2_total
+#print axioms FricasSymbolic.Order.Tree.isStrictTotalOrder

@@ -14,6 +14,8 @@ recorded results are in [`../docs/plans/lean-presentation-axioms.md`](../docs/pl
 | `FricasSymbolic/Soundness.lean` | L1, L2 |
 | `FricasSymbolic/Rewriting.lean` | the rules of the spec as `Root`, `Step`, `IsNF`, `EqA` |
 | `FricasSymbolic/Regressions.lean` | L7, L10 (regressions for the rule sets without (AN) and without `-0 → 0`) |
+| `FricasSymbolic/Order.lean`, `crosscheck/ordercheck.spad` | part 2: `InputForm` trees and the term order mirrored from `SymbolicTermOrder`, with its differential test |
+| `FricasSymbolic/OrderProofs.lean` | O1, O2: the term order is a strict total order (Prop. 4) |
 | `FricasSymbolic/Confluence.lean` | L4, L5, L6, L8, L9: normal forms, termination, confluence (Theorem 3) |
 | `Axioms.lean` | `#print axioms` of the cited theorems (not part of the library) |
 
