@@ -19,8 +19,9 @@ Where the Lean functions differ from the Spad code (plan §3.3):
   Mathlib's `ℚ` would give `0`); those clauses fall through.
 * The (AN) clause `first kids x + (second kids x + y)` is written with the
   numeral already folded: under (AN) both are numerals, so Num fires first.
-* The flag `an` (default `true`) does not exist in the package; it switches
-  (AN) off for the regression theorem L7.
+* The flags `an` and `negzero` (default `true`) do not exist in the package; they
+  switch (AN) and Id's `-0 → 0` (decision 0012) off for the regression theorems L7
+  and L10.
 -/
 
 namespace FricasSymbolic
@@ -34,6 +35,8 @@ structure Ax where
   assoc : Bool := false
   /-- (AN) as part of `associativity` with `numerals`; only L7 sets it to `false`. -/
   an : Bool := true
+  /-- `-0 → 0` as part of `identities` (decision 0012); only L10 sets it to `false`. -/
+  negzero : Bool := true
   deriving DecidableEq, Repr
 
 namespace Term
@@ -125,6 +128,7 @@ decreasing_by
 /-- `- x` (gsexpr.spad). -/
 def sNeg (x : Term) : Term :=
   if A.num && x.isNum then .num (- x.nv)
+  else if A.id && A.negzero && x.isLit 0 then .num 0
   else if A.inv && x.isNeg then x.fst
   else .neg x
 

@@ -10,8 +10,9 @@ import FricasSymbolic.Soundness
 * **L8** `L8_steps_to_nf`: `t →* nf A t`; the normaliser takes only steps of the axioms.
 * **L6** `L6_nf_of_isNF`: `nf` fixes normal forms; hence it is idempotent.
 * **L5** `L5_step`, `L5_eqA`: one step does not change the normal form, hence terms equal
-  under the axioms have the same normal form. Hypotheses: Id comes with Num (L10 shows
-  why), and (AN) is on (L7 shows why).
+  under the axioms have the same normal form. Hypotheses: Id contains `-0 → 0` (decision
+  0012) or comes with Num, and (AN) is on. L10 and L7 show that each is needed; the
+  package satisfies both for every `A` (`eqA_iff_nf_eq'`).
 
 With L4 and L8, L5 gives the Church–Rosser property: `s =_A t` implies
 `s →* nf s = nf t ←* t`.
@@ -180,10 +181,13 @@ theorem sNeg_eq_of_isNF {x : Term} (h : IsNF A (.neg x)) : sNeg A x = .neg x := 
   have g1 : ¬ (A.num && x.isNum) = true := by
     intro g; simp only [Bool.and_eq_true] at g
     rw [isNum_eq g.2] at h; exact h.not_root (Root.num_neg _ g.1)
+  have g0 : ¬ (A.id && A.negzero && x.isLit 0) = true := by
+    intro g; simp only [Bool.and_eq_true] at g
+    rw [isLit_eq g.2] at h; exact h.not_root (Root.id_neg_zero g.1.1 g.1.2)
   have g2 : ¬ (A.inv && x.isNeg) = true := by
     intro g; simp only [Bool.and_eq_true] at g
     rw [isNeg_eq g.2] at h; exact h.not_root (Root.inv_neg _ g.1)
-  simp only [g1, g2, Bool.false_eq_true, ↓reduceIte]
+  simp only [g1, g0, g2, Bool.false_eq_true, ↓reduceIte]
 
 theorem sSub_eq_of_isNF {x y : Term} (h : IsNF A (.sub x y)) : sSub A x y = .sub x y := by
   unfold sSub
@@ -318,13 +322,14 @@ theorem sMul_isNF (x y : Term) : IsNF A x → IsNF A y → IsNF A (sMul A x y) :
 
 theorem sNeg_isNF {x : Term} (hx : IsNF A x) : IsNF A (sNeg A x) := by
   unfold sNeg
-  split_ifs with h1 h2
+  split_ifs with h1 h0 h2
+  · exact IsNF.num _
   · exact IsNF.num _
   · simp only [Bool.and_eq_true] at h2
     have hx' : IsNF A (.neg x.fst) := isNeg_eq h2.2 ▸ hx
     exact hx'.neg'
   · refine IsNF.neg hx fun t r => ?_
-    cases r <;> simp_all [isNum, isNeg]
+    cases r <;> simp_all [isNum, isNeg, isLit, nv]
 
 theorem sSub_isNF {x y : Term} (hx : IsNF A x) (hy : IsNF A y) : IsNF A (sSub A x y) := by
   unfold sSub
@@ -480,10 +485,13 @@ theorem sMul_steps (x y : Term) : Steps A (.mul x y) (sMul A x y) := by
 
 theorem sNeg_steps (x : Term) : Steps A (.neg x) (sNeg A x) := by
   unfold sNeg
-  split_ifs with h1 h2
+  split_ifs with h1 h0 h2
   · simp only [Bool.and_eq_true, isNum_iff] at h1
     obtain ⟨hn, p, rfl⟩ := h1
     exact Steps.root (Root.num_neg p hn)
+  · simp only [Bool.and_eq_true, isLit_iff] at h0
+    obtain ⟨⟨hi, hz⟩, rfl⟩ := h0
+    exact Steps.root (Root.id_neg_zero hi hz)
   · simp only [Bool.and_eq_true, isNeg_iff] at h2
     obtain ⟨hi, a, rfl⟩ := h2
     exact Steps.root (Root.inv_neg a hi)
@@ -572,9 +580,12 @@ theorem sAdd_zero_r (hi : A.id = true) (X : Term) : sAdd A X (.num 0) = X := by
 theorem sSub_zero_r (hi : A.id = true) (X : Term) : sSub A X (.num 0) = X := by
   unfold sSub; cases X <;> simp [hi, isNum, isLit, nv]
 
-theorem sSub_zero_l (hi : A.id = true) (hn : A.num = true) (X : Term) :
+theorem sSub_zero_l (hi : A.id = true) (h : A.num = true ∨ A.negzero = true) (X : Term) :
     sSub A (.num 0) X = sNeg A X := by
-  unfold sSub sNeg; cases X <;> simp [hi, hn, isNum, isLit, nv]
+  rcases h with hn | hz
+  · unfold sSub sNeg; cases X <;> simp [hi, hn, isNum, isLit, nv]
+  · unfold sSub sNeg; cases X <;> simp [hi, hz, isNum, isLit, nv]
+    split_ifs <;> simp_all
 
 theorem sMul_one_l (hi : A.id = true) (X : Term) : sMul A (.num 1) X = X := by
   rw [sMul]; cases X <;> simp [hi, isNum, isLit, nv]
@@ -601,11 +612,20 @@ theorem sPow_zero (hi : A.id = true) (X : Term) : sPow A X 0 = .num 1 := by
 
 theorem sNeg_sNeg (hi : A.inv = true) {X : Term} (hX : IsNF A X) : sNeg A (sNeg A X) = X := by
   cases X with
-  | num q => by_cases hn : A.num = true <;> simp [sNeg, hi, hn, isNum, isNeg, nv, fst]
+  | num q =>
+    by_cases hn : A.num = true
+    · simp [sNeg, hn, isNum, nv]
+    by_cases hz : A.id = true ∧ A.negzero = true ∧ q = 0
+    · obtain ⟨h1, h2, rfl⟩ := hz; simp [sNeg, hn, h1, h2, isNum, isLit, nv]
+    · have g : ¬ (A.id && A.negzero && (Term.num q).isLit 0) = true := by
+        simpa [isLit, isNum, nv, and_assoc] using hz
+      have e : sNeg A (.num q) = .neg (.num q) := by
+        unfold sNeg; simp only [g, Bool.false_eq_true, ↓reduceIte]; simp [hn, isNum, isNeg]
+      rw [e]; unfold sNeg; simp [hi, isNum, isLit, isNeg, fst]
   | neg a =>
-    rw [show sNeg A (.neg a) = a by simp [sNeg, hi, isNum, isNeg, fst]]
+    rw [show sNeg A (.neg a) = a by simp [sNeg, hi, isNum, isLit, isNeg, fst]]
     exact sNeg_eq_of_isNF hX
-  | _ => simp [sNeg, hi, isNum, isNeg, fst]
+  | _ => simp [sNeg, hi, isNum, isLit, isNeg, fst]
 
 theorem sDiv_one_div (hi : A.inv = true) (X : Term) :
     sDiv A (.num 1) (.div (.num 1) X) = X := by
@@ -924,15 +944,17 @@ end assoc_mul
 
 /-! ## L5: a step does not change the normal form -/
 
-/-- Each root rule of the spec preserves `nf`. Hypotheses: Id comes with Num (L10), and (AN)
-is on (L7). -/
-theorem L5_root (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+/-- Each root rule of the spec preserves `nf`. Hypotheses: Id comes with Num or with
+`-0 → 0` (decision 0012; L10 without both), and (AN) is on (L7). In the package both hold
+for every `A`: see `eqA_iff_nf_eq'`. -/
+theorem L5_root (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term}
     (r : Root A s t) : nf A s = nf A t := by
   cases r with
   | id_add_l x hi => simp only [nf]; exact sAdd_zero_l A hi _
   | id_add_r x hi => simp only [nf]; exact sAdd_zero_r A hi _
   | id_sub_r x hi => simp only [nf]; exact sSub_zero_r A hi _
   | id_sub_l x hi => simp only [nf]; exact sSub_zero_l A hi (hid hi) _
+  | id_neg_zero hi hz => simp only [nf]; unfold sNeg; simp [hi, hz, isNum, isLit, nv]
   | id_mul_l x hi => simp only [nf]; exact sMul_one_l A hi _
   | id_mul_r x hi => simp only [nf]; exact sMul_one_r A hi _
   | id_div x hi => simp only [nf]; exact sDiv_one_r A hi _
@@ -965,7 +987,7 @@ theorem L5_root (hid : A.id = true → A.num = true) (han : A.an = true) {s t : 
     simp only [nf]; exact sMul_an A ha hn han' _ (L4_nf_isNF x) n m
 
 /-- L5: one step does not change the normal form. -/
-theorem L5_step (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+theorem L5_step (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term}
     (h : Step A s t) : nf A s = nf A t := by
   induction h with
   | root r => exact L5_root hid han r
@@ -974,7 +996,7 @@ theorem L5_step (hid : A.id = true → A.num = true) (han : A.an = true) {s t : 
   | neg _ ih | pow n _ ih => simp only [nf, ih]
 
 /-- L5: terms equal under the axioms have the same normal form (Theorem 3). -/
-theorem L5_eqA (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+theorem L5_eqA (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term}
     (h : EqA A s t) : nf A s = nf A t := by
   induction h with
   | rel _ _ h => exact L5_step hid han h
@@ -988,7 +1010,7 @@ theorem Steps.to_eqA {s t : Term} (h : Steps A s t) : EqA A s t := by
   | tail _ h ih => exact EqvGen.trans _ _ _ ih (EqvGen.rel _ _ h)
 
 /-- Theorem 3 as a decision procedure: `s =_A t` exactly when `nf A s = nf A t`. -/
-theorem eqA_iff_nf_eq (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term} :
+theorem eqA_iff_nf_eq (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term} :
     EqA A s t ↔ nf A s = nf A t := by
   refine ⟨L5_eqA hid han, fun h => ?_⟩
   have hs := Steps.to_eqA (L8_steps_to_nf (A := A) s)
@@ -996,13 +1018,19 @@ theorem eqA_iff_nf_eq (hid : A.id = true → A.num = true) (han : A.an = true) {
   rw [h] at hs
   exact EqvGen.trans _ _ _ hs (EqvGen.symm _ _ ht)
 
+/-- Theorem 3 for the package: every `A` it offers has (AN) and `-0 → 0`. -/
+theorem eqA_iff_nf_eq' (id ann inv num assoc : Bool) {s t : Term} :
+    let A : Ax := {id := id, ann := ann, inv := inv, num := num, assoc := assoc}
+    EqA A s t ↔ nf A s = nf A t :=
+  eqA_iff_nf_eq (fun _ => Or.inr rfl) rfl
+
 /-- Church–Rosser: terms equal under the axioms rewrite to a common term. -/
-theorem church_rosser (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+theorem church_rosser (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term}
     (h : EqA A s t) : ∃ u, Steps A s u ∧ Steps A t u :=
   ⟨nf A s, L8_steps_to_nf s, L5_eqA hid han h ▸ L8_steps_to_nf t⟩
 
 /-- Unique normal forms: two normal forms equal under the axioms are the same term. -/
-theorem unique_nf (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+theorem unique_nf (hid : A.id = true → A.num = true ∨ A.negzero = true) (han : A.an = true) {s t : Term}
     (hs : IsNF A s) (ht : IsNF A t) (h : EqA A s t) : s = t := by
   rw [← L6_nf_of_isNF hs, ← L6_nf_of_isNF ht]; exact L5_eqA hid han h
 

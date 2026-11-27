@@ -197,9 +197,13 @@ theorem sNeg_refines (x : Term) :
     ∀ v : K, (neg x).eval ρ = some v → (sNeg A x).eval ρ = some v := by
   intro v hv
   unfold sNeg
-  split_ifs with h1 h2
+  split_ifs with h1 h0 h2
   · simp only [Bool.and_eq_true] at h1
     rw [isNum_eq h1.2] at hv
+    obtain ⟨a, ha, rfl⟩ := (eval_neg ρ).1 hv
+    simp at ha; subst ha; simp
+  · simp only [Bool.and_eq_true] at h0
+    rw [isLit_eq h0.2] at hv
     obtain ⟨a, ha, rfl⟩ := (eval_neg ρ).1 hv
     simp at ha; subst ha; simp
   · simp only [Bool.and_eq_true] at h2

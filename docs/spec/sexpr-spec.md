@@ -213,7 +213,7 @@ The Ring and Field rungs are not `Expression`. Their equality is polynomial (rat
 
 | Group | Axioms | Requires | Rung |
 |---|---|---|---|
-| `identities` | Id: $`0+x,\ x+0,\ x-0,\ 0-x,\ 1\cdot x,\ x \cdot 1,\ x/1,\ x^1,\ x^0`$ (§4.1) | — | |
+| `identities` | Id: $`0+x,\ x+0,\ x-0,\ 0-x,\ -0,\ 1\cdot x,\ x \cdot 1,\ x/1,\ x^1,\ x^0`$ (§4.1) | — | |
 | `annihilation` | Ann: $`0 \cdot x,\ x \cdot 0`$ | — | Ann |
 | `involutions` | Inv: $`-(-x),\ 1/(1/x)`$ | — | |
 | `numerals` | Num: fold operations on numerals | — | |
@@ -258,7 +258,7 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 
 | Group | Rules | Sound in $`E`$ | Size $`\lvert l\rvert \to \lvert r\rvert`$ |
 |---|---|---|---|
-| **Identities (Id)** | $`0+x\to x,\ x+0\to x,\ x-0\to x,\ 0-x\to -x`$; $`1\cdot x\to x,\ x\cdot 1\to x,\ x/1\to x`$; $`x^1\to x,\ x^0\to 1`$ | yes ($`0^0=1`$ in FriCAS, run `…-162657-expr-zero-power`) | $`3\to1`$; $`0-x`$: $`3\to2`$ |
+| **Identities (Id)** | $`0+x\to x,\ x+0\to x,\ x-0\to x,\ 0-x\to -x,\ -0\to 0`$; $`1\cdot x\to x,\ x\cdot 1\to x,\ x/1\to x`$; $`x^1\to x,\ x^0\to 1`$ | yes ($`0^0=1`$ in FriCAS, run `…-162657-expr-zero-power`) | $`3\to1`$; $`0-x`$: $`3\to2`$; $`-0`$: $`2\to1`$ |
 | **Annihilation (Ann)** | $`0\cdot x\to 0,\ x\cdot 0\to 0`$ | yes | $`3\to1`$ |
 | **Involutions (Inv)** | $`-(-x)\to x,\ 1/(1/x)\to x`$ | yes where the left side is defined | $`3\to1`$, $`5\to1`$ |
 | **Numerals (Num)** | $`\omega(n_1,\ldots,n_k)\to[\![\omega(n_1,\ldots,n_k)]\!]`$ for $`\omega\in\{+,-,\cdot,/,\hat{}\ \text{(integer exponent)},\text{unary }-\}`$, when defined | yes (it is evaluation) | $`\geq 2 \to 1`$ |
@@ -272,7 +272,8 @@ $`n, m`$ denote numerals, $`x`$ a variable of the rule, and every rule is applie
 - *Termination:* every rule strictly decreases $`\lvert t\rvert`$, and $`\lvert\cdot\rvert`$ is monotone under contexts.
 - *Confluence:* all left sides are linear, so by the critical pair lemma it suffices to join the overlaps at the root. They are:
   - $`0+0`$, $`0\cdot 0`$, $`0\cdot 1`$, $`1\cdot 0`$, $`0^0`$, $`0^1`$, $`0/1`$: each rewrites to the same numeral by every applicable rule.
-  - $`0-0`$: by $`x-0\to x`$ it gives $`0`$; by $`0-x\to -x`$ it gives $`-0`$, which Num folds to $`0`$.
+  - $`0-0`$: by $`x-0\to x`$ it gives $`0`$; by $`0-x\to -x`$ it gives $`-0`$, which $`-0\to 0`$ (and Num, if present) brings to $`0`$. Before decision [0012](../decisions/0012-minus-zero.md) only Num joined this pair, so unions of Id without Num were not confluent (Lean L10).
+  - $`-(-0)`$: Inv gives $`0`$; $`-0\to 0`$ inside gives $`-0`$, then $`0`$. With Num, $`-0`$ is a numeral overlap: both give $`0`$.
   - Identities on numeral arguments, e.g. $`0+n`$: Id gives $`n`$, Num gives $`[\![0+n]\!]=n`$.
   - $`-(-n)`$ and $`1/(1/n)`$: Inv and Num agree.
   - $`1/(1/1)`$: Inv gives $`1`$, and $`x/1\to x`$ inside then outside also gives $`1`$.

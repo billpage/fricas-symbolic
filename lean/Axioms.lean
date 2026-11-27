@@ -26,3 +26,5 @@ import FricasSymbolic
 #print axioms FricasSymbolic.eqA_iff_nf_eq
 #print axioms FricasSymbolic.church_rosser
 #print axioms FricasSymbolic.unique_nf
+#print axioms FricasSymbolic.L10_with_negzero
+#print axioms FricasSymbolic.eqA_iff_nf_eq'
