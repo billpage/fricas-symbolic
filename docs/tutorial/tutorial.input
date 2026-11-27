@@ -15,7 +15,16 @@
 
 )set break resume
 
+-- ==== motivation
+x : Expression Integer := 'x
+y : Expression Integer := 'y
+(x+1)^2 - (x^2+2*x+1)
+(x+1)^2 - x^2
+cos(x)*sin(y) - cos(y)*sin(x)
+(cos(x)*sin(y) - cos(y)*sin(x))*cos(x)
+
 -- ==== quick-start
+)clear all
 SE ==> SymbolicExpression Integer
 x : SE := 'x
 y : SE := 'y
