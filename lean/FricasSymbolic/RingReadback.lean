@@ -275,19 +275,21 @@ theorem sortLt_eq (l : List Tree) : sortLt l = l.foldr (insBy id) [] := by
 theorem mergeF_eq (fs : List (Tree × ℤ)) :
     mergeF fs = (fs.foldl (fun acc x => mins id x acc) []).filter (·.2 ≠ 0) := by
   unfold mergeF
-  congr 1
-  congr 1
+  dsimp only
+  congr 2
   funext acc x
-  exact step_eq id x acc
+  rcases x with ⟨b, e⟩
+  exact step_eq id (b, e) acc
 
 theorem mergeT_eq (ts : List (List Tree × ℚ)) :
     mergeT ts = (ts.foldl (fun acc x => mins (fun fs => mulChain 1 fs) x acc) []).filter
       (·.2 ≠ 0) := by
   unfold mergeT
-  congr 1
-  congr 1
+  dsimp only
+  congr 2
   funext acc x
-  exact step_eq (fun fs => mulChain 1 fs) x acc
+  rcases x with ⟨fs, c⟩
+  exact step_eq (fun fs => mulChain 1 fs) (fs, c) acc
 
 /-- `mergeF` on natural exponents. -/
 def mergeN (L : List (Tree × ℕ)) : List (Tree × ℕ) :=
@@ -312,7 +314,9 @@ theorem prod_mergeN {γ : Type*} [CommMonoid γ] (v : Tree → γ) (L : List (Tr
     intro l
     induction l with
     | nil => simp
-    | cons x l ih => by_cases h : x.2 = 0 <;> simp [List.filter_cons, h, ih]
+    | cons x l ih =>
+      simp only [List.filter_cons]
+      split_ifs with h <;> simp_all
   rw [hf]
   have := prod_foldl_mins id (fun t (n : ℕ) => v t ^ n) (fun t a b => pow_add _ _ _) L []
   simpa using this
@@ -323,7 +327,8 @@ theorem rd_facNode (b : Tree) (e : ℕ) (he : e ≠ 0) : rd (facNode b e) = rd b
   unfold facNode
   by_cases h1 : e = 1
   · subst h1; simp
-  · rw [if_neg (by exact_mod_cast h1)]
+  · have h1' : ¬ ((e : ℤ) = 1) := by exact_mod_cast h1
+    simp only [h1', ↓reduceIte]
     have : intNode (e : ℤ) = int (e : ℤ) := by simp [intNode]
     rw [arith, this, rd_pow]
 
@@ -342,8 +347,10 @@ theorem rd_mono (al : List Tree) (m : List (ℕ × ℕ)) :
   have hm : ∀ x ∈ mergeN (m.map fun y => (al.getD y.1 (int 0), y.2)), x.2 ≠ 0 := by
     intro x hx
     simpa [mergeN] using (List.mem_filter.1 hx).2
-  rw [List.map_congr_left (fun x hx => rd_facNode x.1 x.2 (hm x hx))]
-  rw [prod_mergeN rd]
-  simp [List.map_map]
+  rw [List.map_congr_left (g := fun x : Tree × ℕ => rd x.1 ^ x.2) ?_]
+  · rw [prod_mergeN rd]
+    simp [List.map_map, Function.comp_def]
+  · intro x hx
+    simpa using rd_facNode x.1 x.2 (hm x hx)
 
 end FricasSymbolic.RingMirror
