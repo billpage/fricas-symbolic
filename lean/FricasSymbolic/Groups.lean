@@ -81,7 +81,7 @@ inductive Ladder : Group → Term → Term → Prop
 
 section Rules
 
-variable {K : Type*} [Field K] [CharZero K] [DecidableEq K] (ρ : String → K)
+variable {K : Type*} [Field K] [DecidableEq K] (ρ : String → K)
 
 /-- The three power rules, for all exponents in ℤ, where the left side is defined. -/
 theorem zpow_add_rule {x : Term} {m n : ℤ} {v : K}
@@ -117,7 +117,7 @@ theorem zpow_pow_rule {x : Term} {m n : ℤ} {v : K}
   · subst hm0; simp at hmn
   · have hn : n < 0 := by
       by_contra h'
-      have : 0 ≤ m * n := mul_nonneg hm (by omega)
+      have : 0 ≤ m * n := Int.mul_nonneg hm (by omega)
       omega
     exact ha0 ⟨by rw [zero_zpow m hm0.ne'], hn⟩
 
