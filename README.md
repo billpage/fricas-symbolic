@@ -44,6 +44,7 @@ integrate(sin(x)*cos(x), 'x)   -- correct, unlike the 2017 domain
 | `docs/spec/` | The specification. **Normative**: the code follows it, and a design change is a change to it first. |
 | `docs/decisions/` | Numbered decision records: what was decided, by whom, why, and what it rules out. |
 | `docs/notes/` | Analyses and design notes. Not normative; the specification wins where they differ. |
+| `docs/tutorial/` | A tutorial with interpreter transcripts: history, design, use cases, known issues. Start here to learn to use the package. |
 | `docs/INDEX.md` | Every labelled goal, axiom and result in the specification, with its section, its standing and the tests that check it. |
 | `src/algebra/` | Spad source, as in FriCAS: `gsexpr.spad` (`GeneralSymbolicExpression`, `SymbolicExpression`, `SymbolicAxiomGroups`, `SymbolicTermOrder`), `symterm.spad` (`SymbolicTerm`, needs `gsexpr.spad` compiled first). |
 | `src/input/` | Tests, written with FriCAS's unit-test package, as in FriCAS's `src/input`. |

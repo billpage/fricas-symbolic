@@ -1,0 +1,32 @@
+-- Reproduction of the known problem with SymbolicExpression(Integer)
+-- described in docs/tutorial/tutorial.md, section "Known issues": the first
+-- library algorithm called in a session is integrate.
+--
+-- Run it in a FRESH FriCAS session (the result depends on what the session has
+-- done before; compare known-issue-sum-first.input):
+--   )compile src/algebra/gsexpr.spad
+--   )read docs/tutorial/known-issue-integrate-first.input
+-- Commit 54811c7, FriCAS 1.4.0.  GeneralSymbolicExpression(Integer, A_P) is the
+-- domain that SymbolicExpression(Integer) is defined to be; it is the control.
+
+)set break resume
+
+-- ==== setup
+SE ==> SymbolicExpression Integer
+GA ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+x : SE := 'x
+y : GA := 'y
+
+-- ==== integral-atan
+integrate(1/(x^2+1), 'x)
+integrate(1/(y^2+1), 'y)
+integrate(1/(x^2+2), 'x)
+integrate(1/(y^2+2), 'y)
+integrate(x/(x^2+1), 'x)
+integrate(y/(y^2+1), 'y)
+
+-- ==== sums
+sum(x, 'x=1..10)
+sum(x, 'x)
+sum(y, 'y=1..10)
+sum(y, 'y)
