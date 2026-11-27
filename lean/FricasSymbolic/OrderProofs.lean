@@ -1,4 +1,5 @@
 import FricasSymbolic.Order
+import Mathlib.Data.String.Basic
 
 /-!
 # Part 2: the term order is a strict total order (O1, O2; spec Prop. 4)
@@ -379,9 +380,9 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
     · rw [lt_num rfl h1]; simp [G.structural_irrefl a (kids_of ha)]
     · rcases lt_atomic_cases (a := a) (b := a) rfl h1 with
         ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨_, _, _, e⟩
-      · rw [e]; rw [e1] at e2; cases e2; simp
-      · rw [e]; rw [e1] at e2; cases e2; simp
-      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
+      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
+      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
       · rw [e]; exact G.structural_irrefl a (kids_of ha)
   trans a b c ha hb hc h1 h2 := by
     have k1 := kind_le_of_lt h1; have k2 := kind_le_of_lt h2
@@ -441,8 +442,9 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
         omega
   total a b ha hb hne := by
     by_cases k : kind a = kind b
-    · by_cases n : kind a ≤ 1
-      · rw [lt_num k n, lt_num k.symm (k ▸ n)]
+    · have n' : kind a ≤ 1 ↔ kind b ≤ 1 := by rw [k]
+      by_cases n : kind a ≤ 1
+      · rw [lt_num k n, lt_num k.symm (n'.1 n)]
         by_cases v : val a = val b
         · simp only [v, ne_eq, not_true_eq_false, ↓reduceIte]
           apply G.structural_total a b (kids_of ha) (kids_of hb) _ hne
@@ -452,13 +454,13 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
           exact lt_or_gt_of_ne v
       · rcases lt_atomic_cases k n with
           ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨k5, ⟨g, as, rfl⟩, ⟨g', bs, rfl⟩, e⟩
-        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
           exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
-        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
           exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
-        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
           exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
-        · rw [e, lt_atomic k.symm (k ▸ n)]; simp only [atomLt, Option.getD_none]
+        · rw [e, lt_atomic k.symm (fun h => n (n'.2 h))]; simp only [atomLt, Option.getD_none]
           exact G.structural_total _ _ (kids_of ha) (kids_of hb) (by simp [isAtom]) hne
     · rw [lt_kind_ne k, lt_kind_ne (fun e => k e.symm)]
       simp; omega
@@ -488,11 +490,8 @@ theorem O2_total {a b : Tree} (h : a ≠ b) : lt a b = true ∨ lt b a = true :=
 instance : IsStrictTotalOrder Tree (fun a b => lt a b = true) where
   irrefl a := by simp [O1_irrefl]
   trans _ _ _ := O1_trans
-  trichotomous a b := by
-    by_cases h : a = b
-    · exact Or.inr (Or.inl h)
-    · rcases O2_total h with h' | h'
-      · exact Or.inl h'
-      · exact Or.inr (Or.inr h')
+  trichotomous a b h1 h2 := by
+    by_contra h
+    rcases O2_total h with h' | h' <;> simp_all
 
 end FricasSymbolic.Order.Tree
