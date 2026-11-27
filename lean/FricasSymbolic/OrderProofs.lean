@@ -279,7 +279,7 @@ theorem structural_trans (a b c : Tree) (ka : Kids S a) (kb : Kids S b) (kc : Ki
                 exact G.ltList_trans as bs cs sas sbs scs h1 h2
               · simp only [l1, l2, ne_eq, not_false_eq_true, ↓reduceIte, not_true_eq_false,
                   decide_eq_true_eq] at h1 h2 ⊢
-                simp [l2, h2]
+                simp [h2]
             · simp only [l1, ne_eq, not_false_eq_true, ↓reduceIte, decide_eq_true_eq] at h1
               by_cases l2 : bs.length = cs.length
               · simp only [l2, ne_eq, not_true_eq_false, ↓reduceIte] at h2
@@ -328,5 +328,171 @@ theorem structural_total (a b : Tree) (ka : Kids S a) (kb : Kids S b)
     | _ => simp [isAtom] at hat
 
 end Good
+
+/-! ## The induction step -/
+
+theorem lt_kind_ne {a b : Tree} (h : kind a ≠ kind b) : lt a b = decide (kind a < kind b) := by
+  rw [lt_def]; simp [h]
+
+theorem lt_num {a b : Tree} (h : kind a = kind b) (h1 : kind a ≤ 1) :
+    lt a b = if val a ≠ val b then decide (val a < val b) else structural a b := by
+  rw [lt_def]; simp only [h, ne_eq, not_true_eq_false, ↓reduceIte]; simp only [← h, h1, ↓reduceIte]
+
+theorem lt_atomic {a b : Tree} (h : kind a = kind b) (h1 : ¬ kind a ≤ 1) :
+    lt a b = (atomLt a b).getD (structural a b) := by
+  rw [lt_def]; simp only [h, ne_eq, not_true_eq_false, ↓reduceIte]; simp only [← h, h1, ↓reduceIte]
+
+theorem kind_le_of_lt {a b : Tree} (h : lt a b = true) : kind a ≤ kind b := by
+  by_cases e : kind a = kind b
+  · exact le_of_eq e
+  · rw [lt_kind_ne e] at h; simp at h; omega
+
+theorem kids_of {d : ℕ} {t : Tree} (ht : depth t < d + 1) :
+    Good.Kids (fun t => depth t < d) t := by
+  cases t with
+  | node h as => exact ⟨depth_head ht, fun x hx => depth_arg hx ht⟩
+  | _ => trivial
+
+/-- In kinds 2–5, `lt` is the order of the strings (kinds 2–4) or `structural` (kind 5). -/
+theorem lt_atomic_cases {a b : Tree} (h : kind a = kind b) (h1 : ¬ kind a ≤ 1) :
+    (∃ x y, a = sym x ∧ b = sym y ∧ lt a b = decide (x < y)) ∨
+    (∃ x y, a = str x ∧ b = str y ∧ lt a b = decide (x < y)) ∨
+    (∃ x y, a = atom x ∧ b = atom y ∧ lt a b = decide (x < y)) ∨
+    (kind a = 5 ∧ (∃ g as, a = node g as) ∧ (∃ g bs, b = node g bs) ∧ lt a b = structural a b) := by
+  rw [lt_atomic h h1]
+  have hk := kind_le_five a
+  have : kind a = 2 ∨ kind a = 3 ∨ kind a = 4 ∨ kind a = 5 := by omega
+  rcases this with e | e | e | e
+  · obtain ⟨x, rfl⟩ := kind_eq_two e; obtain ⟨y, rfl⟩ := kind_eq_two (h ▸ e)
+    exact Or.inl ⟨x, y, rfl, rfl, rfl⟩
+  · obtain ⟨x, rfl⟩ := kind_eq_three e; obtain ⟨y, rfl⟩ := kind_eq_three (h ▸ e)
+    exact Or.inr (Or.inl ⟨x, y, rfl, rfl, rfl⟩)
+  · obtain ⟨x, rfl⟩ := kind_eq_four e; obtain ⟨y, rfl⟩ := kind_eq_four (h ▸ e)
+    exact Or.inr (Or.inr (Or.inl ⟨x, y, rfl, rfl, rfl⟩))
+  · obtain ⟨g, as, rfl⟩ := kind_eq_five e; obtain ⟨g', bs, rfl⟩ := kind_eq_five (h ▸ e)
+    exact Or.inr (Or.inr (Or.inr ⟨e, ⟨g, as, rfl⟩, ⟨g', bs, rfl⟩, by simp [atomLt]⟩))
+
+theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
+    Good (fun t => depth t < d + 1) where
+  irrefl a ha := by
+    by_cases h1 : kind a ≤ 1
+    · rw [lt_num rfl h1]; simp [G.structural_irrefl a (kids_of ha)]
+    · rcases lt_atomic_cases (a := a) (b := a) rfl h1 with
+        ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨_, _, _, e⟩
+      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; exact G.structural_irrefl a (kids_of ha)
+  trans a b c ha hb hc h1 h2 := by
+    have k1 := kind_le_of_lt h1; have k2 := kind_le_of_lt h2
+    by_cases kac : kind a = kind c
+    · have kab : kind a = kind b := by omega
+      have kbc : kind b = kind c := by omega
+      by_cases n : kind a ≤ 1
+      · rw [lt_num kab n] at h1; rw [lt_num kbc (kab ▸ n)] at h2; rw [lt_num kac n]
+        by_cases vab : val a = val b
+        · by_cases vbc : val b = val c
+          · simp only [vab, vbc, ne_eq, not_true_eq_false, ↓reduceIte] at h1 h2 ⊢
+            exact G.structural_trans a b c (kids_of ha) (kids_of hb) (kids_of hc) h1 h2
+          · simp only [vab, vbc, ne_eq, not_true_eq_false, not_false_eq_true, ↓reduceIte,
+              decide_eq_true_eq] at h1 h2 ⊢
+            simp [vbc, h2]
+        · simp only [vab, ne_eq, not_false_eq_true, ↓reduceIte, decide_eq_true_eq] at h1
+          by_cases vbc : val b = val c
+          · simp only [vbc, ne_eq, not_true_eq_false, ↓reduceIte] at h2
+            rw [vbc] at h1 vab; simp [vab, h1]
+          · simp only [vbc, ne_eq, not_false_eq_true, ↓reduceIte, decide_eq_true_eq] at h2
+            have : val a < val c := lt_trans h1 h2
+            simp [ne_of_lt this, this]
+      · rcases lt_atomic_cases kab n with
+          ⟨x, y, rfl, rfl, e1⟩ | ⟨x, y, rfl, rfl, e1⟩ | ⟨x, y, rfl, rfl, e1⟩ | ⟨k5, _, _, e1⟩
+        · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨y', z, ey, rfl, e2⟩ | ⟨_, _, ey, _⟩ |
+            ⟨_, _, ey, _⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+          rcases lt_atomic_cases kac n with ⟨_, _, ex, ez, e3⟩ | ⟨_, _, ex, _⟩ | ⟨_, _, ex, _⟩ |
+            ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
+          cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
+        · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨_, _, ey, _⟩ | ⟨y', z, ey, rfl, e2⟩ |
+            ⟨_, _, ey, _⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+          rcases lt_atomic_cases kac n with ⟨_, _, ex, _⟩ | ⟨_, _, ex, ez, e3⟩ | ⟨_, _, ex, _⟩ |
+            ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
+          cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
+        · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨_, _, ey, _⟩ | ⟨_, _, ey, _⟩ |
+            ⟨y', z, ey, rfl, e2⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+          rcases lt_atomic_cases kac n with ⟨_, _, ex, _⟩ | ⟨_, _, ex, _⟩ | ⟨_, _, ex, ez, e3⟩ |
+            ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
+          cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
+        · have k5b : kind b = 5 := kab ▸ k5
+          rcases lt_atomic_cases kbc (by omega) with ⟨_, _, ey, _⟩ | ⟨_, _, ey, _⟩ |
+            ⟨_, _, ey, _⟩ | ⟨_, _, _, e2⟩
+          · subst ey; simp [kind, numeralForm] at k5b
+          · subst ey; simp [kind, numeralForm] at k5b
+          · subst ey; simp [kind, numeralForm] at k5b
+          rcases lt_atomic_cases kac n with ⟨_, _, ex, _⟩ | ⟨_, _, ex, _⟩ |
+            ⟨_, _, ex, _⟩ | ⟨_, _, _, e3⟩
+          · subst ex; simp [kind, numeralForm] at k5
+          · subst ex; simp [kind, numeralForm] at k5
+          · subst ex; simp [kind, numeralForm] at k5
+          rw [e1] at h1; rw [e2] at h2; rw [e3]
+          exact G.structural_trans a b c (kids_of ha) (kids_of hb) (kids_of hc) h1 h2
+    · rw [lt_kind_ne kac]; simp
+      rcases Nat.lt_or_ge (kind a) (kind b) with h | h
+      · omega
+      · have : kind a = kind b := le_antisymm k1 h
+        omega
+  total a b ha hb hne := by
+    by_cases k : kind a = kind b
+    · by_cases n : kind a ≤ 1
+      · rw [lt_num k n, lt_num k.symm (k ▸ n)]
+        by_cases v : val a = val b
+        · simp only [v, ne_eq, not_true_eq_false, ↓reduceIte]
+          apply G.structural_total a b (kids_of ha) (kids_of hb) _ hne
+          rintro ⟨ia, ib⟩; exact hne (eq_of_numeral_atoms ia ib k n v)
+        · have v' : val b ≠ val a := fun e => v e.symm
+          simp only [v, v', ne_eq, not_false_eq_true, ↓reduceIte, decide_eq_true_eq]
+          exact lt_or_gt_of_ne v
+      · rcases lt_atomic_cases k n with
+          ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨k5, ⟨g, as, rfl⟩, ⟨g', bs, rfl⟩, e⟩
+        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
+        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
+        · rw [e, lt_atomic k.symm (k ▸ n)]; simp [atomLt]
+          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
+        · rw [e, lt_atomic k.symm (k ▸ n)]; simp only [atomLt, Option.getD_none]
+          exact G.structural_total _ _ (kids_of ha) (kids_of hb) (by simp [isAtom]) hne
+    · rw [lt_kind_ne k, lt_kind_ne (fun e => k e.symm)]
+      simp; omega
+
+theorem good_depth (d : ℕ) : Good (fun t => depth t < d) := by
+  induction d with
+  | zero => exact ⟨fun _ h => absurd h (by omega), fun _ _ _ h => absurd h (by omega),
+      fun _ _ h => absurd h (by omega)⟩
+  | succ d ih => exact good_step d ih
+
+/-! ## O1, O2: Prop. 4 -/
+
+/-- O1: the term order is irreflexive. -/
+theorem O1_irrefl (t : Tree) : lt t t = false :=
+  (good_depth (depth t + 1)).irrefl t (by omega)
+
+/-- O1: the term order is transitive. -/
+theorem O1_trans {a b c : Tree} (h1 : lt a b = true) (h2 : lt b c = true) : lt a c = true :=
+  (good_depth (depth a + depth b + depth c + 1)).trans a b c (by omega) (by omega) (by omega)
+    h1 h2
+
+/-- O2: the term order is total on distinct trees. -/
+theorem O2_total {a b : Tree} (h : a ≠ b) : lt a b = true ∨ lt b a = true :=
+  (good_depth (depth a + depth b + 1)).total a b (by omega) (by omega) h
+
+/-- Prop. 4 in Mathlib's terms: `lt` is a strict total order on trees. -/
+instance : IsStrictTotalOrder Tree (fun a b => lt a b = true) where
+  irrefl a := by simp [O1_irrefl]
+  trans _ _ _ := O1_trans
+  trichotomous a b := by
+    by_cases h : a = b
+    · exact Or.inr (Or.inl h)
+    · rcases O2_total h with h' | h'
+      · exact Or.inl h'
+      · exact Or.inr (Or.inr h')
 
 end FricasSymbolic.Order.Tree
