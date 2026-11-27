@@ -1,4 +1,5 @@
 import FricasSymbolic.RingMirror
+import FricasSymbolic.OrderProofs
 import Mathlib.Algebra.MvPolynomial.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Abel
@@ -665,5 +666,254 @@ theorem rd_rPow (x : Tree) (n : ℕ) : rd (rPow x n) = rd x ^ n := by
     rw [this, rd_numNode, pow_zero, map_one]
   · exact rd_ring1 x _ (· ^ n) (fun al p => by simpa using ev_ppow al p n)
   · exact absurd (Int.natCast_nonneg n) h4
+
+/-! ## Read-back is canonical -/
+
+/-! ### Merging: keys, origins and sums -/
+
+section MergeFacts
+variable {α β : Type*}
+
+/-- The sum of the values with key `t`. -/
+def S [AddCommMonoid β] (k : α → Tree) (l : List (α × β)) (t : Tree) : β :=
+  ((l.filter fun y => k y.1 = t).map (·.2)).sum
+
+theorem S_nil [AddCommMonoid β] (k : α → Tree) (t : Tree) : S k ([] : List (α × β)) t = 0 := by
+  simp [S]
+
+theorem S_cons [AddCommMonoid β] (k : α → Tree) (y : α × β) (l : List (α × β)) (t : Tree) :
+    S k (y :: l) t = (if k y.1 = t then y.2 else 0) + S k l t := by
+  unfold S
+  by_cases h : k y.1 = t <;> simp [List.filter_cons, h]
+
+theorem S_append [AddCommMonoid β] (k : α → Tree) (l l' : List (α × β)) (t : Tree) :
+    S k (l ++ l') t = S k l t + S k l' t := by
+  simp [S, List.filter_append]
+
+theorem S_mins [AddCommMonoid β] (k : α → Tree) (x : α × β) (acc : List (α × β)) (t : Tree) :
+    S k (mins k x acc) t = S k acc t + if k x.1 = t then x.2 else 0 := by
+  induction acc with
+  | nil => simp [mins, S_cons, S_nil]
+  | cons y r ih =>
+    by_cases h : k y.1 = k x.1
+    · simp only [mins, h, ↓reduceIte, S_cons]
+      split_ifs <;> simp_all [add_assoc, add_comm, add_left_comm]
+    · simp only [mins, h, ↓reduceIte, S_cons, ih, add_assoc]
+
+theorem S_foldl [AddCommMonoid β] (k : α → Tree) (l acc : List (α × β)) (t : Tree) :
+    S k (l.foldl (fun acc x => mins k x acc) acc) t = S k acc t + S k l t := by
+  induction l generalizing acc with
+  | nil => simp [S_nil]
+  | cons x l ih => rw [List.foldl_cons, ih, S_mins, S_cons]; abel
+
+theorem mem_mins [Add β] (k : α → Tree) (x : α × β) (acc : List (α × β)) (y : α × β)
+    (hy : y ∈ mins k x acc) : y.1 = x.1 ∨ ∃ z ∈ acc, z.1 = y.1 := by
+  induction acc with
+  | nil => simp [mins] at hy; simp [hy]
+  | cons w r ih =>
+    unfold mins at hy
+    split_ifs at hy with h
+    · rcases List.mem_cons.1 hy with e | e
+      · exact Or.inr ⟨w, by simp, by simp [e]⟩
+      · exact Or.inr ⟨y, by simp [e], rfl⟩
+    · rcases List.mem_cons.1 hy with e | e
+      · exact Or.inr ⟨w, by simp, by simp [e]⟩
+      · rcases ih e with h1 | ⟨z, hz, h2⟩
+        · exact Or.inl h1
+        · exact Or.inr ⟨z, by simp [hz], h2⟩
+
+theorem cover_mins [Add β] (k : α → Tree) (x : α × β) (acc : List (α × β)) (z : α × β)
+    (hz : z ∈ x :: acc) : ∃ y ∈ mins k x acc, k y.1 = k z.1 := by
+  induction acc with
+  | nil => simp at hz; subst hz; exact ⟨z, by simp [mins], rfl⟩
+  | cons w r ih =>
+    unfold mins
+    split_ifs with h
+    · rcases List.mem_cons.1 hz with e | e
+      · subst e; exact ⟨(w.1, w.2 + z.2), by simp, h⟩
+      · rcases List.mem_cons.1 e with e | e
+        · subst e; exact ⟨(z.1, z.2 + x.2), by simp, rfl⟩
+        · exact ⟨z, by simp [e], rfl⟩
+    · rcases List.mem_cons.1 hz with e | e
+      · obtain ⟨y, hy, h'⟩ := ih (by simp [e])
+        exact ⟨y, by simp [hy], h'⟩
+      · rcases List.mem_cons.1 e with e | e
+        · subst e; exact ⟨z, by simp, rfl⟩
+        · obtain ⟨y, hy, h'⟩ := ih (by simp [e])
+          exact ⟨y, by simp [hy], h'⟩
+
+theorem nodup_mins [Add β] (k : α → Tree) (x : α × β) (acc : List (α × β))
+    (hn : (acc.map fun y => k y.1).Nodup) : ((mins k x acc).map fun y => k y.1).Nodup := by
+  induction acc with
+  | nil => simp [mins]
+  | cons w r ih =>
+    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hn
+    unfold mins
+    split_ifs with h
+    · simpa using hn
+    · simp only [List.map_cons, List.nodup_cons, List.mem_map, not_exists, not_and]
+      refine ⟨fun y hy e => ?_, ih hn.2⟩
+      rcases mem_mins k x r y hy with h1 | ⟨z, hz, h2⟩
+      · exact h (by rw [← e, h1])
+      · exact hn.1 z hz (by rw [h2, e])
+
+theorem nodup_foldl [Add β] (k : α → Tree) (l acc : List (α × β))
+    (hn : (acc.map fun y => k y.1).Nodup) :
+    ((l.foldl (fun acc x => mins k x acc) acc).map fun y => k y.1).Nodup := by
+  induction l generalizing acc with
+  | nil => simpa using hn
+  | cons x l ih => exact ih _ (nodup_mins k x acc hn)
+
+theorem origin_foldl [Add β] (k : α → Tree) (l acc : List (α × β)) (y : α × β)
+    (hy : y ∈ l.foldl (fun acc x => mins k x acc) acc) :
+    ∃ z ∈ acc ++ l, z.1 = y.1 := by
+  induction l generalizing acc with
+  | nil => exact ⟨y, by simpa using hy, rfl⟩
+  | cons x l ih =>
+    obtain ⟨z, hz, e⟩ := ih _ hy
+    rcases List.mem_append.1 hz with hz | hz
+    · rcases mem_mins k x acc z hz with h1 | ⟨w, hw, h2⟩
+      · exact ⟨x, by simp, h1 ▸ e⟩
+      · exact ⟨w, by simp [hw], h2.trans e⟩
+    · exact ⟨z, by simp [hz], e⟩
+
+theorem cover_foldl [Add β] (k : α → Tree) (l acc : List (α × β)) (z : α × β)
+    (hz : z ∈ acc ++ l) : ∃ y ∈ l.foldl (fun acc x => mins k x acc) acc, k y.1 = k z.1 := by
+  induction l generalizing acc z with
+  | nil => exact ⟨z, by simpa using hz, rfl⟩
+  | cons x l ih =>
+    rcases List.mem_append.1 hz with hz | hz
+    · obtain ⟨w, hw, e⟩ := cover_mins k x acc z (by simp [hz])
+      obtain ⟨y, hy, e'⟩ := ih (mins k x acc) w (by simp [hw])
+      exact ⟨y, hy, e'.trans e⟩
+    · rcases List.mem_cons.1 hz with e | e
+      · subst e
+        obtain ⟨w, hw, e⟩ := cover_mins k z acc z (by simp)
+        obtain ⟨y, hy, e'⟩ := ih (mins k z acc) w (by simp [hw])
+        exact ⟨y, hy, e'.trans e⟩
+      · exact ih (mins k x acc) z (by simp [e])
+
+theorem S_of_mem [AddCommMonoid β] (k : α → Tree) (r : List (α × β))
+    (hn : (r.map fun y => k y.1).Nodup) (y : α × β) (hy : y ∈ r) : S k r (k y.1) = y.2 := by
+  induction r with
+  | nil => simp at hy
+  | cons w r ih =>
+    simp only [List.map_cons, List.nodup_cons, List.mem_map, not_exists, not_and] at hn
+    rw [S_cons]
+    rcases List.mem_cons.1 hy with e | e
+    · subst e
+      have : S k r (k y.1) = 0 := by
+        unfold S
+        rw [List.filter_eq_nil_iff.2 (fun z hz => by simpa using hn.1 z hz)]
+        simp
+      simp [this]
+    · have h : k w.1 ≠ k y.1 := fun h => hn.1 y e h.symm
+      simp [h, ih hn.2 e]
+
+/-- The merge of `l`: one entry per key, holding the sum of the values with that key. -/
+def R [Add β] (k : α → Tree) (l : List (α × β)) : List (α × β) :=
+  l.foldl (fun acc x => mins k x acc) []
+
+theorem R_val [AddCommMonoid β] (k : α → Tree) (l : List (α × β)) (y : α × β)
+    (hy : y ∈ R k l) : y.2 = S k l (k y.1) := by
+  have h1 := S_of_mem k (R k l) (nodup_foldl k l [] (by simp)) y hy
+  rw [R, S_foldl, S_nil, zero_add] at h1
+  exact h1.symm
+
+end MergeFacts
+
+/-! ### Sorting: the sorted list is determined -/
+
+theorem lt_asymm {a b : Tree} (h : lt a b = true) : lt b a = false := by
+  by_contra h'
+  have := O1_trans h (Bool.not_eq_false _ ▸ h')
+  simp [O1_irrefl] at this
+
+section SortFacts
+variable {α : Type*}
+
+theorem insBy_sorted (k : α → Tree) (a : α) (l : List α)
+    (hl : l.Pairwise fun x y => lt (k y) (k x) = false) :
+    (insBy k a l).Pairwise fun x y => lt (k y) (k x) = false := by
+  induction l with
+  | nil => simp [insBy]
+  | cons b bs ih =>
+    rw [List.pairwise_cons] at hl
+    unfold insBy
+    split_ifs with h
+    · refine List.Pairwise.cons ?_ (List.Pairwise.cons hl.1 hl.2)
+      intro c hc
+      rcases List.mem_cons.1 hc with e | e
+      · subst e; exact lt_asymm h
+      · by_contra h'
+        have := O1_trans (Bool.not_eq_false _ ▸ h') h
+        rw [hl.1 c e] at this; contradiction
+    · refine List.Pairwise.cons ?_ (ih hl.2)
+      intro c hc
+      rcases List.mem_cons.1 ((insBy_perm k a bs).subset hc) with e | e
+      · subst e; simpa using h
+      · exact hl.1 c e
+
+theorem foldr_insBy_sorted (k : α → Tree) (l : List α) :
+    (l.foldr (insBy k) []).Pairwise fun x y => lt (k y) (k x) = false := by
+  induction l with
+  | nil => simp
+  | cons a l ih => exact insBy_sorted k a _ ih
+
+/-- Two lists sorted strictly by key with the same elements are equal. -/
+theorem eq_of_strict (k : α → Tree) : ∀ {l l' : List α},
+    l.Pairwise (fun a b => lt (k a) (k b) = true) →
+    l'.Pairwise (fun a b => lt (k a) (k b) = true) → (∀ x, x ∈ l ↔ x ∈ l') → l = l'
+  | [], [], _, _, _ => rfl
+  | [], b :: _, _, _, h => by simpa using (h b).2 (by simp)
+  | a :: _, [], _, _, h => by simpa using (h a).1 (by simp)
+  | a :: as, b :: bs, hl, hl', h => by
+    rw [List.pairwise_cons] at hl hl'
+    have hab : a = b := by
+      by_contra hne
+      have ha : a ∈ bs := by
+        rcases List.mem_cons.1 ((h a).1 (by simp)) with e | e
+        · exact absurd e hne
+        · exact e
+      have hb : b ∈ as := by
+        rcases List.mem_cons.1 ((h b).2 (by simp)) with e | e
+        · exact absurd e.symm hne
+        · exact e
+      have := O1_trans (hl.1 b hb) (hl'.1 a ha)
+      simp [O1_irrefl] at this
+    subst hab
+    rw [eq_of_strict k hl.2 hl'.2 (fun x => ⟨fun hx => ?_, fun hx => ?_⟩)]
+    · rcases List.mem_cons.1 ((h x).1 (by simp [hx])) with e | e
+      · subst e; have := hl.1 _ hx; simp [O1_irrefl] at this
+      · exact e
+    · rcases List.mem_cons.1 ((h x).2 (by simp [hx])) with e | e
+      · subst e; have := hl'.1 _ hx; simp [O1_irrefl] at this
+      · exact e
+
+/-- Two sorted permutations of each other are equal (keys the trees themselves). -/
+theorem eq_of_perm_sorted : ∀ {l l' : List Tree}, l.Perm l' →
+    l.Pairwise (fun x y => lt y x = false) → l'.Pairwise (fun x y => lt y x = false) → l = l'
+  | [], [], _, _, _ => rfl
+  | [], b :: _, h, _, _ => absurd h.symm (List.Perm.nil_eq ▸ by simp)
+  | a :: _, [], h, _, _ => by simpa using h.length_eq
+  | a :: as, b :: bs, h, hl, hl' => by
+    rw [List.pairwise_cons] at hl hl'
+    have hab : a = b := by
+      by_contra hne
+      have ha : a ∈ bs := by
+        rcases List.mem_cons.1 (h.subset (by simp : a ∈ a :: as)) with e | e
+        · exact absurd e hne
+        · exact e
+      have hb : b ∈ as := by
+        rcases List.mem_cons.1 (h.symm.subset (by simp : b ∈ b :: bs)) with e | e
+        · exact absurd e.symm hne
+        · exact e
+      rcases O2_total hne with h1 | h1
+      · rw [hl'.1 a ha] at h1; contradiction
+      · rw [hl.1 b hb] at h1; contradiction
+    subst hab
+    rw [eq_of_perm_sorted (h.cons_inv) hl.2 hl'.2]
+
+end SortFacts
 
 end FricasSymbolic.RingMirror
