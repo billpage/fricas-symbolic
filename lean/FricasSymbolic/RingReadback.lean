@@ -1038,7 +1038,8 @@ theorem atoms_Lof {al : List Tree} {p : Poly} (hw : WF al p) {x : List (ℕ × �
   obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hz
   have hi := (hw.2 x hx y hy).1
   apply hw.1
-  simp only [List.getD_eq_getElem _ _ hi, List.getElem_mem]
+  rw [← List.getElem_eq_getD (int 0)]
+  exact List.getElem_mem hi
 
 theorem N_Lof_ne_zero {al : List Tree} {p : Poly} (hw : WF al p) {x : List (ℕ × ℕ) × ℚ}
     (hx : x ∈ p) (hne : x.1 ≠ []) : N (Lof al x.1) ≠ 0 := by
@@ -1051,12 +1052,12 @@ theorem N_Lof_ne_zero {al : List Tree} {p : Poly} (hw : WF al p) {x : List (ℕ 
   omega
 
 theorem coeff_sum_monomial (q : Poly) (f : List (ℕ × ℕ) × ℚ → (Tree →₀ ℕ)) (n : Tree →₀ ℕ) :
-    coeff n ((q.map fun x => monomial (f x) x.2).sum)
+    ((q.map fun x => monomial (f x) x.2).sum).coeff n
       = ((q.filter fun x => f x = n).map (·.2)).sum := by
   induction q with
   | nil => simp
   | cons x q ih =>
-    rw [List.map_cons, List.sum_cons, coeff_add, ih, coeff_monomial]
+    rw [List.map_cons, List.sum_cons, AddMonoidAlgebra.coeff_add, Pi.add_apply, ih, coeff_monomial]
     by_cases h : f x = n <;> simp [List.filter_cons, h]
 
 theorem ev_eq {al : List Tree} {p : Poly} (hw : WF al p) :
@@ -1071,12 +1072,14 @@ theorem ev_eq {al : List Tree} {p : Poly} (hw : WF al p) :
     rw [List.map_map]
     apply List.map_congr_left
     intro y hy
-    have := (atoms_Lof hw hx) (al.getD y.1 (int 0), y.2) (List.mem_map.2 ⟨y, hy, rfl⟩)
-    simp [this.1]
+    have h1 : rd (al.getD y.1 (int 0)) = X (al.getD y.1 (int 0)) :=
+      ((atoms_Lof hw hx) (al.getD y.1 (int 0), y.2) (List.mem_map.2 ⟨y, hy, rfl⟩)).1
+    rw [h1]
+    rfl
   rw [this, prod_X, C_mul_monomial, mul_one]
 
 theorem coeff_ev {al : List Tree} {p : Poly} (hw : WF al p) (n : Tree →₀ ℕ) :
-    coeff n (ev al p) = ((p.filter fun x => N (Lof al x.1) = n).map (·.2)).sum := by
+    (ev al p).coeff n = ((p.filter fun x => N (Lof al x.1) = n).map (·.2)).sum := by
   rw [ev_eq hw, coeff_sum_monomial]
 
 /-- The non-constant terms of `p`, with their factor trees, as `fromP` lists them. -/
@@ -1085,12 +1088,13 @@ def tsOf (al : List Tree) (p : Poly) : List (List Tree × ℚ) :=
 
 theorem S_tsOf {al : List Tree} {p : Poly} (hw : WF al p) {L : List (Tree × ℕ)}
     (hL : ∀ z ∈ L, IsAtom z.1) (hN : N L ≠ 0) :
-    S (fun fs => mulChain 1 fs) (tsOf al p) (mulChain 1 (facs L)) = coeff (N L) (ev al p) := by
+    S (fun fs => mulChain 1 fs) (tsOf al p) (mulChain 1 (facs L)) = (ev al p).coeff (N L) := by
   rw [coeff_ev hw]
   unfold S tsOf
   rw [List.filter_map, List.map_map, List.filter_filter]
-  congr 1
-  apply congrArg
+  suffices hf : (p.filter fun a => decide (mulChain 1 (facTrees al a.1) = mulChain 1 (facs L))
+      && decide (a.1 ≠ [])) = p.filter fun x => N (Lof al x.1) = N L by
+    rw [hf]; rfl
   apply List.filter_congr
   intro x hx
   rw [Bool.eq_iff_iff]
@@ -1121,7 +1125,7 @@ theorem mergeT_R (ts : List (List Tree × ℚ)) :
 
 theorem mem_msOf {al : List Tree} {p : Poly} (hw : WF al p) (fs : List Tree) (c : ℚ) :
     (fs, c) ∈ msOf al p ↔ c ≠ 0 ∧ ∃ L : List (Tree × ℕ), (∀ z ∈ L, IsAtom z.1) ∧ N L ≠ 0 ∧
-      fs = facs L ∧ c = coeff (N L) (ev al p) := by
+      fs = facs L ∧ c = (ev al p).coeff (N L) := by
   rw [(msOf_perm al p).mem_iff, mergeT_R, List.mem_filter]
   simp only [ne_eq, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
   have from_ts : ∀ z ∈ tsOf al p, ∃ x ∈ p, x.1 ≠ [] ∧ z = (facs (Lof al x.1), x.2) := by
@@ -1184,9 +1188,9 @@ theorem msOf_sorted (al : List Tree) (p : Poly) :
   · rw [hab] at h; contradiction
 
 theorem c0_eq {al : List Tree} {p : Poly} (hw : WF al p) :
-    (p.filter (·.1 = [])).foldl (fun s t => s + t.2) 0 = coeff 0 (ev al p) := by
+    (p.filter (·.1 = [])).foldl (fun s t => s + t.2) 0 = (ev al p).coeff 0 := by
   rw [foldl_add_snd, zero_add, coeff_ev hw]
-  congr 2
+  suffices hf : p.filter (·.1 = []) = p.filter fun x => N (Lof al x.1) = 0 by rw [hf]
   apply List.filter_congr
   intro x hx
   rw [Bool.eq_iff_iff, decide_eq_true_eq, decide_eq_true_eq]
