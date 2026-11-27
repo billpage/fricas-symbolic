@@ -9,6 +9,8 @@ and not from the Spad code. `Step A` closes them under contexts; `IsNF A t`
 says that no step applies to `t`.
 
 Numerals `n`, `m` of the spec are `.num q`; a numeral "of value 0" is `.num 0`.
+Id contains `-0 → 0` since decision 0012; the flag `A.negzero` (always `true` in the
+package) exists only so that L10 can state the old rule set.
 -/
 
 namespace FricasSymbolic
@@ -22,6 +24,7 @@ inductive Root (A : Ax) : Term → Term → Prop
   | id_add_r (x : Term) : A.id → Root A (.add x (.num 0)) x
   | id_sub_r (x : Term) : A.id → Root A (.sub x (.num 0)) x
   | id_sub_l (x : Term) : A.id → Root A (.sub (.num 0) x) (.neg x)
+  | id_neg_zero : A.id → A.negzero → Root A (.neg (.num 0)) (.num 0)
   | id_mul_l (x : Term) : A.id → Root A (.mul (.num 1) x) x
   | id_mul_r (x : Term) : A.id → Root A (.mul x (.num 1)) x
   | id_div (x : Term) : A.id → Root A (.div x (.num 1)) x

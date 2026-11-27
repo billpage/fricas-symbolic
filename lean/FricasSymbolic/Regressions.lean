@@ -8,12 +8,13 @@ import Mathlib.Tactic.NormNum
 confluent: the step `x + (1+2) → (x+1)+2` by (A) joins two terms whose normal
 forms differ, `x+3` and `(x+1)+2`. With (AN) both normalise to `x+3`.
 
-**L10** (found 2026-11-26 while writing part 1). Spec Theorem 3 claims that every
-union of the groups of `A_P` is confluent. With Id but without Num it is not:
-`0 - 0` rewrites to `0` by `x - 0 → x` and to `-0` by `0 - x → -x`, and both are
-normal forms. The proof of Theorem 3 joins them with Num (`-0 → 0`). FriCAS
-agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form
-`0` and `-0` has form `(- 0)` (run `20261126-184235-id-zero-minus-zero`).
+**L10** (found 2026-11-26 while writing part 1). Spec Theorem 3 claimed that every
+union of the groups of `A_P` is confluent. With Id as it then was (without `-0 → 0`) and
+without Num it is not: `0 - 0` rewrites to `0` by `x - 0 → x` and to `-0` by
+`0 - x → -x`, and both are normal forms. FriCAS agreed (run
+`20261126-184235-id-zero-minus-zero`). Decision 0012 added `-0 → 0` to Id; L10 is now
+the regression for the old rule set (`negzero := false`), and `L10_with_negzero` shows
+that the new rule joins the pair.
 -/
 
 namespace FricasSymbolic
@@ -63,9 +64,10 @@ theorem isNF_num (A : Ax) (q : ℚ) : IsNF A (.num q) := by
   cases h with
   | root r => cases r
 
-/-- L10: with Id and without Num, `0 - 0` has two distinct normal forms. -/
+/-- L10: with Id as before decision 0012 and without Num, `0 - 0` has two distinct
+normal forms. -/
 theorem L10_id_without_num :
-    let A : Ax := {id := true}
+    let A : Ax := {id := true, negzero := false}
     Step A (.sub (.num 0) (.num 0)) (.num 0) ∧
     Step A (.sub (.num 0) (.num 0)) (.neg (.num 0)) ∧
     IsNF A (.num 0) ∧ IsNF A (.neg (.num 0)) ∧
@@ -76,19 +78,28 @@ theorem L10_id_without_num :
     | root r =>
       cases r with
       | num_neg _ h => exact absurd h (by decide)
+      | id_neg_zero _ h => exact absurd h (by decide)
     | neg h' => exact isNF_num _ _ _ h'
   · intro h; cases h
 
-/-- L10, consequence: for `A = {Id}`, terms equal under the axioms can have
-different normal forms, so Theorem 3's "every union of its groups" fails. -/
+/-- L10, consequence: for `A = {Id}` without `-0 → 0`, terms equal under the axioms can
+have different normal forms, so Theorem 3's "every union of its groups" failed. -/
 theorem L10_not_confluent :
-    ¬ ∀ s t, EqA {id := true} s t → nf {id := true} s = nf {id := true} t := by
+    ¬ ∀ s t, EqA {id := true, negzero := false} s t →
+      nf {id := true, negzero := false} s = nf {id := true, negzero := false} t := by
   intro h
-  have e : EqA {id := true} (.num 0) (.neg (.num 0)) :=
+  have e : EqA {id := true, negzero := false} (.num 0) (.neg (.num 0)) :=
     Relation.EqvGen.trans _ _ _
       (Relation.EqvGen.symm _ _ (Relation.EqvGen.rel _ _ (Step.root (Root.id_sub_r _ rfl))))
       (Relation.EqvGen.rel _ _ (Step.root (Root.id_sub_l _ rfl)))
   have := h _ _ e
   simp [nf, sNeg] at this
+
+/-- L10, after decision 0012: with `-0 → 0` in Id, `0 - 0` and `-0` both normalise to `0`,
+without Num. -/
+theorem L10_with_negzero :
+    nf {id := true} (.sub (.num 0) (.num 0)) = .num 0 ∧
+    nf {id := true} (.neg (.num 0)) = .num 0 := by
+  constructor <;> simp [nf, sSub, sNeg, isNum, isLit, nv]
 
 end FricasSymbolic

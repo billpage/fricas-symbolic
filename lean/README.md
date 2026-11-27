@@ -13,7 +13,8 @@ recorded results are in [`../docs/plans/lean-presentation-axioms.md`](../docs/pl
 | `FricasSymbolic/CrossCheck.lean`, `crosscheck/crosscheck.spad` | the differential test against `GeneralSymbolicExpression` |
 | `FricasSymbolic/Soundness.lean` | L1, L2 |
 | `FricasSymbolic/Rewriting.lean` | the rules of the spec as `Root`, `Step`, `IsNF`, `EqA` |
-| `FricasSymbolic/Regressions.lean` | L7, L10 |
+| `FricasSymbolic/Regressions.lean` | L7, L10 (regressions for the rule sets without (AN) and without `-0 → 0`) |
+| `FricasSymbolic/Confluence.lean` | L4, L5, L6, L8, L9: normal forms, termination, confluence (Theorem 3) |
 | `Axioms.lean` | `#print axioms` of the cited theorems (not part of the library) |
 
 **Build.** On STRIX: `lean_build("fricas-symbolic", ref)` on a pushed branch (skill
