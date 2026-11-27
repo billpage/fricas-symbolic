@@ -776,4 +776,233 @@ decreasing_by
 
 end assoc_add
 
+section assoc_mul
+
+variable (A)
+
+theorem sMul_an_path (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) {m : ℚ}
+    (hz : ¬ (A.ann = true ∧ m = 0)) (ho : ¬ (A.id = true ∧ m = 1)) (X : Term) (n : ℚ) :
+    sMul A (.mul X (.num n)) (.num m) = sMul A X (.num (n * m)) := by
+  have g2 : ¬ (A.ann && ((Term.mul X (.num n)).isLit 0 || (Term.num m).isLit 0)) = true := by
+    simpa [isLit, isNum, nv] using hz
+  have g4 : ¬ (A.id && (Term.num m).isLit 1) = true := by simpa [isLit, isNum, nv] using ho
+  conv_lhs => rw [sMul]
+  simp only [g2, g4, Bool.false_eq_true, ↓reduceIte]
+  simp [ha, hn, han, isNum, isLit, isMul, fst, snd, nv]
+
+theorem sMul_plain {X : Term} {n : ℚ} (h1 : X.isNum = false)
+    (h2 : ¬ (X.isMul = true ∧ X.snd.isNum = true)) (hz : ¬ (A.ann = true ∧ n = 0))
+    (ho : ¬ (A.id = true ∧ n = 1)) : sMul A X (.num n) = .mul X (.num n) := by
+  have hl0 : X.isLit 0 = false := by simp [isLit, h1]
+  have hl1 : X.isLit 1 = false := by simp [isLit, h1]
+  have g1 : ¬ (A.num && X.isNum && (Term.num n).isNum) = true := by simp [h1]
+  have g2 : ¬ (A.ann && (X.isLit 0 || (Term.num n).isLit 0)) = true := by
+    simp only [hl0, Bool.false_or]; simpa [isLit, isNum, nv] using hz
+  have g3 : ¬ (A.id && X.isLit 1) = true := by simp [hl1]
+  have g4 : ¬ (A.id && (Term.num n).isLit 1) = true := by simpa [isLit, isNum, nv] using ho
+  have g5 : ¬ (A.assoc && (Term.num n).isMul) = true := by simp [isMul]
+  have g6 : ¬ (A.assoc && A.num && A.an && (Term.num n).isNum && X.isMul && X.snd.isNum) = true := by
+    intro h; simp only [Bool.and_eq_true] at h; exact h2 ⟨h.1.2, h.2⟩
+  rw [sMul]; simp only [g1, g2, g3, g4, g5, g6, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+
+/-- The cases of (AN) for `*` that annihilation or the identity settle, for any `X`. -/
+theorem sMul_an_easy {X : Term} {n m : ℚ}
+    (h : (A.ann = true ∧ n = 0) ∨ (A.ann = true ∧ m = 0) ∨ (A.id = true ∧ n = 1)) :
+    sMul A (sMul A X (.num n)) (.num m) = sMul A X (.num (n * m)) := by
+  rcases h with ⟨hA, rfl⟩ | ⟨hA, rfl⟩ | ⟨hi, rfl⟩
+  · simp only [zero_mul, sMul_zero_r A hA, sMul_zero_l A hA]
+  · simp only [mul_zero, sMul_zero_r A hA]
+  · simp only [one_mul, sMul_one_r A hi]
+
+theorem sMul_an_plain (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) {X : Term}
+    (h1 : X.isNum = false) (h2 : ¬ (X.isMul = true ∧ X.snd.isNum = true)) (n m : ℚ) :
+    sMul A (sMul A X (.num n)) (.num m) = sMul A X (.num (n * m)) := by
+  by_cases he : (A.ann = true ∧ n = 0) ∨ (A.ann = true ∧ m = 0) ∨ (A.id = true ∧ n = 1)
+  · exact sMul_an_easy A he
+  simp only [not_or] at he
+  obtain ⟨hz, hm, ho⟩ := he
+  rw [sMul_plain A h1 h2 hz ho]
+  by_cases hm1 : A.id = true ∧ m = 1
+  · obtain ⟨hi, rfl⟩ := hm1; rw [sMul_one_r A hi, mul_one, sMul_plain A h1 h2 hz ho]
+  · rw [sMul_an_path A ha hn han hm hm1]
+
+/-- (AN) holds for `sMul` on normal forms: `(X · n) · m = X · (n m)`. -/
+theorem sMul_an (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) (X : Term)
+    (hX : IsNF A X) (n m : ℚ) :
+    sMul A (sMul A X (.num n)) (.num m) = sMul A X (.num (n * m)) := by
+  induction X generalizing n m with
+  | num p => rw [sMul_num_num A hn, sMul_num_num A hn, sMul_num_num A hn, mul_assoc]
+  | mul X1 X2 ih1 _ =>
+    by_cases hp : X2.isNum = true
+    · obtain ⟨p, rfl⟩ := isNum_iff.1 hp
+      by_cases he : (A.ann = true ∧ n = 0) ∨ (A.ann = true ∧ m = 0) ∨ (A.id = true ∧ n = 1)
+      · exact sMul_an_easy A he
+      simp only [not_or] at he
+      obtain ⟨hz, hm, ho⟩ := he
+      rw [sMul_an_path A ha hn han hz ho X1 p, ih1 hX.mul_l]
+      have hnm : ¬ (A.ann = true ∧ n * m = 0) := by
+        rintro ⟨hA, h⟩
+        rcases mul_eq_zero.1 h with h | h
+        · exact hz ⟨hA, h⟩
+        · exact hm ⟨hA, h⟩
+      by_cases ho' : A.id = true ∧ n * m = 1
+      · rw [mul_assoc, ho'.2, mul_one, sMul_one_r A ho'.1]
+        exact sMul_eq_of_isNF hX
+      · rw [sMul_an_path A ha hn han hnm ho' X1 p, mul_assoc]
+    · exact sMul_an_plain A ha hn han rfl (by simp [isMul, snd, hp]) n m
+  | _ => exact sMul_an_plain A ha hn han rfl (by simp [isMul]) n m
+
+theorem sMul_mul_right (ha : A.assoc = true) (Z1 Z2 : Term) (hZ : IsNF A (.mul Z1 Z2))
+    (W : Term) : sMul A W (.mul Z1 Z2) = sMul A (sMul A W Z1) Z2 := by
+  by_cases g2 : A.ann = true ∧ W = .num 0
+  · obtain ⟨hA, rfl⟩ := g2; simp only [sMul_zero_l A hA]
+  by_cases g3 : A.id = true ∧ W = .num 1
+  · obtain ⟨hi, rfl⟩ := g3
+    rw [sMul_one_l A hi, sMul_one_l A hi]; exact (sMul_eq_of_isNF hZ).symm
+  have g2' : ¬ (A.ann && (W.isLit 0 || (Term.mul Z1 Z2).isLit 0)) = true := by
+    simpa [isLit_iff] using g2
+  have g3' : ¬ (A.id && W.isLit 1) = true := by simpa [isLit_iff] using g3
+  conv_lhs => rw [sMul]
+  simp only [g2', g3', Bool.false_eq_true, ↓reduceIte]
+  simp [ha, isNum, isLit, isMul, fst, snd]
+
+/-- `sMul` is associative on normal forms (needs (AN) when Num is present). -/
+theorem sMul_assoc (ha : A.assoc = true) (han : A.an = true) (X Y Z : Term)
+    (hX : IsNF A X) (hY : IsNF A Y) (hZ : IsNF A Z) :
+    sMul A X (sMul A Y Z) = sMul A (sMul A X Y) Z := by
+  by_cases c1 : A.num = true ∧ Y.isNum = true ∧ Z.isNum = true
+  · obtain ⟨hn, hy, hz⟩ := c1
+    obtain ⟨p, rfl⟩ := isNum_iff.1 hy
+    obtain ⟨q, rfl⟩ := isNum_iff.1 hz
+    rw [sMul_num_num A hn, sMul_an A ha hn han X hX p q]
+  by_cases c2 : A.ann = true ∧ (Y = .num 0 ∨ Z = .num 0)
+  · obtain ⟨hA, rfl | rfl⟩ := c2 <;> simp only [sMul_zero_l A hA, sMul_zero_r A hA]
+  by_cases c3 : A.id = true ∧ Y = .num 1
+  · obtain ⟨hi, rfl⟩ := c3; rw [sMul_one_l A hi, sMul_one_r A hi]
+  by_cases c4 : A.id = true ∧ Z = .num 1
+  · obtain ⟨hi, rfl⟩ := c4; rw [sMul_one_r A hi, sMul_one_r A hi]
+  by_cases c5 : Z.isMul = true
+  · obtain ⟨Z1, Z2, rfl⟩ := isMul_iff.1 c5
+    rw [sMul_mul_right A ha Z1 Z2 hZ Y, sMul_mul_right A ha Z1 Z2 hZ (sMul A X Y),
+      sMul_assoc ha han X (sMul A Y Z1) Z2 hX (sMul_isNF _ _ hY hZ.mul_l) hZ.mul_r,
+      sMul_assoc ha han X Y Z1 hX hY hZ.mul_l]
+  by_cases c6 : A.num = true ∧ Z.isNum = true ∧ Y.isMul = true ∧ Y.snd.isNum = true
+  · obtain ⟨hn, hz, hy, hys⟩ := c6
+    obtain ⟨m, rfl⟩ := isNum_iff.1 hz
+    obtain ⟨Y1, Y2, rfl⟩ := isMul_iff.1 hy
+    simp only [snd] at hys
+    obtain ⟨n, rfl⟩ := isNum_iff.1 hys
+    have hz3 : ¬ (A.ann = true ∧ m = 0) := fun h => c2 ⟨h.1, Or.inr (by rw [h.2])⟩
+    have ho3 : ¬ (A.id = true ∧ m = 1) := fun h => c4 ⟨h.1, by rw [h.2]⟩
+    rw [sMul_an_path A ha hn han hz3 ho3 Y1 n, sMul_mul_right A ha Y1 (.num n) hY X,
+      sMul_an A ha hn han _ (sMul_isNF _ _ hX hY.mul_l) n m,
+      sMul_assoc ha han X Y1 (.num (n * m)) hX hY.mul_l (IsNF.num _)]
+  · have g1 : ¬ (A.num && Y.isNum && Z.isNum) = true := by
+      intro h; simp only [Bool.and_eq_true] at h; exact c1 ⟨h.1.1, h.1.2, h.2⟩
+    have g2 : ¬ (A.ann && (Y.isLit 0 || Z.isLit 0)) = true := by
+      intro h; simp only [Bool.and_eq_true, Bool.or_eq_true, isLit_iff] at h; exact c2 h
+    have g3 : ¬ (A.id && Y.isLit 1) = true := by simpa [isLit_iff] using c3
+    have g4 : ¬ (A.id && Z.isLit 1) = true := by simpa [isLit_iff] using c4
+    have g5 : ¬ (A.assoc && Z.isMul) = true := by
+      intro h; simp only [Bool.and_eq_true] at h; exact c5 h.2
+    have g6 : ¬ (A.assoc && A.num && A.an && Z.isNum && Y.isMul && Y.snd.isNum) = true := by
+      intro h; simp only [Bool.and_eq_true] at h
+      exact c6 ⟨h.1.1.1.1.2, h.1.1.2, h.1.2, h.2⟩
+    have e : sMul A Y Z = .mul Y Z := by
+      rw [sMul]; simp only [g1, g2, g3, g4, g5, g6, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    have hYZ : IsNF A (.mul Y Z) := e ▸ sMul_isNF _ _ hY hZ
+    rw [e, sMul_mul_right A ha Y Z hYZ X]
+termination_by (Z.size, Y.size)
+decreasing_by
+  all_goals
+    subst_vars
+    first
+      | exact Prod.Lex.left _ _ (by simp only [size]; omega)
+      | exact Prod.Lex.right' _ (by simp [size]) (by simp only [size]; omega)
+
+end assoc_mul
+
+/-! ## L5: a step does not change the normal form -/
+
+/-- Each root rule of the spec preserves `nf`. Hypotheses: Id comes with Num (L10), and (AN)
+is on (L7). -/
+theorem L5_root (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+    (r : Root A s t) : nf A s = nf A t := by
+  cases r with
+  | id_add_l x hi => simp only [nf]; exact sAdd_zero_l A hi _
+  | id_add_r x hi => simp only [nf]; exact sAdd_zero_r A hi _
+  | id_sub_r x hi => simp only [nf]; exact sSub_zero_r A hi _
+  | id_sub_l x hi => simp only [nf]; exact sSub_zero_l A hi (hid hi) _
+  | id_mul_l x hi => simp only [nf]; exact sMul_one_l A hi _
+  | id_mul_r x hi => simp only [nf]; exact sMul_one_r A hi _
+  | id_div x hi => simp only [nf]; exact sDiv_one_r A hi _
+  | id_pow1 x hi => simp only [nf]; exact sPow_one A hi _
+  | id_pow0 x hi => simp only [nf]; exact sPow_zero A hi _
+  | ann_l x h => simp only [nf]; exact sMul_zero_l A h _
+  | ann_r x h => simp only [nf]; exact sMul_zero_r A h _
+  | inv_neg x h => simp only [nf]; exact sNeg_sNeg A h (L4_nf_isNF x)
+  | inv_div x h => simp only [nf]; exact sDiv_inv A h (L4_nf_isNF x)
+  | num_add p q h => simp only [nf]; exact sAdd_num_num A h p q
+  | num_sub p q h => simp only [nf]; unfold sSub; simp [h, isNum, nv]
+  | num_mul p q h => simp only [nf]; exact sMul_num_num A h p q
+  | num_neg p h => simp only [nf]; unfold sNeg; simp [h, isNum, nv]
+  | num_div p q h hq => simp only [nf]; unfold sDiv; simp [h, hq, isNum, nv]
+  | num_pow p n h hp =>
+    simp only [nf]; unfold sPow
+    have : (!((Term.num p).nv == 0 && decide (n < 0))) = true := by
+      simpa [nv, not_and, not_lt] using hp
+    simp [h, isNum, this, nv]
+  | assoc_add x y z ha =>
+    simp only [nf]
+    exact sAdd_assoc A ha han _ _ _ (L4_nf_isNF x) (L4_nf_isNF y) (L4_nf_isNF z)
+  | assoc_mul x y z ha =>
+    simp only [nf]
+    exact sMul_assoc A ha han _ _ _ (L4_nf_isNF x) (L4_nf_isNF y) (L4_nf_isNF z)
+  | an_add x n m ha hn han' =>
+    simp only [nf]; exact sAdd_an A ha hn han' _ (L4_nf_isNF x) n m
+  | an_mul x n m ha hn han' =>
+    simp only [nf]; exact sMul_an A ha hn han' _ (L4_nf_isNF x) n m
+
+/-- L5: one step does not change the normal form. -/
+theorem L5_step (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+    (h : Step A s t) : nf A s = nf A t := by
+  induction h with
+  | root r => exact L5_root hid han r
+  | add_l b _ ih | sub_l b _ ih | mul_l b _ ih | div_l b _ ih => simp only [nf, ih]
+  | add_r a _ ih | sub_r a _ ih | mul_r a _ ih | div_r a _ ih => simp only [nf, ih]
+  | neg _ ih | pow n _ ih => simp only [nf, ih]
+
+/-- L5: terms equal under the axioms have the same normal form (Theorem 3). -/
+theorem L5_eqA (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+    (h : EqA A s t) : nf A s = nf A t := by
+  induction h with
+  | rel _ _ h => exact L5_step hid han h
+  | refl => rfl
+  | symm _ _ _ ih => exact ih.symm
+  | trans _ _ _ _ _ ih1 ih2 => exact ih1.trans ih2
+
+theorem Steps.to_eqA {s t : Term} (h : Steps A s t) : EqA A s t := by
+  induction h with
+  | refl => exact EqvGen.refl _
+  | tail _ h ih => exact EqvGen.trans _ _ _ ih (EqvGen.rel _ _ h)
+
+/-- Theorem 3 as a decision procedure: `s =_A t` exactly when `nf A s = nf A t`. -/
+theorem eqA_iff_nf_eq (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term} :
+    EqA A s t ↔ nf A s = nf A t := by
+  refine ⟨L5_eqA hid han, fun h => ?_⟩
+  have hs := Steps.to_eqA (L8_steps_to_nf (A := A) s)
+  have ht := Steps.to_eqA (L8_steps_to_nf (A := A) t)
+  rw [h] at hs
+  exact EqvGen.trans _ _ _ hs (EqvGen.symm _ _ ht)
+
+/-- Church–Rosser: terms equal under the axioms rewrite to a common term. -/
+theorem church_rosser (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+    (h : EqA A s t) : ∃ u, Steps A s u ∧ Steps A t u :=
+  ⟨nf A s, L8_steps_to_nf s, L5_eqA hid han h ▸ L8_steps_to_nf t⟩
+
+/-- Unique normal forms: two normal forms equal under the axioms are the same term. -/
+theorem unique_nf (hid : A.id = true → A.num = true) (han : A.an = true) {s t : Term}
+    (hs : IsNF A s) (ht : IsNF A t) (h : EqA A s t) : s = t := by
+  rw [← L6_nf_of_isNF hs, ← L6_nf_of_isNF ht]; exact L5_eqA hid han h
+
 end FricasSymbolic
