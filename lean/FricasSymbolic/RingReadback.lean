@@ -952,8 +952,8 @@ theorem prod_X (L : List (Tree × ℕ)) :
   induction L with
   | nil => simp [N]
   | cons x L ih =>
-    simp only [List.map_cons, List.prod_cons, ih, X_pow_eq_monomial, monomial_mul, one_mul, N,
-      List.sum_cons]
+    rw [List.map_cons, List.prod_cons, ih, X_pow_eq_monomial, monomial_mul_monomial, one_mul]
+    simp [N]
 
 theorem mem_mergeN (L : List (Tree × ℕ)) (x : Tree × ℕ) :
     x ∈ mergeN L ↔ x.2 = N L x.1 ∧ x.2 ≠ 0 := by
@@ -966,7 +966,7 @@ theorem mem_mergeN (L : List (Tree × ℕ)) (x : Tree × ℕ) :
   · rintro ⟨hv, h0⟩
     have : ∃ z ∈ L, z.1 = x.1 := by
       by_contra hne
-      push_neg at hne
+      simp only [not_exists, not_and] at hne
       apply h0
       rw [hv]
       unfold S
@@ -983,7 +983,7 @@ theorem mem_mergeN (L : List (Tree × ℕ)) (x : Tree × ℕ) :
 theorem nodup_mergeN (L : List (Tree × ℕ)) : (mergeN L).Nodup := by
   have h := nodup_foldl id L [] (by simp)
   apply List.Nodup.of_map Prod.fst
-  exact (h.sublist ((List.filter_sublist _).map _))
+  exact h.sublist (List.Sublist.map _ List.filter_sublist)
 
 theorem facs_congr {L L' : List (Tree × ℕ)} (h : N L = N L') : facs L = facs L' := by
   have hp : (mergeN L).Perm (mergeN L') :=
