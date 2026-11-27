@@ -41,3 +41,4 @@ What this commits the package to, and what it rules out.
 | [0010](0010-float-numerals.md) | Floats are numerals | Accepted, 2026-11-26 |
 | [0011](0011-bridge-by-evaluation.md) | The bridge: evaluation by the universal property | Accepted, 2026-11-26 |
 | [0012](0012-minus-zero.md) | Id contains the rule −0 → 0 | Accepted, 2026-11-26 |
+| [0013](0013-group-rules.md) | The rules of each axiom group are listed in the spec | Accepted, 2026-11-27 |

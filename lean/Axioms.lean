@@ -48,3 +48,9 @@ import FricasSymbolic
 #print axioms FricasSymbolic.RingMirror.rd_nfR
 #print axioms FricasSymbolic.RingMirror.NF_nfR
 #print axioms FricasSymbolic.RingMirror.nfR_eq_iff
+#print axioms FricasSymbolic.E1_root
+#print axioms FricasSymbolic.E1_ladder
+#print axioms FricasSymbolic.E1_step
+#print axioms FricasSymbolic.E1_steps
+#print axioms FricasSymbolic.quo_add_reversed_unsound
+#print axioms FricasSymbolic.anticommutative_unsound
