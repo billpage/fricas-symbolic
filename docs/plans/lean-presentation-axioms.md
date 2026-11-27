@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. R4 and E2 are proved (§5.5): Ring terms are equal under the axioms exactly when they are the same polynomial, and `eval` is the universal map. The mirror of the Spad Ring normaliser agrees with FriCAS on 2,700 random terms, and its two theorems are proved (§5.5): its read-back is correct and canonical, so with R4 the mirror decides the theory `Ring`. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. R4 and E2 are proved (§5.5): Ring terms are equal under the axioms exactly when they are the same polynomial, and `eval` is the universal map. The mirror of the Spad Ring normaliser agrees with FriCAS on 2,700 random terms, and its two theorems are proved (§5.5): its read-back is correct and canonical, so with R4 the mirror decides the theory `Ring`. E1 is proved (§6.1): every axiom group of decision 0009 is sound for partial evaluation. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -265,7 +265,7 @@ The polynomial arithmetic is naive (lists of terms), because `linBuild` merges e
 
 **Differential test** (`RingMirror.Check`; `lean/crosscheck/ringcheck.spad`). The same pseudo-random terms are built on both sides: symbols, numerals, $`+`$, $`-`$, $`\cdot`$, division by a numeral, division by a nonzero term (an atom of the rung), and powers with exponents $`-1`$ to $`3`$ (negative exponents are atoms). For $`A_1`$ = `[commutativity, associativity, identities, numerals, linear, powers, ring]` and $`A_2 = A_1`$ + `[annihilation, involutions]`, seeds 20261126, 7 and 42, 300 terms of depth 3 and 150 of depth 4, the checksums of the printed forms agree: 2,700 terms (runs `20261127-141927-ringcheck-fricas`, `…-141928-ringmirror-crosscheck`). The spec's examples agree too: $`x(x+1)`$ gives `x+x^2`, $`(x+1)(x-1)`$ gives `x^2-1`, $`y-2x+1`$ gives `(-(2*x))+y+1` (run `…-141846-ringcheck-probe`). An earlier mismatch came from Lisp's printer, which labels a subtree that occurs twice (`#1=(/ y z)` … `#1#`); the Spad helper now prints forms itself.
 
-**Read-back: recorded results** (`RingReadback.lean`, 2026-11-27). Branch `claude/lean-ring-readback`, commit `49d2efa`, Lean 4.36.0 and Mathlib v4.36.0. `lean_build` status `ok` (log `20261127-150004-build-fricas-symbolic`); `#print axioms` of each theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261127-150021-ringreadback-axioms`).
+**Read-back: recorded results** (`RingReadback.lean`, 2026-11-27). Merged to `main` as `6c6d70b` (PR #25, from commit `49d2efa` on `claude/lean-ring-readback`), Lean 4.36.0 and Mathlib v4.36.0. `lean_build` status `ok` at `6c6d70b` (log `20261127-151546-build-fricas-symbolic`; at `49d2efa`, log `20261127-150004-build-fricas-symbolic`); `#print axioms` of each theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261127-150021-ringreadback-axioms`).
 
 A tree is read as a polynomial by `rd : Tree → MvPolynomial Tree ℚ`, clause by clause as `toF`, with the variable $`X_t`$ at an atom $`t`$. An *atom of the rung* (`IsAtom`) is a tree that reads back as its own variable. A polynomial `p` over the atom list `al` is *well formed* (`WF`) when the trees of `al` are atoms of the rung, its indices are in range and its exponents are positive, as `toF` produces them. A *normal form* (`NF`) is `fromP al p` for a well-formed `p`.
 
@@ -294,6 +294,33 @@ These theorems are short once the definitions of parts 1 and 3 exist, and they c
 | E4 | Without commutativity, evaluation into any ring (with `Algebra ℚ D` if numerals occur) respects the theory of `[associativity, identities]`; matrices are an instance | the matrix example of the tests |
 
 E1 is part 1's L1 extended to the ladder's groups. E2 is the universal property of `MvPolynomial`. It is the precise form of decision 0011's statement that `SymbolicTerm(R, A)` is free in the variety of $`A`$.
+
+### 6.1 E1: recorded results (2026-11-27)
+
+Branch `claude/lean-e1`, `Groups.lean`, commit `32e28aa`, Lean 4.36.0 and Mathlib v4.36.0. `lean_build` status `ok` (log `20261127-152212-build-fricas-symbolic`); `#print axioms` of each theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261127-152218-axioms-e1`).
+
+**The axioms of the groups.** Part 1's `Root` lists the rules of `identities`, `annihilation`, `involutions`, `numerals` and `associativity` (with (AN)). Spec §3.4 names the axioms of the other groups without listing them, so `Ladder` gives the Lean reading, from the spec's tables and checked against the clauses of `gsexpr.spad` that each group enables ($`n, m`$ numerals):
+
+| Group | Rules (oriented as the normaliser applies them) |
+|---|---|
+| `commutativity` | $`x+y \to y+x`$, $`x\cdot y \to y\cdot x`$ |
+| `linear` | $`x-y \to x+(-1)\cdot y`$, $`-x \to (-1)\cdot x`$, $`n\cdot x+m\cdot x \to (n+m)\cdot x`$, $`n\cdot(m\cdot x) \to (nm)\cdot x`$, $`n\cdot(x+y) \to n\cdot x+n\cdot y`$, $`0\cdot x \to 0`$. Division is not linear: $`x/2`$ is an atom |
+| `powers` | $`x^m x^n \to x^{m+n}`$, $`(x^m)^n \to x^{mn}`$, $`(xy)^n \to x^n y^n`$, for $`m, n \ge 0`$ |
+| `quotients` | $`x/y \to x\cdot y^{-1}`$, and the three power rules for all $`m, n \in \mathbb{Z}`$; Divides follows: $`x\cdot x^{-1} = x^1 x^{-1} \to x^0 \to 1`$ |
+| `ring` | $`x\cdot(y+z) \to x\cdot y+x\cdot z`$; $`x/q \to q^{-1}\cdot x`$ for a numeral $`q \ne 0`$ |
+| `field` | no rule of its own: with `ring` and `quotients` it is the theory of reduced fractions, and it lets those two groups be used together (decision 0009, amended) |
+
+| Lean | What it says |
+|---|---|
+| `E1_root` | every instance of every rule of part 1's groups refines evaluation: where the left side has a value in a field of characteristic 0, the right side has the same value |
+| `E1_ladder` | the same for every rule of `Ladder` |
+| `E1_step`, `E1_steps` | the same for one step, and for any number of steps, of any union of the groups, at any position (`GStep`): Lemma 1 in its oriented form, and (N3) for any normaliser whose result is reached by such steps |
+| `quo_add_reversed_unsound` | must fail: read right to left, `quo_add` turns the defined $`0^0`$ into the undefined $`0^1\cdot 0^{-1}`$, so the orientation matters |
+| `anticommutative_unsound` | must fail: the 2017 AntiCommutative axiom $`x\cdot y \to -(y\cdot x)`$ is unsound, which is why it has no group |
+
+**Side conditions.** Only rules that divide or take a negative power need care, and there "the left side is defined" is exactly the condition needed. For example, $`x^m x^n \to x^{m+n}`$ with $`x = 0`$ is defined only for $`m, n \ge 0`$, where $`0^{m+n} = 0^m 0^n`$ ($`0^0 = 1`$, as in FriCAS). $`(x^m)^n \to x^{mn}`$ with $`x = 0`$ and $`m > 0`$ needs $`n \ge 0`$ on the left, since $`0^m = 0`$. No rule needs $`x \ne 0`$ as an extra hypothesis.
+
+**For the spec.** The table above could replace the group names in spec §3.4 ("Axiom groups and admissible sets"), so that the spec, the Spad code and Lean list the same rules. That is a change to what the constructors promise, so it is for Bill to decide (AGENTS.md).
 
 ## 7. Repository layout and environment
 

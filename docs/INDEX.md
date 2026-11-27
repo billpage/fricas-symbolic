@@ -22,7 +22,7 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | Label | Section | Says | Standing | Tests |
 |---|---|---|---|---|
 | (S) | §2.3 | Soundness of an axiom set for `Expression` | Definition | — |
-| Lemma 1 | §2.3 | (S) implies $`=_A \subseteq \equiv`$ | Proved | — |
+| Lemma 1 | §2.3 | (S) implies $`=_A \subseteq \equiv`$ | Proved; in Lean, oriented, for every group of decision 0009: `E1_root`, `E1_ladder`, `E1_steps` (plan §6.1) | Lean: `quo_add_reversed_unsound`, `anticommutative_unsound` (must fail) |
 | (T), (CR) | §2.4 | Termination; confluence | Definitions | — |
 | (Disp) | §5 | The one-line display reads back as the stored form | Required (Bill, 2026-11-26); holds for the 28 shapes and 12 mixed integer cases tested, for negative numerals since decision 0010, and for float numerals by construction | gsexpr: "Disp: the displayed text reads back as the stored form", "negative numerals read back", "floats as numerals in GeneralSymbolicExpression(Float, A_P)"; symterm: "floats as numerals in SymbolicTerm(Float, A)" |
 | (Val) | §3.3 | Invariant: value = evaluation of form | Required of design (I) | gsexpr: `check` in "integration is correct", "summation and limits are correct", "rewrite rules …", "presentation axioms A_P" |
