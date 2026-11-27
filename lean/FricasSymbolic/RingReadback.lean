@@ -1057,8 +1057,10 @@ theorem coeff_sum_monomial (q : Poly) (f : List (ℕ × ℕ) × ℚ → (Tree �
   induction q with
   | nil => simp
   | cons x q ih =>
-    rw [List.map_cons, List.sum_cons, AddMonoidAlgebra.coeff_add, Pi.add_apply, ih, coeff_monomial]
-    by_cases h : f x = n <;> simp [List.filter_cons, h]
+    rw [List.map_cons, List.sum_cons]
+    simp only [AddMonoidAlgebra.coeff_add, Pi.add_apply]
+    rw [ih, coeff_monomial]
+    by_cases h : f x = n <;> simp [h]
 
 theorem ev_eq {al : List Tree} {p : Poly} (hw : WF al p) :
     ev al p = (p.map fun x => monomial (N (Lof al x.1)) x.2).sum := by
@@ -1091,11 +1093,9 @@ theorem S_tsOf {al : List Tree} {p : Poly} (hw : WF al p) {L : List (Tree × ℕ
     S (fun fs => mulChain 1 fs) (tsOf al p) (mulChain 1 (facs L)) = (ev al p).coeff (N L) := by
   rw [coeff_ev hw]
   unfold S tsOf
-  rw [List.filter_map, List.map_map, List.filter_filter]
-  suffices hf : (p.filter fun a => decide (mulChain 1 (facTrees al a.1) = mulChain 1 (facs L))
-      && decide (a.1 ≠ [])) = p.filter fun x => N (Lof al x.1) = N L by
-    rw [hf]; rfl
-  apply List.filter_congr
+  rw [List.filter_map, List.map_map, List.filter_filter,
+    List.filter_congr (q := fun x => decide (N (Lof al x.1) = N L)) ?_]
+  · rfl
   intro x hx
   rw [Bool.eq_iff_iff]
   simp only [Function.comp_apply, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
@@ -1137,10 +1137,11 @@ theorem mem_msOf {al : List Tree} {p : Poly} (hw : WF al p) (fs : List Tree) (c 
   · rintro ⟨hm, hc⟩
     obtain ⟨z, hz, e⟩ := origin_foldl _ _ [] _ hm
     obtain ⟨x, hx, hne, rfl⟩ := from_ts z (by simpa using hz)
-    refine ⟨hc, Lof al x.1, atoms_Lof hw hx, N_Lof_ne_zero hw hx hne, e.symm, ?_⟩
-    rw [R_val _ _ _ hm]
     simp only at e
-    rw [← e, S_tsOf hw (atoms_Lof hw hx) (N_Lof_ne_zero hw hx hne)]
+    refine ⟨hc, Lof al x.1, atoms_Lof hw hx, N_Lof_ne_zero hw hx hne, e.symm, ?_⟩
+    have hv := R_val _ _ _ hm
+    simp only at hv
+    rw [hv, ← e, S_tsOf hw (atoms_Lof hw hx) (N_Lof_ne_zero hw hx hne)]
   · rintro ⟨hc, L, hL, hN, rfl, hcv⟩
     have hf : (p.filter fun x => N (Lof al x.1) = N L) ≠ [] := by
       intro h0
