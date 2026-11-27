@@ -1,0 +1,76 @@
+)abbrev package LNORD LeanOrderCheck
+++ Description:
+++ Differential test of the Lean term order (lean/FricasSymbolic/Order.lean)
+++ against smaller? of SymbolicTermOrder: the same pseudo-random InputForm
+++ trees, all ordered pairs, the count of true results and a checksum.
+LeanOrderCheck() : with
+    run : (Integer, Integer, Integer) -> List Integer
+      ++ run(s0, n, d) builds n trees of depth d from seed s0 and returns
+      ++ [n, number of true comparisons, checksum].
+  == add
+    INF ==> InputForm
+    st : Reference Integer := ref 0
+    nxt() : Integer ==
+        setref(st, (deref st * 1103515245 + 12345) rem 2147483648)
+        deref st
+    pick(n : Integer) : Integer == (nxt() quo 65536) rem n
+    sy(s : Symbol) : INF == convert(s)$INF
+    it(n : Integer) : INF == convert(n)$INF
+    syms : List Symbol := ['x, 'y, 'X, 'a, 'float, '_-]
+    heads : List Symbol := ['_+, '_*, '_-, '_/, 'sin, 'f]
+    strs : List String := ["", "a", "B", "ab"]
+    flts : List DoubleFloat := [2.5, -0.75, 0.5, 1.5, -1.5]
+    leaf() : INF ==
+        j := pick 9
+        j = 0 => it(pick 7 - 3)
+        j = 1 => it(pick 3)
+        j = 2 => convert(flts.(pick 5 + 1))$INF
+        j = 3 or j = 4 => sy(syms.(pick 6 + 1))
+        j = 5 => convert(strs.(pick 4 + 1))$INF
+        j = 6 => it 2
+        j = 7 => convert(0.5::DoubleFloat)$INF
+        sy 'x
+    gen(d : Integer) : INF ==
+        d = 0 => leaf()
+        k := pick 10
+        k = 4 =>
+            a := gen(d - 1)
+            convert([sy '_-, a])$INF
+        k = 5 =>
+            a := pick 7 - 3
+            b := pick 5 - 2
+            convert([sy '_/, it a, it b])$INF
+        k = 6 =>
+            m := pick 7 - 3
+            e := pick 5 - 2
+            b := pick 4
+            convert([sy 'float, it m, it e, it b])$INF
+        k = 7 =>
+            m := pick 7 - 3
+            e := pick 5 - 2
+            fh := convert([sy '_$elt, sy 'DoubleFloat, sy 'float])$INF
+            convert([fh, it m, it e, it 2])$INF
+        k = 8 =>
+            h := gen(d - 1)
+            n := pick 3
+            args : List INF := [gen(d - 1) for i in 1..n]
+            convert(cons(h, args))$INF
+        k = 9 =>
+            h := sy(heads.(pick 6 + 1))
+            n := pick 3
+            args : List INF := [gen(d - 1) for i in 1..n]
+            convert(cons(h, args))$INF
+        leaf()
+    run(s0 : Integer, n : Integer, d : Integer) : List Integer ==
+        setref(st, s0)
+        ts : List INF := [gen d for i in 1..n]
+        h : Integer := 0
+        c : Integer := 0
+        for a in ts repeat
+            for b in ts repeat
+                if smaller?(a, b)$SymbolicTermOrder then
+                    c := c + 1
+                    h := (h * 3 + 2) rem 1000000007
+                else
+                    h := (h * 3 + 1) rem 1000000007
+        [n, c, h]
