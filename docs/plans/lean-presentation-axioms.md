@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. Next: Ring and the bridge (R4, E2). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 9,800 random terms. Theorem 3 holds for every axiom set the package offers, now that decision 0012 adds $`-0\to 0`$ to Id; L10 is the regression for the rule set before it. Part 2 is done (§4.1): Prop. 4, the term order is a strict total order, float numerals included. R4 and E2 are proved (§5.5): Ring terms are equal under the axioms exactly when they are the same polynomial, and `eval` is the universal map. Next: the mirror of the Spad Ring normaliser (§5.5). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -236,6 +236,31 @@ R1–R6 prove that the *mathematical* normaliser $`\mathrm{rb} \circ \varphi`$ i
 - **Nested atoms**, for P1–P4 and M1–M5: atoms of one operator that contain the other, e.g. $`x \cdot (y+1)`$ as an atom of $`+`$ under `linear` without `ring`. The canonical forms are then nested multisets and finite supports, which Mathlib does not have as one type.
 - **Operator applications** as atoms whose arguments are normal forms, e.g. $`\sin(x + x) = \sin(2x)`$ under `linear`.
 - **The admissibility amendment** of decision 0009: with `ring` and `quotients` but without `field`, the incremental normaliser gives $`(y+1)^{-1}(y+1)`$ and $`1`$ for equal terms. Stating this needs the mirrored normaliser of §5.3, option 2.
+
+### 5.5 R4 and E2: recorded results (2026-11-27)
+
+Branch `claude/lean-ring` (on top of `claude/lean-order`), `Ring.lean`. `lean_build` status `ok` at `b9a5203` (log `20261127-140417-build-fricas-symbolic`); `#print axioms` lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261127-140440-axioms-r4-e2`).
+
+**Terms and axioms.** `RTerm σ` has numerals, atoms, $`+`$, $`-`$ (binary and unary), $`\cdot`$, powers with exponent in $`\mathbb{N}`$, and division by a numeral (`divn`). These are exactly the operations the Spad Ring rung reads as polynomial operations (`toF`; anything else is an atom). `Step` is the standard presentation of commutative $`\mathbb{Q}`$-algebras: associativity, commutativity and identities of $`+`$ and $`\cdot`$; $`-x + x \to 0`$; $`x - y \to x + (-y)`$; $`0\cdot x \to 0`$; distributivity; numeral folding of $`+`$ and $`\cdot`$; $`x^0 \to 1`$, $`x^{n+1} \to x^n\cdot x`$; $`x/q \to x\cdot q^{-1}`$ for a numeral $`q \ne 0`$. Each rule is a law of the groups that `ring` requires (§3.4 of the spec names them only by group, so this list is the Lean reading of "the axioms of the rung `ring`").
+
+| No. | Lean | What it says |
+|---|---|---|
+| R4 | `R4_equiv_iff` | for terms without division by the numeral $`0`$ (`Defined`): $`s =_{\mathrm{Ring}} t \iff \varphi(s) = \varphi(t)`$ in `MvPolynomial σ ℚ` |
+| — | `phi_equiv` | "→" alone, for all terms: every axiom holds in the polynomial ring |
+| — | `psi_phi` | $`\psi(\varphi(t)) = [t]`$, where $`\psi = `$ `aeval (atom ·)` maps into the terms modulo the axioms |
+| E2 | `E2_eval_eq_aeval` | for every `[CommRing D] [Algebra ℚ D]` and `f : σ → D`: evaluating a term in `D` equals `aeval f (φ t)` |
+| E2 | `E2_eval_respects` | evaluation respects $`=_{\mathrm{Ring}}`$, so `eval` is well defined on the quotient |
+| E2 | `E2_unique` | `aeval f` is the only $`\mathbb{Q}`$-algebra map from `MvPolynomial σ ℚ` to `D` extending `f` |
+
+**How the proof goes.** The terms modulo the axioms form a commutative ring `Q σ`: each ring law is one axiom, or two composed. With numerals, `Q σ` is a $`\mathbb{Q}`$-algebra, since `num_add` and `num_mul` make $`q \mapsto [q]`$ a ring map. The universal property of `MvPolynomial` gives $`\psi`$, and $`\psi(\varphi(t)) = [t]`$ by induction on $`t`$. So $`\varphi(s) = \varphi(t)`$ gives $`[s] = [t]`$. No read-back is needed for R4 itself. The restriction to `Defined` terms is necessary: $`x/0`$ and $`0`$ have the same image under Mathlib's total division, but no axiom relates them.
+
+**In words.** Two Ring terms are equal under the Ring axioms exactly when they are the same polynomial over $`\mathbb{Q}`$ in their atoms: $`\mathbb{Q}[\sigma]`$ is the free commutative $`\mathbb{Q}`$-algebra. And for any commutative ring `D` containing $`\mathbb{Q}`$, evaluation of terms is well defined modulo the axioms and is the unique algebra map extending the values of the atoms. That is decision 0011's `eval` for the rung `ring`, with exactly the categories `SymbolicTermFunctions2` checks.
+
+**Next for the Ring rung: the mirror** (§5.3, option 2). The Spad constructors are `fromF ∘ op ∘ toF`. So the mirror is:
+1. a computable canonical polynomial type over the atoms, with `toF`;
+2. `fromF` restricted to constant denominators (`linOf`, `linBuild`, `prodBuild`), producing the Spad trees in the order of part 2;
+3. a differential test against `GeneralSymbolicExpression(Integer, [..., ring])`;
+4. the theorems that the canonical type is injective into `MvPolynomial` and that $`\varphi`$ of the read-back is the polynomial. With R4, these give (N1) and (N2) for the Spad Ring normaliser.
 
 ## 6. Part 4: soundness and the bridge
 

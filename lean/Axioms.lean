@@ -32,3 +32,7 @@ import FricasSymbolic
 #print axioms FricasSymbolic.Order.Tree.O1_trans
 #print axioms FricasSymbolic.Order.Tree.O2_total
 #print axioms FricasSymbolic.Order.Tree.isStrictTotalOrder
+#print axioms FricasSymbolic.Ring.R4_equiv_iff
+#print axioms FricasSymbolic.Ring.E2_eval_eq_aeval
+#print axioms FricasSymbolic.Ring.E2_eval_respects
+#print axioms FricasSymbolic.Ring.E2_unique
