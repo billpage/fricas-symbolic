@@ -350,6 +350,13 @@ y : SymbolicTerm(Float, [commutativity, associativity, identities, numerals, lin
 testTrue("(eval(1.5*y + 0.25, (s : Symbol) : Float +-> 2.0)$SymbolicTermFunctions2(Float, [commutativity, associativity, identities, numerals, linear], Float) = 3.25)@Boolean")
 testTrue("(eval(1.5*y + 0.25, (s : Symbol) : Expression(Float) +-> s::Expression(Float))$SymbolicTermFunctions2(Float, [commutativity, associativity, identities, numerals, linear], Expression(Float)) = (1.5*y + 0.25)::Expression(Float))@Boolean")
 
+testcase "Id: -0 -> 0 in SymbolicTerm (decision 0012)"
+z : SymbolicTerm(Integer, [identities]) := 0
+testTrue("(z - z = -z)@Boolean")
+testTrue("(unparse(form(-z)) = _"0_")@Boolean")
+w : SymbolicTerm(Integer, []) := 0
+testTrue("not (w - w = -w)@Boolean")
+
 testcase "admissibility (spec 3.4, decision 0009)"
 -- unknown group; ring with quotients but without field; both constructors
 testLibraryError("('x)::SymbolicTerm(Integer, [identity])")
