@@ -8,3 +8,4 @@ import FricasSymbolic.Rewriting
 import FricasSymbolic.Regressions
 import FricasSymbolic.Confluence
 import FricasSymbolic.Order
+import FricasSymbolic.OrderProofs
