@@ -370,4 +370,184 @@ theorem L4_nf_isNF (t : Term) : IsNF A (nf A t) := by
 /-- Idempotence (with L6). -/
 theorem nf_nf (t : Term) : nf A (nf A t) = nf A t := L6_nf_of_isNF (L4_nf_isNF t)
 
+/-! ## L8: the smart constructors take only steps of the axioms -/
+
+/-- `→*`, the reflexive-transitive closure of `Step A`. -/
+abbrev Steps (A : Ax) := ReflTransGen (Step A)
+
+namespace Steps
+
+theorem add_l {a a' : Term} (b : Term) (h : Steps A a a') : Steps A (.add a b) (.add a' b) :=
+  h.lift (fun a => Term.add a b) fun _ _ s => Step.add_l b s
+theorem add_r (a : Term) {b b' : Term} (h : Steps A b b') : Steps A (.add a b) (.add a b') :=
+  h.lift (fun b => Term.add a b) fun _ _ s => Step.add_r a s
+theorem sub_l {a a' : Term} (b : Term) (h : Steps A a a') : Steps A (.sub a b) (.sub a' b) :=
+  h.lift (fun a => Term.sub a b) fun _ _ s => Step.sub_l b s
+theorem sub_r (a : Term) {b b' : Term} (h : Steps A b b') : Steps A (.sub a b) (.sub a b') :=
+  h.lift (fun b => Term.sub a b) fun _ _ s => Step.sub_r a s
+theorem mul_l {a a' : Term} (b : Term) (h : Steps A a a') : Steps A (.mul a b) (.mul a' b) :=
+  h.lift (fun a => Term.mul a b) fun _ _ s => Step.mul_l b s
+theorem mul_r (a : Term) {b b' : Term} (h : Steps A b b') : Steps A (.mul a b) (.mul a b') :=
+  h.lift (fun b => Term.mul a b) fun _ _ s => Step.mul_r a s
+theorem div_l {a a' : Term} (b : Term) (h : Steps A a a') : Steps A (.div a b) (.div a' b) :=
+  h.lift (fun a => Term.div a b) fun _ _ s => Step.div_l b s
+theorem div_r (a : Term) {b b' : Term} (h : Steps A b b') : Steps A (.div a b) (.div a b') :=
+  h.lift (fun b => Term.div a b) fun _ _ s => Step.div_r a s
+theorem neg {a a' : Term} (h : Steps A a a') : Steps A (.neg a) (.neg a') :=
+  h.lift Term.neg fun _ _ s => Step.neg s
+theorem pow {a a' : Term} (n : ℤ) (h : Steps A a a') : Steps A (.pow a n) (.pow a' n) :=
+  h.lift (fun a => Term.pow a n) fun _ _ s => Step.pow n s
+
+theorem root {s t : Term} (r : Root A s t) : Steps A s t := ReflTransGen.single (Step.root r)
+
+end Steps
+
+theorem sAdd_steps (x y : Term) : Steps A (.add x y) (sAdd A x y) := by
+  induction x, y using sAdd.induct A with
+  | case1 x y h =>
+    rw [sAdd]; simp only [h, ↓reduceIte]
+    simp only [Bool.and_eq_true, isNum_iff] at h
+    obtain ⟨⟨hn, p, rfl⟩, q, rfl⟩ := h
+    exact Steps.root (Root.num_add p q hn)
+  | case2 x y h1 h =>
+    rw [sAdd]; simp only [h1, h, Bool.false_eq_true, ↓reduceIte]
+    simp only [Bool.and_eq_true, isLit_iff] at h
+    obtain ⟨hi, rfl⟩ := h
+    exact Steps.root (Root.id_add_l y hi)
+  | case3 x y h1 h2 h =>
+    rw [sAdd]; simp only [h1, h2, h, Bool.false_eq_true, ↓reduceIte]
+    simp only [Bool.and_eq_true, isLit_iff] at h
+    obtain ⟨hi, rfl⟩ := h
+    exact Steps.root (Root.id_add_r x hi)
+  | case4 x y h1 h2 h3 h _ _ ih1 ih2 =>
+    rw [sAdd]; simp only [h1, h2, h3, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true, isAdd_iff] at h
+    obtain ⟨ha, y1, y2, rfl⟩ := h
+    simp only [fst, snd] at ih1 ih2 ⊢
+    exact (Steps.root (Root.assoc_add x y1 y2 ha)).trans ((Steps.add_l y2 ih1).trans ih2)
+  | case5 x y h1 h2 h3 h4 h _ _ ih =>
+    rw [sAdd]; simp only [h1, h2, h3, h4, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true, isNum_iff, isAdd_iff] at h
+    obtain ⟨⟨⟨⟨⟨ha, hn⟩, han⟩, m, rfl⟩, x1, x2, rfl⟩, hx2⟩ := h
+    simp only [snd, isNum_iff] at hx2
+    obtain ⟨p, rfl⟩ := hx2
+    simp only [fst, snd, nv] at ih ⊢
+    exact (Steps.root (Root.an_add x1 p m ha hn han)).trans ih
+  | case6 x y h1 h2 h3 h4 h5 =>
+    rw [sAdd]; simp only [h1, h2, h3, h4, h5, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    exact ReflTransGen.refl
+
+theorem sMul_steps (x y : Term) : Steps A (.mul x y) (sMul A x y) := by
+  induction x, y using sMul.induct A with
+  | case1 x y h =>
+    rw [sMul]; simp only [h, ↓reduceIte]
+    simp only [Bool.and_eq_true, isNum_iff] at h
+    obtain ⟨⟨hn, p, rfl⟩, q, rfl⟩ := h
+    exact Steps.root (Root.num_mul p q hn)
+  | case2 x y h1 h =>
+    rw [sMul]; simp only [h1, h, Bool.false_eq_true, ↓reduceIte]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, isLit_iff] at h
+    obtain ⟨ha, rfl | rfl⟩ := h
+    · exact Steps.root (Root.ann_l y ha)
+    · exact Steps.root (Root.ann_r x ha)
+  | case3 x y h1 h2 h =>
+    rw [sMul]; simp only [h1, h2, h, Bool.false_eq_true, ↓reduceIte]
+    simp only [Bool.and_eq_true, isLit_iff] at h
+    obtain ⟨hi, rfl⟩ := h
+    exact Steps.root (Root.id_mul_l y hi)
+  | case4 x y h1 h2 h3 h =>
+    rw [sMul]; simp only [h1, h2, h3, h, Bool.false_eq_true, ↓reduceIte]
+    simp only [Bool.and_eq_true, isLit_iff] at h
+    obtain ⟨hi, rfl⟩ := h
+    exact Steps.root (Root.id_mul_r x hi)
+  | case5 x y h1 h2 h3 h4 h _ _ ih1 ih2 =>
+    rw [sMul]; simp only [h1, h2, h3, h4, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true, isMul_iff] at h
+    obtain ⟨ha, y1, y2, rfl⟩ := h
+    simp only [fst, snd] at ih1 ih2 ⊢
+    exact (Steps.root (Root.assoc_mul x y1 y2 ha)).trans ((Steps.mul_l y2 ih1).trans ih2)
+  | case6 x y h1 h2 h3 h4 h5 h _ _ ih =>
+    rw [sMul]; simp only [h1, h2, h3, h4, h5, h, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    simp only [Bool.and_eq_true, isNum_iff, isMul_iff] at h
+    obtain ⟨⟨⟨⟨⟨ha, hn⟩, han⟩, m, rfl⟩, x1, x2, rfl⟩, hx2⟩ := h
+    simp only [snd, isNum_iff] at hx2
+    obtain ⟨p, rfl⟩ := hx2
+    simp only [fst, snd, nv] at ih ⊢
+    exact (Steps.root (Root.an_mul x1 p m ha hn han)).trans ih
+  | case7 x y h1 h2 h3 h4 h5 h6 =>
+    rw [sMul]; simp only [h1, h2, h3, h4, h5, h6, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    exact ReflTransGen.refl
+
+theorem sNeg_steps (x : Term) : Steps A (.neg x) (sNeg A x) := by
+  unfold sNeg
+  split_ifs with h1 h2
+  · simp only [Bool.and_eq_true, isNum_iff] at h1
+    obtain ⟨hn, p, rfl⟩ := h1
+    exact Steps.root (Root.num_neg p hn)
+  · simp only [Bool.and_eq_true, isNeg_iff] at h2
+    obtain ⟨hi, a, rfl⟩ := h2
+    exact Steps.root (Root.inv_neg a hi)
+  · exact ReflTransGen.refl
+
+theorem sSub_steps (x y : Term) : Steps A (.sub x y) (sSub A x y) := by
+  unfold sSub
+  split_ifs with h1 h2 h3
+  · simp only [Bool.and_eq_true, isNum_iff] at h1
+    obtain ⟨⟨hn, p, rfl⟩, q, rfl⟩ := h1
+    exact Steps.root (Root.num_sub p q hn)
+  · simp only [Bool.and_eq_true, isLit_iff] at h2
+    obtain ⟨hi, rfl⟩ := h2
+    exact Steps.root (Root.id_sub_r x hi)
+  · simp only [Bool.and_eq_true, isLit_iff] at h3
+    obtain ⟨hi, rfl⟩ := h3
+    exact (Steps.root (Root.id_sub_l y hi)).trans (sNeg_steps y)
+  · exact ReflTransGen.refl
+
+theorem sDiv_steps (x y : Term) : Steps A (.div x y) (sDiv A x y) := by
+  unfold sDiv
+  split_ifs with h1 h2 h3
+  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, isNum_iff] at h1
+    obtain ⟨⟨⟨hn, p, rfl⟩, q, rfl⟩, hq⟩ := h1
+    exact Steps.root (Root.num_div p q hn hq)
+  · simp only [Bool.and_eq_true, isLit_iff] at h2
+    obtain ⟨hi, rfl⟩ := h2
+    exact Steps.root (Root.id_div x hi)
+  · simp only [Bool.and_eq_true, isLit_iff, isDiv_iff] at h3
+    obtain ⟨⟨⟨hi, rfl⟩, a, b, rfl⟩, hf⟩ := h3
+    simp only [fst, isLit_iff] at hf
+    subst hf
+    exact Steps.root (Root.inv_div b hi)
+  · exact ReflTransGen.refl
+
+theorem sPow_steps (x : Term) (n : ℤ) : Steps A (.pow x n) (sPow A x n) := by
+  unfold sPow
+  split_ifs with h1 h2 h3
+  · simp only [Bool.and_eq_true, Bool.not_eq_true', Bool.and_eq_false_iff, beq_eq_false_iff_ne,
+      ne_eq, decide_eq_false_iff_not, isNum_iff] at h1
+    obtain ⟨⟨hn, p, rfl⟩, h⟩ := h1
+    exact Steps.root (Root.num_pow p n hn (by rcases h with h | h <;> simp_all [nv]))
+  · simp only [Bool.and_eq_true, beq_iff_eq] at h2
+    obtain ⟨hi, rfl⟩ := h2
+    exact Steps.root (Root.id_pow1 x hi)
+  · simp only [Bool.and_eq_true, beq_iff_eq] at h3
+    obtain ⟨hi, rfl⟩ := h3
+    exact Steps.root (Root.id_pow0 x hi)
+  · exact ReflTransGen.refl
+
+/-- L8: `t →* nf A t`: the normaliser only takes steps of the axioms. -/
+theorem L8_steps_to_nf (t : Term) : Steps A t (nf A t) := by
+  induction t with
+  | num q => exact ReflTransGen.refl
+  | var s => exact ReflTransGen.refl
+  | add a b iha ihb =>
+    exact (Steps.add_l b iha).trans ((Steps.add_r _ ihb).trans (sAdd_steps _ _))
+  | sub a b iha ihb =>
+    exact (Steps.sub_l b iha).trans ((Steps.sub_r _ ihb).trans (sSub_steps _ _))
+  | neg a iha => exact (Steps.neg iha).trans (sNeg_steps _)
+  | mul a b iha ihb =>
+    exact (Steps.mul_l b iha).trans ((Steps.mul_r _ ihb).trans (sMul_steps _ _))
+  | div a b iha ihb =>
+    exact (Steps.div_l b iha).trans ((Steps.div_r _ ihb).trans (sDiv_steps _ _))
+  | pow a n iha => exact (Steps.pow n iha).trans (sPow_steps _ _)
+
 end FricasSymbolic
