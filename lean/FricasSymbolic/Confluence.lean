@@ -30,7 +30,7 @@ def SizeMuLt (t s : Term) : Prop :=
 theorem root_decreases {A : Ax} {s t : Term} (h : Root A s t) : SizeMuLt t s := by
   cases h with
   | id_pow0 x _ => have := size_pos x; simp [SizeMuLt, size]; omega
-  | _ => simp [SizeMuLt, size, mu]; omega
+  | _ => simp [SizeMuLt, size, mu]; try omega
 
 theorem step_decreases {A : Ax} {s t : Term} (h : Step A s t) : SizeMuLt t s := by
   induction h with
