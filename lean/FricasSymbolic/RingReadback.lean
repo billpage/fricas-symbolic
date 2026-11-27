@@ -1058,7 +1058,7 @@ theorem coeff_sum_monomial (q : Poly) (f : List (ℕ × ℕ) × ℚ → (Tree �
   | nil => simp
   | cons x q ih =>
     rw [List.map_cons, List.sum_cons]
-    simp only [AddMonoidAlgebra.coeff_add, Pi.add_apply]
+    simp only [AddMonoidAlgebra.coeff_add, Finsupp.coe_add, Pi.add_apply]
     rw [ih, coeff_monomial]
     by_cases h : f x = n <;> simp [h]
 
