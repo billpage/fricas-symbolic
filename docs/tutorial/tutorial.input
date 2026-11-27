@@ -1,0 +1,275 @@
+-- Interpreter transcript behind docs/tutorial/tutorial.md.
+--
+-- Every code block and every output shown in the tutorial comes from running
+-- this file, section by section (the lines "-- ==== name" mark the sections).
+-- It is a walk-through, not a test: the tests are src/input/gsexpr.input and
+-- src/input/symterm.input.
+--
+-- To run it with FriCAS 1.4.0 or later:
+--   )compile src/algebra/gsexpr.spad
+--   )compile src/algebra/symterm.spad
+--   )read docs/tutorial/tutorial.input
+-- (or `make tutorial`).  Results are shown in FriCAS's one-line form
+-- (Format1D), which can be pasted back as input; in an ordinary terminal
+-- session the same values are printed in the two-dimensional form.
+
+)set break resume
+
+-- ==== quick-start
+SE ==> SymbolicExpression Integer
+x : SE := 'x
+y : SE := 'y
+e := (x+1)^2 - (x^2+2*x+1)
+form e
+value e
+zero? e
+b := (x+1)^2 - x^2
+b
+zero? b
+value b
+eval((x+1)^2, x = y+1)
+form eval((x+1)^2, x = y+1)
+
+-- ==== equality-is-value
+a := (x+1)^2
+(a = x^2+2*x+1)@Boolean
+(a - (x^2+2*x+1) = 0)@Boolean
+(a = (x+1)*(x+1))@Boolean
+
+-- ==== calculus
+F := integrate((x+1)^2, 'x)
+zero?(D(F, 'x) - (x+1)^2)
+H := integrate(sin(x)*cos(x), 'x)
+zero?(D(H, 'x) - sin(x)*cos(x))
+check(F) and check(H)
+limit(sin(x)/x, x = 0)
+n : SE := 'n
+D(x^n, 'x)
+D(x^n, 'x) - n*x^(n-1)
+zero? %
+
+-- ==== rules
+t1 := cos(x)*sin(y) - cos(y)*sin(x)
+rs := _rule(cos(x)*sin(y)-sin(x)*cos(y), sin(y-x))
+rc := _rule(cos(x)*cos(y)-sin(x)*sin(y), cos(x+y))
+rs t1
+(rs t1 = sin(y-x))@Boolean
+t1 = sin(y-x)
+t2 := - sin(x)*sin(y) + cos(x)*cos(y)
+rc t2
+w := 'w
+big := tan(x)*tan(y) + t1*cos(w) + t2*w + 5
+rc rs big
+check(rc rs big)
+
+-- ==== rules-in-expression
+)clear all
+x : Expression Integer := 'x
+y : Expression Integer := 'y
+w : Expression Integer := 'w
+t1 := cos(x)*sin(y) - cos(y)*sin(x)
+t2 := - sin(x)*sin(y) + cos(x)*cos(y)
+rs := _rule(cos(x)*sin(y)-sin(x)*cos(y), sin(y-x))
+rc := _rule(cos(x)*cos(y)-sin(x)*sin(y), cos(x+y))
+rs t1
+rc t2
+big := tan(x)*tan(y) + t1*cos(w) + t2*w + 5
+rc rs big
+
+-- ==== axioms-identities-only
+)clear all
+GI ==> GeneralSymbolicExpression(Integer, [identities])
+u : GI := 'u
+form(u+0)
+form(1*u)
+form((1::GI)+2)
+value((1::GI)+2)
+form(0*u)
+form(-(-u))
+
+-- ==== axioms-ap
+)clear all
+u : SymbolicExpression Integer := 'u
+form(u+0)
+form((1::SymbolicExpression Integer)+2)
+form(0*u)
+form(-(-u))
+form(1/(1/u))
+value(0*u)
+(u+u = 2*u)@Boolean
+zero?(u+u-2*u)
+
+-- ==== presentation-vs-value
+)clear all
+GE ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals])
+u : GE := 'u
+v : GE := 'v
+(u+v = v+u)@Boolean
+zero?(u+v-(v+u))
+GC ==> GeneralSymbolicExpression(Integer, [identities, annihilation, involutions, numerals, commutativity])
+s : GC := 'u
+t : GC := 'v
+form(t+s)
+(t+s = s+t)@Boolean
+
+-- ==== disp
+)clear all
+SE ==> SymbolicExpression Integer
+x : SE := 'x
+y : SE := 'y
+rt(t : SE) : Boolean == (parse(unparse form t)$InputForm = form t)@Boolean
+rt((x+1)^2 - (x^2+2*x+1))
+rt(sin(x+y)^2 + cos(x)*y)
+rt(x - (y - 1))
+rt(1/(x+y))
+unparse form(x - (y - 1))
+
+-- ==== term-rungs-none
+)clear all
+T0 ==> SymbolicTerm(Integer, [])
+x : T0 := 'x
+y : T0 := 'y
+(x+0 = x)@Boolean
+(x+y = y+x)@Boolean
+form(x+0)
+form((1::T0)+1+1)
+value := (x+0)::Expression Integer
+value
+
+-- ==== term-rungs-ap
+)clear all
+TP ==> SymbolicTerm(Integer, [identities, annihilation, involutions, numerals])
+x : TP := 'x
+y : TP := 'y
+(x+0 = x)@Boolean
+(0*x = 0)@Boolean
+(-(-x) = x)@Boolean
+((1::TP)+2 = 3)@Boolean
+(x+y = y+x)@Boolean
+((x+1)+2 = x+3)@Boolean
+
+-- ==== term-rungs-assoc
+)clear all
+TA ==> SymbolicTerm(Integer, [identities, annihilation, involutions, numerals, associativity])
+x : TA := 'x
+y : TA := 'y
+((x+1)+2 = x+3)@Boolean
+(x+(y+1) = (x+y)+1)@Boolean
+(x+y = y+x)@Boolean
+form(x+(y+1)+2)
+
+-- ==== term-rungs-linear
+)clear all
+TL ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+x : TL := 'x
+y : TL := 'y
+(x+y = y+x)@Boolean
+(2*x+3*x = 5*x)@Boolean
+(y-2*x+1 = 1-2*x+y)@Boolean
+form(y-2*x+1)
+(x*y = y*x)@Boolean
+(x*y+x*y = 2*(x*y))@Boolean
+(x*(y+1) = x*y+x)@Boolean
+
+-- ==== term-rungs-ring
+)clear all
+TR ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, ring])
+x : TR := 'x
+y : TR := 'y
+((x+y)^2 = x^2+2*x*y+y^2)@Boolean
+((x+1)*(x-1) = x^2-1)@Boolean
+form((x+1)*(x-1))
+(sin(x)*(sin(x)+1) = sin(x)^2+sin(x))@Boolean
+(sin(x)^2+cos(x)^2 = 1)@Boolean
+(x/y*y = x)@Boolean
+
+-- ==== term-rungs-field
+)clear all
+TF ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+x : TF := 'x
+y : TF := 'y
+(x/y*y = x)@Boolean
+((x^2-1)/(x-1) = x+1)@Boolean
+form((x^2-1)/(x-1))
+((x^2-1)/(x-1))::Expression Integer
+(sin(x)^2+cos(x)^2 = 1)@Boolean
+
+-- ==== bridge-matrices
+)clear all
+TN ==> SymbolicTerm(Integer, [associativity, identities])
+M2 ==> SquareMatrix(2, Fraction Integer)
+p : TN := 'p
+q : TN := 'q
+mp : M2 := matrix [[1, 2], [3, 4]]
+mq : M2 := matrix [[0, 1], [1, 0]]
+ev(t : TN) : M2 == eval(t, (s : Symbol) : M2 +-> (s = 'p => mp; mq))$SymbolicTermFunctions2(Integer, [associativity, identities], M2)
+(p*q = q*p)@Boolean
+ev(p*q)
+ev(q*p)
+ev((p+q)^2)
+(mp+mq)^2
+
+-- ==== bridge-refused
+)clear all
+AC ==> [identities, numerals, associativity, commutativity]
+M2 ==> SquareMatrix(2, Fraction Integer)
+q : SymbolicTerm(Integer, AC) := 'q
+eval(q, (s : Symbol) : M2 +-> 1)$SymbolicTermFunctions2(Integer, AC, M2)
+TS ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+r : TS := 'r
+eval(sin(r), (s : Symbol) : Polynomial Fraction Integer +-> 1)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear], Polynomial Fraction Integer)
+
+-- ==== bridge-field
+)clear all
+TF ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field])
+FP ==> Fraction Polynomial Integer
+x : TF := 'x
+y : TF := 'y
+t := (x^2-1)/(x-1) + y/2
+toFP(t : TF) : FP == eval(t, (s : Symbol) : FP +-> s::FP)$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], FP)
+toFP t
+eval(t, (s : Symbol) : Float +-> (s = 'x => 2.0; 0.5))$SymbolicTermFunctions2(Integer, [commutativity, associativity, identities, numerals, linear, powers, quotients, ring, field], Float)
+
+-- ==== bridge-readback
+)clear all
+T0 ==> SymbolicTerm(Integer, [])
+TL ==> SymbolicTerm(Integer, [commutativity, associativity, identities, numerals, linear])
+a : T0 := 'x
+b : T0 := 'y
+w := (a + a) + 0*b
+form w
+nf := convert(form w)@TL
+form nf
+convert(form nf)@T0
+(convert(form w)@T0 = w)@Boolean
+
+-- ==== conversions
+)clear all
+SE ==> SymbolicExpression Integer
+z := 5
+ez := ('z)::Expression Integer + 1
+sz := ez :: SE
+form sz
+value sz
+check sz
+ex : Expression Integer := (sin('x)+1)^2
+sx := ex :: SE
+form sx
+value sx
+
+-- ==== floats
+)clear all
+GF ==> GeneralSymbolicExpression(Float, [identities, annihilation, involutions, numerals])
+x : GF := 'x
+form(x + 1.5)
+form((1.5 :: GF) + 2.25)
+value((1.5 :: GF) + 2.25)
+form(0.0*x)
+form(-(-x))
+
+-- ==== admissibility
+)clear all
+0 :: GeneralSymbolicExpression(Integer, [linear])
+0 :: GeneralSymbolicExpression(Integer, [foo])
+0 :: SymbolicTerm(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring])
+0 :: SymbolicTerm(Integer, [identities, numerals, associativity, commutativity, linear, powers, quotients, ring, field])
