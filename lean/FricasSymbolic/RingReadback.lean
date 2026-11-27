@@ -6,6 +6,32 @@ import Mathlib.Algebra.MvPolynomial.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Abel
 
+/-!
+# The Ring mirror reads back correctly and canonically
+
+Plan §5.5, "Still to do". `RingMirror` copies the Spad constructors of the rung `ring`:
+an operand is read as a polynomial in its atoms (`toF`), the operation is done on
+polynomials, and the result is built as a tree again (`fromP`). Here:
+
+* `rd : Tree → MvPolynomial Tree ℚ` reads a tree as a polynomial, clause by clause as `toF`,
+  with the variable `X t` at an atom `t`.
+* **Read-back is correct** (`rd_fromP`): `rd (fromP al p)` is the polynomial of `p`, each
+  index `i` read as `al[i]`. No hypotheses. With `ev_toF` it gives the constructors as
+  operations of the polynomial ring: `rd_rAdd`, `rd_rSub`, `rd_rNeg`, `rd_rMul`, `rd_rDiv`
+  (by a numeral), `rd_rPow`.
+* **Read-back is canonical** (`fromP_canonical`): if the trees of `al` and `al'` are atoms of
+  the rung (`IsAtom`: read back as themselves) and `p`, `p'` are well formed (indices in
+  range, exponents positive, as `toF` produces them), then `fromP al p = fromP al' p'`
+  whenever `p` and `p'` denote the same polynomial. The proof uses the merge functions
+  (`mergeF`, `mergeT`: one entry per key, holding the sum) and part 2's order (the sorted
+  lists are determined by their elements).
+* **The mirror decides `Ring`** (`nfR_eq_iff`): normal forms (`NF`) are closed under the
+  constructors, so the normaliser `nfR : RTerm String → Tree` built from them maps two
+  defined terms to the same tree exactly when they are equal in the theory `Ring` (with
+  R4). This is (N1) and (N2) for the mirror; the mirror agrees with the Spad code on the
+  differential test of `RingMirror`.
+-/
+
 namespace FricasSymbolic.RingMirror
 open FricasSymbolic.Order Tree MvPolynomial
 
@@ -447,7 +473,7 @@ theorem sum_split {γ : Type*} [AddCommMonoid γ] (l : Poly) (f : List (ℕ × �
   induction l with
   | nil => simp
   | cons x l ih =>
-    by_cases h : x.1 = [] <;> simp [List.filter_cons, h, ih] <;> abel
+    by_cases h : x.1 = [] <;> simp [h, ih] <;> abel
 
 /-- **Read-back is correct.** The tree `fromP al p` reads back as the polynomial of `p`,
 with each index `i` read as the tree `al[i]`. -/
@@ -686,7 +712,7 @@ theorem S_nil [AddCommMonoid β] (k : α → Tree) (t : Tree) : S k ([] : List (
 theorem S_cons [AddCommMonoid β] (k : α → Tree) (y : α × β) (l : List (α × β)) (t : Tree) :
     S k (y :: l) t = (if k y.1 = t then y.2 else 0) + S k l t := by
   unfold S
-  by_cases h : k y.1 = t <;> simp [List.filter_cons, h]
+  by_cases h : k y.1 = t <;> simp [h]
 
 theorem S_append [AddCommMonoid β] (k : α → Tree) (l l' : List (α × β)) (t : Tree) :
     S k (l ++ l') t = S k l t + S k l' t := by
