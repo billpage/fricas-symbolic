@@ -348,6 +348,6 @@ theorem anticommutative_unsound :
   intro h
   have := h ℚ (fun _ => 1) 1 (by simp [eval])
   simp [eval] at this
-  exact absurd this (by norm_num)
+  exact absurd this (by decide)
 
 end FricasSymbolic
