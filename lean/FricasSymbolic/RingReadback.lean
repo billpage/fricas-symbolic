@@ -353,4 +353,115 @@ theorem rd_mono (al : List Tree) (m : List (ℕ × ℕ)) :
   · intro x hx
     simpa using rd_facNode x.1 x.2 (hm x hx)
 
+theorem rd_foldl_step (g : Tree → List Tree × ℚ → Tree)
+    (hg : ∀ acc x, rd (g acc x) = rd acc + C x.2 * rd (mulChain 1 x.1))
+    (l : List (List Tree × ℚ)) (a : Tree) :
+    rd (l.foldl g a) = rd a + (l.map fun x => C x.2 * rd (mulChain 1 x.1)).sum := by
+  induction l generalizing a with
+  | nil => simp
+  | cons x l ih => rw [List.foldl_cons, ih, hg]; simp [add_assoc]
+
+theorem rd_trm (fs : List Tree) (c : ℚ) :
+    rd (if |c| = 1 then mulChain 1 fs else mulChain |c| fs) = C |c| * rd (mulChain 1 fs) := by
+  split_ifs with h
+  · rw [h, map_one, one_mul]
+  · rw [rd_mulChain, rd_mulChain, map_one, one_mul]
+
+theorem rd_sgn (c : ℚ) (T : Tree) (P : MvPolynomial Tree ℚ) (hT : rd T = C |c| * P) :
+    rd (if 0 < c then T else arith "-" [T]) = C c * P := by
+  by_cases h0 : 0 < c
+  · simp only [h0, ↓reduceIte, hT, abs_of_pos h0]
+  · simp only [h0, ↓reduceIte, arith, rd_neg, hT, abs_of_nonpos (le_of_not_gt h0), map_neg]
+    ring
+
+theorem rd_sgn2 (c : ℚ) (acc T : Tree) (P : MvPolynomial Tree ℚ) (hT : rd T = C |c| * P) :
+    rd (if 0 < c then arith "+" [acc, T] else arith "-" [acc, T]) = rd acc + C c * P := by
+  by_cases h0 : 0 < c
+  · simp only [h0, ↓reduceIte, arith, rd_add, hT, abs_of_pos h0]
+  · simp only [h0, ↓reduceIte, arith, rd_sub, hT, abs_of_nonpos (le_of_not_gt h0), map_neg]
+    ring
+
+theorem rd_const (c0 : ℚ) (acc : Tree) :
+    rd (if c0 = 0 then acc else if 0 < c0 then arith "+" [acc, numNode |c0|]
+      else arith "-" [acc, numNode |c0|]) = rd acc + C c0 := by
+  by_cases hz : c0 = 0
+  · simp [hz]
+  · by_cases h0 : 0 < c0
+    · simp only [hz, h0, ↓reduceIte, arith, rd_add, rd_numNode, abs_of_pos h0]
+    · simp only [hz, h0, ↓reduceIte, arith, rd_sub, rd_numNode,
+        abs_of_nonpos (le_of_not_gt h0), map_neg]
+      ring
+
+theorem sum_mergeT (ts : List (List Tree × ℚ)) :
+    ((mergeT ts).map fun x => C x.2 * rd (mulChain 1 x.1)).sum
+      = (ts.map fun x => C x.2 * rd (mulChain 1 x.1)).sum := by
+  rw [mergeT_eq]
+  have hf : ∀ l : List (List Tree × ℚ), ((l.filter (·.2 ≠ 0)).map
+      fun x => C x.2 * rd (mulChain 1 x.1)).sum = (l.map fun x => C x.2 * rd (mulChain 1 x.1)).sum := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons x l ih =>
+      simp only [List.filter_cons]
+      split_ifs with h <;> simp_all
+  rw [hf]
+  have := sum_foldl_mins (fun fs => mulChain 1 fs) (fun t (c : ℚ) => C c * rd t)
+    (fun t a b => by rw [map_add, add_mul]) ts []
+  simpa using this
+
+theorem rd_linBuild (c0 : ℚ) (ts : List (List Tree × ℚ)) :
+    rd (linBuild c0 ts) = C c0 + (ts.map fun x => C x.2 * rd (mulChain 1 x.1)).sum := by
+  have hs : (((mergeT ts).foldr insertTerm []).map fun x => C x.2 * rd (mulChain 1 x.1)).sum
+      = (ts.map fun x => C x.2 * rd (mulChain 1 x.1)).sum := by
+    have e : (mergeT ts).foldr insertTerm []
+        = (mergeT ts).foldr (insBy (fun x => mulChain 1 x.1)) [] := by
+      congr 1; funext a l; exact insertTerm_eq a l
+    rw [e, ((foldr_insBy_perm _ _).map _).sum_eq, sum_mergeT]
+  unfold linBuild
+  dsimp only
+  rw [← hs]
+  generalize (mergeT ts).foldr insertTerm [] = ms
+  cases ms with
+  | nil => simp [rd_numNode]
+  | cons e rest =>
+    obtain ⟨fs, c⟩ := e
+    dsimp only
+    rw [rd_const, rd_foldl_step _ ?_, rd_sgn c _ _ (rd_trm fs c)]
+    · simp only [List.map_cons, List.sum_cons]
+      abel
+    · intro acc x
+      obtain ⟨fs', c'⟩ := x
+      exact rd_sgn2 c' acc _ _ (rd_trm fs' c')
+
+theorem foldl_add_snd (l : Poly) (a : ℚ) :
+    l.foldl (fun s t => s + t.2) a = a + (l.map (·.2)).sum := by
+  induction l generalizing a with
+  | nil => simp
+  | cons x l ih => simp [ih, add_assoc]
+
+theorem sum_split {γ : Type*} [AddCommMonoid γ] (l : Poly) (f : List (ℕ × ℕ) × ℚ → γ) :
+    (l.map f).sum = ((l.filter (·.1 = [])).map f).sum + ((l.filter (·.1 ≠ [])).map f).sum := by
+  induction l with
+  | nil => simp
+  | cons x l ih =>
+    by_cases h : x.1 = [] <;> simp [List.filter_cons, h, ih] <;> abel
+
+/-- **Read-back is correct.** The tree `fromP al p` reads back as the polynomial of `p`,
+with each index `i` read as the tree `al[i]`. -/
+theorem rd_fromP (al : List Tree) (p : Poly) : rd (fromP al p) = ev al p := by
+  unfold fromP ev
+  dsimp only
+  rw [rd_linBuild, foldl_add_snd, zero_add, map_list_sum, List.map_map, List.map_map]
+  conv_rhs => rw [sum_split p]
+  congr 1
+  · congr 1
+    apply List.map_congr_left
+    intro x hx
+    have : x.1 = [] := by simpa using (List.mem_filter.1 hx).2
+    simp [this]
+  · congr 1
+    apply List.map_congr_left
+    intro x _
+    simp [rd_mono]
+
 end FricasSymbolic.RingMirror
