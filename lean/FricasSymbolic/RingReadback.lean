@@ -916,4 +916,113 @@ theorem eq_of_perm_sorted : ∀ {l l' : List Tree}, l.Perm l' →
 
 end SortFacts
 
+/-! ### Monomials: the factor list depends only on the exponent vector -/
+
+/-- The sorted factor trees of a list of (base, exponent), as `facTrees` builds them. -/
+def facs (L : List (Tree × ℕ)) : List Tree :=
+  sortLt ((mergeN L).map fun x => facNode x.1 x.2)
+
+/-- The (base, exponent) pairs of a monomial over `al`. -/
+def Lof (al : List Tree) (m : List (ℕ × ℕ)) : List (Tree × ℕ) :=
+  m.map fun y => (al.getD y.1 (int 0), y.2)
+
+theorem facTrees_eq (al : List Tree) (m : List (ℕ × ℕ)) : facTrees al m = facs (Lof al m) := by
+  unfold facTrees facs Lof
+  have hL : (m.map fun (y : ℕ × ℕ) => (al.getD y.1 (int 0), (y.2 : ℤ)))
+      = (m.map fun y => (al.getD y.1 (int 0), y.2)).map fun x => (x.1, (x.2 : ℤ)) := by
+    simp
+  rw [hL, mergeF_cast, List.map_map]
+  rfl
+
+/-- The exponent vector of a list of (base, exponent). -/
+noncomputable def N (L : List (Tree × ℕ)) : Tree →₀ ℕ :=
+  (L.map fun x => Finsupp.single x.1 x.2).sum
+
+theorem N_apply (L : List (Tree × ℕ)) (b : Tree) : N L b = S id L b := by
+  induction L with
+  | nil => simp [N, S_nil]
+  | cons x L ih =>
+    rw [S_cons]
+    simp only [N, List.map_cons, List.sum_cons, Finsupp.add_apply] at ih ⊢
+    rw [ih, Finsupp.single_apply]
+    rfl
+
+theorem prod_X (L : List (Tree × ℕ)) :
+    (L.map fun x => (X x.1 : MvPolynomial Tree ℚ) ^ x.2).prod = monomial (N L) 1 := by
+  induction L with
+  | nil => simp [N]
+  | cons x L ih =>
+    simp only [List.map_cons, List.prod_cons, ih, X_pow_eq_monomial, monomial_mul, one_mul, N,
+      List.sum_cons]
+
+theorem mem_mergeN (L : List (Tree × ℕ)) (x : Tree × ℕ) :
+    x ∈ mergeN L ↔ x.2 = N L x.1 ∧ x.2 ≠ 0 := by
+  rw [N_apply]
+  unfold mergeN
+  rw [List.mem_filter]
+  constructor
+  · rintro ⟨hx, h0⟩
+    exact ⟨R_val id L x hx, by simpa using h0⟩
+  · rintro ⟨hv, h0⟩
+    have : ∃ z ∈ L, z.1 = x.1 := by
+      by_contra hne
+      push_neg at hne
+      apply h0
+      rw [hv]
+      unfold S
+      rw [List.filter_eq_nil_iff.2 (fun z hz => by simpa using hne z hz)]
+      simp
+    obtain ⟨z, hz, e⟩ := this
+    obtain ⟨y, hy, e'⟩ := cover_foldl id L [] z (by simpa using hz)
+    have hy2 := R_val id L y hy
+    have e1 : y.1 = x.1 := by simpa [e] using e'
+    have : y = x := Prod.ext e1 (by rw [hy2, hv]; simp [e1])
+    subst this
+    exact ⟨hy, by simpa using h0⟩
+
+theorem nodup_mergeN (L : List (Tree × ℕ)) : (mergeN L).Nodup := by
+  have h := nodup_foldl id L [] (by simp)
+  apply List.Nodup.of_map Prod.fst
+  exact (h.sublist ((List.filter_sublist _).map _))
+
+theorem facs_congr {L L' : List (Tree × ℕ)} (h : N L = N L') : facs L = facs L' := by
+  have hp : (mergeN L).Perm (mergeN L') :=
+    (List.perm_ext_iff_of_nodup (nodup_mergeN L) (nodup_mergeN L')).2
+      (fun x => by rw [mem_mergeN, mem_mergeN, h])
+  unfold facs
+  rw [sortLt_eq, sortLt_eq]
+  apply eq_of_perm_sorted
+  · exact (foldr_insBy_perm id _).trans ((hp.map _).trans (foldr_insBy_perm id _).symm)
+  · exact foldr_insBy_sorted id _
+  · exact foldr_insBy_sorted id _
+
+theorem rd_facs (L : List (Tree × ℕ)) :
+    rd (mulChain 1 (facs L)) = (L.map fun x => rd x.1 ^ x.2).prod := by
+  rw [rd_mulChain, map_one, one_mul, facs, sortLt_eq,
+    ((foldr_insBy_perm id _).map rd).prod_eq, List.map_map]
+  rw [List.map_congr_left (g := fun x : Tree × ℕ => rd x.1 ^ x.2) ?_]
+  · exact prod_mergeN rd L
+  · intro x hx
+    simpa using rd_facNode x.1 x.2 ((mem_mergeN L x).1 hx).2
+
+/-- An atom of the rung: it reads back as itself, and `ratoms` collects it as itself. -/
+def IsAtom (t : Tree) : Prop := rd t = X t ∧ ∀ l, ratoms l t = addAtom l t
+
+theorem rd_facs_atoms {L : List (Tree × ℕ)} (hL : ∀ x ∈ L, IsAtom x.1) :
+    rd (mulChain 1 (facs L)) = monomial (N L) 1 := by
+  rw [rd_facs, ← prod_X]
+  congr 1
+  apply List.map_congr_left
+  intro x hx
+  rw [(hL x hx).1]
+
+/-- Over atoms of the rung, the key of a monomial (`mulChain 1` of its factors) determines its
+exponent vector. -/
+theorem N_of_key {L L' : List (Tree × ℕ)} (hL : ∀ x ∈ L, IsAtom x.1)
+    (hL' : ∀ x ∈ L', IsAtom x.1) (h : mulChain 1 (facs L) = mulChain 1 (facs L')) :
+    N L = N L' := by
+  have := congrArg rd h
+  rw [rd_facs_atoms hL, rd_facs_atoms hL'] at this
+  exact monomial_left_injective one_ne_zero this
+
 end FricasSymbolic.RingMirror
