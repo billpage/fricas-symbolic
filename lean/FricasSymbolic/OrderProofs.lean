@@ -380,9 +380,9 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
     · rw [lt_num rfl h1]; simp [G.structural_irrefl a (kids_of ha)]
     · rcases lt_atomic_cases (a := a) (b := a) rfl h1 with
         ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨x, y, e1, e2, e⟩ | ⟨_, _, _, e⟩
-      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
-      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
-      · rw [e]; rw [e1] at e2; cases e2; simpa using lt_irrefl x
+      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; rw [e1] at e2; cases e2; simp
+      · rw [e]; rw [e1] at e2; cases e2; simp
       · rw [e]; exact G.structural_irrefl a (kids_of ha)
   trans a b c ha hb hc h1 h2 := by
     have k1 := kind_le_of_lt h1; have k2 := kind_le_of_lt h2
@@ -397,7 +397,7 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
             exact G.structural_trans a b c (kids_of ha) (kids_of hb) (kids_of hc) h1 h2
           · simp only [vab, vbc, ne_eq, not_true_eq_false, not_false_eq_true, ↓reduceIte,
               decide_eq_true_eq] at h1 h2 ⊢
-            simp [vbc, h2]
+            simp [h2]
         · simp only [vab, ne_eq, not_false_eq_true, ↓reduceIte, decide_eq_true_eq] at h1
           by_cases vbc : val b = val c
           · simp only [vbc, ne_eq, not_true_eq_false, ↓reduceIte] at h2
@@ -408,17 +408,17 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
       · rcases lt_atomic_cases kab n with
           ⟨x, y, rfl, rfl, e1⟩ | ⟨x, y, rfl, rfl, e1⟩ | ⟨x, y, rfl, rfl, e1⟩ | ⟨k5, _, _, e1⟩
         · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨y', z, ey, rfl, e2⟩ | ⟨_, _, ey, _⟩ |
-            ⟨_, _, ey, _⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+            ⟨_, _, ey, _⟩ | ⟨_, ⟨_, _, ey⟩, _, _⟩ <;> cases ey
           rcases lt_atomic_cases kac n with ⟨_, _, ex, ez, e3⟩ | ⟨_, _, ex, _⟩ | ⟨_, _, ex, _⟩ |
             ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
           cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
         · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨_, _, ey, _⟩ | ⟨y', z, ey, rfl, e2⟩ |
-            ⟨_, _, ey, _⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+            ⟨_, _, ey, _⟩ | ⟨_, ⟨_, _, ey⟩, _, _⟩ <;> cases ey
           rcases lt_atomic_cases kac n with ⟨_, _, ex, _⟩ | ⟨_, _, ex, ez, e3⟩ | ⟨_, _, ex, _⟩ |
             ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
           cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
         · rcases lt_atomic_cases kbc (kab ▸ n) with ⟨_, _, ey, _⟩ | ⟨_, _, ey, _⟩ |
-            ⟨y', z, ey, rfl, e2⟩ | ⟨_, _, ⟨_, _, ey⟩, _⟩ <;> cases ey
+            ⟨y', z, ey, rfl, e2⟩ | ⟨_, ⟨_, _, ey⟩, _, _⟩ <;> cases ey
           rcases lt_atomic_cases kac n with ⟨_, _, ex, _⟩ | ⟨_, _, ex, _⟩ | ⟨_, _, ex, ez, e3⟩ |
             ⟨_, ⟨_, _, ex⟩, _⟩ <;> cases ex
           cases ez; rw [e1] at h1; rw [e2] at h2; rw [e3]; simp at h1 h2 ⊢; exact lt_trans h1 h2
@@ -454,12 +454,12 @@ theorem good_step (d : ℕ) (G : Good (fun t => depth t < d)) :
           exact lt_or_gt_of_ne v
       · rcases lt_atomic_cases k n with
           ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨x, y, rfl, rfl, e⟩ | ⟨k5, ⟨g, as, rfl⟩, ⟨g', bs, rfl⟩, e⟩
-        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
-          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
-        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
-          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
-        · rw [e, lt_def]; simp [kind, numeralForm, atomLt]
-          exact lt_or_gt_of_ne (fun h => hne (by rw [h]))
+        · have hxy : x ≠ y := fun h => hne (by subst h; rfl)
+          rw [e, lt_def]; simpa [kind, numeralForm, atomLt] using lt_or_gt_of_ne hxy
+        · have hxy : x ≠ y := fun h => hne (by subst h; rfl)
+          rw [e, lt_def]; simpa [kind, numeralForm, atomLt] using lt_or_gt_of_ne hxy
+        · have hxy : x ≠ y := fun h => hne (by subst h; rfl)
+          rw [e, lt_def]; simpa [kind, numeralForm, atomLt] using lt_or_gt_of_ne hxy
         · rw [e, lt_atomic k.symm (fun h => n (n'.2 h))]; simp only [atomLt, Option.getD_none]
           exact G.structural_total _ _ (kids_of ha) (kids_of hb) (by simp [isAtom]) hne
     · rw [lt_kind_ne k, lt_kind_ne (fun e => k e.symm)]
