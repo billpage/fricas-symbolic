@@ -3,7 +3,9 @@
 #   make check        compile each package and run its unit tests
 #   make check-gsexpr / make check-symterm   one package only
 #   make tutorial     run docs/tutorial/tutorial.input; the log is build/tutorial/run.log
-#   make lint         check the math in the markdown documents
+#   make tutorial-md  regenerate docs/tutorial/tutorial.md from its template and transcripts
+#   make tutorial-md-check   fail if tutorial.md is out of date (needs no FriCAS)
+#   make lint         check the math in the markdown documents, and tutorial-md-check
 #   make clean
 #
 # FRICAS names the FriCAS command (default: fricas on the PATH). Each check
@@ -16,7 +18,7 @@ FRICAS ?= fricas
 BUILD  := build
 TOP    := $(CURDIR)
 
-.PHONY: check check-gsexpr check-symterm tutorial lint clean
+.PHONY: check check-gsexpr check-symterm tutorial tutorial-md tutorial-md-check lint clean
 
 check: check-gsexpr check-symterm
 
@@ -47,7 +49,13 @@ tutorial:
 	@echo "log: $(BUILD)/tutorial/run.log"
 	@echo "library errors in the log (5 are intended): $$(grep -c 'Error detected within library code' $(BUILD)/tutorial/run.log)"
 
-lint:
+tutorial-md:
+	python3 tools/tutorial/build_tutorial.py
+
+tutorial-md-check:
+	python3 tools/tutorial/build_tutorial.py --check
+
+lint: tutorial-md-check
 	python3 tools/check_md_math.py docs/ references/ README.md ORIENTATION.md \
 	  CONTRIBUTING.md GLOSSARY.md AGENTS.md AI-USE.md
 
