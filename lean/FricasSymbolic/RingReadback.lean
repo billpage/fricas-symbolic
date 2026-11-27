@@ -1,5 +1,6 @@
 import FricasSymbolic.RingMirror
 import FricasSymbolic.OrderProofs
+import FricasSymbolic.Ring
 import Mathlib.Algebra.MvPolynomial.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Abel
@@ -1212,5 +1213,416 @@ theorem fromP_canonical {al al' : List Tree} {p p' : Poly} (hw : WF al p) (hw' :
   rw [c0_eq hw, c0_eq hw', h]
   unfold msOf tsOf at hms
   rw [hms]
+
+/-! ## Normal forms of the mirror: closed under the constructors, decided by `rd` -/
+
+/-- A normal form: a read-back over atoms of the rung of a well-formed polynomial. -/
+def NF (t : Tree) : Prop := ∃ al p, WF al p ∧ t = fromP al p
+
+/-- Two normal forms with the same polynomial are the same tree. -/
+theorem NF_canonical {t t' : Tree} (ht : NF t) (ht' : NF t') (h : rd t = rd t') : t = t' := by
+  obtain ⟨al, p, hw, rfl⟩ := ht
+  obtain ⟨al', p', hw', rfl⟩ := ht'
+  rw [rd_fromP, rd_fromP] at h
+  exact fromP_canonical hw hw' h
+
+theorem NF_numNode (q : ℚ) : NF (numNode q) :=
+  ⟨[], [([], q)], ⟨by simp, by simp⟩, by simp [fromP, linBuild, mergeT]⟩
+
+theorem NF_atom {b : Tree} (hb : IsAtom b) : NF b :=
+  ⟨[b], [([(0, 1)], 1)], ⟨by simpa using hb, by simp⟩, by
+    simp [fromP, linBuild, mergeT, facTrees, mergeF, mulChain, facNode, sortLt, insertLt,
+      insertTerm]⟩
+
+/-! ### The atoms of a normal form -/
+
+/-- Every atom `ratoms` collects from `t` is an atom of the rung. -/
+def AtomsOK (t : Tree) : Prop := ∀ l a, a ∈ ratoms l t → a ∈ l ∨ IsAtom a
+
+theorem AtomsOK_num {t : Tree} (h : isNum t = true) : AtomsOK t := by
+  intro l a ha
+  left
+  unfold ratoms at ha
+  simpa [h] using ha
+
+theorem AtomsOK_node2 {s : String} (hs : s ≠ "/") (hs' : s ≠ "^") {a b : Tree}
+    (ha : AtomsOK a) (hb : AtomsOK b)
+    (hr : ∀ l, ratoms l (node (sym s) [a, b]) = ratoms (ratoms l a) b) :
+    AtomsOK (node (sym s) [a, b]) := by
+  intro l x hx
+  rw [hr] at hx
+  rcases hb _ x hx with h | h
+  · exact ha l x h
+  · exact Or.inr h
+
+theorem AtomsOK_add {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
+    AtomsOK (node (sym "+") [a, b]) :=
+  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+    rw [ratoms, ite_false_cond (isNum_node2 (h := "+") (by decide) a b)]
+
+theorem AtomsOK_sub {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
+    AtomsOK (node (sym "-") [a, b]) :=
+  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+    rw [ratoms, ite_false_cond (isNum_node2 (h := "-") (by decide) a b)]
+
+theorem AtomsOK_mul {a b : Tree} (ha : AtomsOK a) (hb : AtomsOK b) :
+    AtomsOK (node (sym "*") [a, b]) :=
+  AtomsOK_node2 (by decide) (by decide) ha hb fun l => by
+    rw [ratoms, ite_false_cond (isNum_node2 (h := "*") (by decide) a b)]
+
+theorem AtomsOK_neg {a : Tree} (ha : AtomsOK a) : AtomsOK (node (sym "-") [a]) := by
+  by_cases h : isNum (node (sym "-") [a]) = true
+  · exact AtomsOK_num h
+  · intro l x hx
+    rw [ratoms, ite_false_cond (by simpa using h)] at hx
+    exact ha l x hx
+
+theorem AtomsOK_atom {b : Tree} (hb : IsAtom b) : AtomsOK b := by
+  intro l x hx
+  rw [hb.2, mem_addAtom] at hx
+  rcases hx with h | rfl
+  · exact Or.inl h
+  · exact Or.inr hb
+
+theorem AtomsOK_facNode {b : Tree} (hb : IsAtom b) (e : ℕ) : AtomsOK (facNode b e) := by
+  unfold facNode
+  split_ifs
+  · exact AtomsOK_atom hb
+  · intro l x hx
+    have : intNode (e : ℤ) = int (e : ℤ) := by simp [intNode]
+    rw [arith, this, ratoms, ite_false_cond (isNum_node2 (h := "^") (by decide) b _)] at hx
+    simp only [rpow, intExp, numeralForm, Rat.den_natCast, ↓reduceIte, Rat.num_natCast,
+      Nat.cast_nonneg, Int.toNat_natCast] at hx
+    exact AtomsOK_atom hb l x hx
+
+theorem foldl_induct {α : Type*} (P : Tree → Prop) (g : Tree → α → Tree) (l : List α)
+    (a : Tree) (ha : P a) (hg : ∀ acc x, x ∈ l → P acc → P (g acc x)) : P (l.foldl g a) := by
+  induction l generalizing a with
+  | nil => exact ha
+  | cons x l ih =>
+    exact ih _ (hg a x (by simp) ha) (fun acc y hy h => hg acc y (by simp [hy]) h)
+
+theorem AtomsOK_mulChain (c : ℚ) {fs : List Tree} (h : ∀ f ∈ fs, AtomsOK f) :
+    AtomsOK (mulChain c fs) := by
+  unfold mulChain
+  have hn := AtomsOK_num (isNum_numNode c)
+  dsimp only
+  split
+  · exact hn
+  · rename_i r rs e
+    have h' : ∀ f ∈ r :: rs, AtomsOK f := by
+      intro f hf
+      split_ifs at e with hc
+      · rw [← e] at hf
+        rcases List.mem_cons.1 hf with rfl | hf
+        · exact hn
+        · exact h f hf
+      · rw [← e] at hf; exact h f hf
+    exact foldl_induct _ _ rs r (h' r (by simp))
+      (fun acc t ht hacc => AtomsOK_mul hacc (h' t (by simp [ht])))
+
+theorem AtomsOK_trm (fs : List Tree) (c : ℚ) (h : ∀ f ∈ fs, AtomsOK f) :
+    AtomsOK (if |c| = 1 then mulChain 1 fs else mulChain |c| fs) := by
+  split_ifs
+  · exact AtomsOK_mulChain 1 h
+  · exact AtomsOK_mulChain _ h
+
+theorem AtomsOK_linBuild (c0 : ℚ) (ts : List (List Tree × ℚ))
+    (h : ∀ x ∈ ts, ∀ f ∈ x.1, AtomsOK f) : AtomsOK (linBuild c0 ts) := by
+  have hms : ∀ y ∈ (mergeT ts).foldr insertTerm [], ∀ f ∈ y.1, AtomsOK f := by
+    intro y hy
+    have e : (mergeT ts).foldr insertTerm []
+        = (mergeT ts).foldr (insBy (fun x => mulChain 1 x.1)) [] := by
+      congr 1; funext a l; exact insertTerm_eq a l
+    rw [e] at hy
+    have hy' := (foldr_insBy_perm _ _).subset hy
+    rw [mergeT_R, List.mem_filter] at hy'
+    obtain ⟨z, hz, ez⟩ := origin_foldl _ _ [] _ hy'.1
+    rw [← ez]
+    exact h z (by simpa using hz)
+  unfold linBuild
+  dsimp only
+  generalize (mergeT ts).foldr insertTerm [] = ms at hms
+  cases ms with
+  | nil => exact AtomsOK_num (isNum_numNode c0)
+  | cons e rest =>
+    obtain ⟨fs, c⟩ := e
+    dsimp only
+    have hfirst : AtomsOK (if 0 < c then (if |c| = 1 then mulChain 1 fs else mulChain |c| fs)
+        else arith "-" [if |c| = 1 then mulChain 1 fs else mulChain |c| fs]) := by
+      have := AtomsOK_trm fs c (hms (fs, c) (by simp))
+      split_ifs
+      · exact this
+      · exact AtomsOK_neg this
+    have hacc := foldl_induct AtomsOK _ rest _ hfirst (fun acc x hx hacc => by
+      obtain ⟨fs', c'⟩ := x
+      have := AtomsOK_trm fs' c' (hms (fs', c') (by simp [hx]))
+      dsimp only
+      split_ifs
+      · exact AtomsOK_add hacc this
+      · exact AtomsOK_sub hacc this)
+    have hn := AtomsOK_num (isNum_numNode |c0|)
+    split_ifs
+    · exact hacc
+    · exact AtomsOK_add hacc hn
+    · exact AtomsOK_sub hacc hn
+
+theorem AtomsOK_fromP {al : List Tree} {p : Poly} (hw : WF al p) : AtomsOK (fromP al p) := by
+  unfold fromP
+  apply AtomsOK_linBuild
+  intro x hx f hf
+  obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
+  have hy' := List.mem_filter.1 hy
+  simp only [facTrees_eq, facs, sortLt_eq] at hf
+  obtain ⟨z, hz, rfl⟩ := List.mem_map.1 ((foldr_insBy_perm id _).subset hf)
+  have hz' := hz
+  unfold mergeN at hz'
+  obtain ⟨w, hw', ew⟩ := origin_foldl id _ [] _ (List.mem_filter.1 hz').1
+  rw [← ew]
+  exact AtomsOK_facNode (atoms_Lof hw hy'.1 w (by simpa using hw')) _
+
+/-! ### Well-formed polynomials from `toF` -/
+
+/-- The monomial part of `WF`. -/
+def Wm (al : List Tree) (p : Poly) : Prop := ∀ x ∈ p, ∀ y ∈ x.1, y.1 < al.length ∧ y.2 ≠ 0
+
+theorem Wm_append {al : List Tree} {p q : Poly} (hp : Wm al p) (hq : Wm al q) :
+    Wm al (p ++ q) := by
+  intro x hx
+  rcases List.mem_append.1 hx with h | h
+  · exact hp x h
+  · exact hq x h
+
+theorem Wm_pneg {al : List Tree} {p : Poly} (hp : Wm al p) : Wm al (pneg p) := by
+  intro x hx
+  obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hx
+  exact hp z hz
+
+theorem Wm_pscale {al : List Tree} {p : Poly} (k : ℚ) (hp : Wm al p) : Wm al (pscale k p) := by
+  intro x hx
+  obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hx
+  exact hp z hz
+
+theorem Wm_pmul {al : List Tree} {p q : Poly} (hp : Wm al p) (hq : Wm al q) :
+    Wm al (pmul p q) := by
+  intro x hx
+  simp only [pmul, List.mem_flatMap, List.mem_map] at hx
+  obtain ⟨a, ha, b, hb, rfl⟩ := hx
+  intro y hy
+  rcases List.mem_append.1 hy with h | h
+  · exact hp a ha y h
+  · exact hq b hb y h
+
+theorem Wm_ppow {al : List Tree} {p : Poly} (hp : Wm al p) (n : ℕ) : Wm al (ppow p n) := by
+  induction n with
+  | zero => intro x hx; simp [ppow, pconst] at hx; simp [hx]
+  | succ n ih => exact Wm_pmul ih hp
+
+theorem atomIdx_lt {al : List Tree} {t : Tree} (h : t ∈ al) : atomIdx al t < al.length := by
+  have : ∃ i, al.findIdx? (fun x => teq x t) = some i ∧ i < al.length := by
+    induction al with
+    | nil => simp at h
+    | cons y r ih =>
+      rw [List.findIdx?_cons]
+      by_cases hy : y = t
+      · subst hy; simp [teq_refl]
+      · have hy' : teq y t = false := by simpa [teq_eq_decide] using hy
+        have hr : t ∈ r := by
+          rcases List.mem_cons.1 h with h | h
+          · exact absurd h.symm hy
+          · exact h
+        obtain ⟨i, hi, hl⟩ := ih hr
+        exact ⟨i + 1, by simp [hy', hi], by simp; omega⟩
+  obtain ⟨i, hi, hl⟩ := this
+  unfold atomIdx
+  rw [hi]
+  exact hl
+
+theorem Wm_toF (al l : List Tree) (t : Tree) (h : ∀ a ∈ ratoms l t, a ∈ al) :
+    Wm al (toF al t) := by
+  have atom : ∀ t, t ∈ al → (toF al t = pvar (atomIdx al t)) → Wm al (toF al t) := by
+    intro t ht e
+    rw [e]
+    intro x hx
+    simp only [pvar, List.mem_singleton] at hx
+    subst hx
+    intro y hy
+    simp only [List.mem_singleton] at hy
+    subst hy
+    exact ⟨atomIdx_lt ht, one_ne_zero⟩
+  fun_induction ratoms l t
+  case case1 t l hn =>
+    have : toF al t = pconst (val t) := by unfold toF; simp [hn]
+    rw [this]
+    intro x hx
+    simp [pconst] at hx
+    simp [hx]
+  case case2 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "+") (by decide) a b)]
+    exact Wm_append (iha (fun x hx => h x (sub_ratoms _ b x hx))) (ihb h)
+  case case3 l a hn iha =>
+    rw [toF, ite_false_cond (by simpa using hn)]
+    exact Wm_pneg (iha h)
+  case case4 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "-") (by decide) a b)]
+    exact Wm_append (iha (fun x hx => h x (sub_ratoms _ b x hx))) (Wm_pneg (ihb h))
+  case case5 l a b hn iha ihb =>
+    rw [toF, ite_false_cond (isNum_node2 (h := "*") (by decide) a b)]
+    exact Wm_pmul (iha (fun x hx => h x (sub_ratoms _ b x hx))) (ihb h)
+  case case6 l a b hb hn iha ihb =>
+    have e1 : toF al (node (sym "/") [a, b]) = pscale (val b)⁻¹ (toF al a) := by
+      rw [toF, ite_false_cond (by simpa using hn)]; simp [hb]
+    rw [e1]
+    exact Wm_pscale _ (iha (fun x hx => h x (sub_ratoms _ b x hx)))
+  case case7 l a b hb hn =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF, ite_false_cond (by simpa using hn)]; simp [hb]
+  case case8 l b e n hr hn ihb =>
+    have e1 : toF al (node (sym "^") [b, e]) = ppow (toF al b) n := by
+      rw [toF, ite_false_cond (by simpa using hn)]; simp [hr]
+    rw [e1]
+    exact Wm_ppow (ihb h) n
+  case case9 l b e hr hn =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF, ite_false_cond (by simpa using hn)]; simp [hr]
+  case case10 t l hn h1 h2 h3 h4 h5 h6 =>
+    apply atom _ (h _ (by simp [mem_addAtom]))
+    rw [toF]
+    all_goals first | assumption | simp [hn]
+
+/-! ### Closure under the constructors -/
+
+theorem NF_ring2 {x y : Tree} (hx : NF x) (hy : NF y) (f : Poly → Poly → Poly)
+    (hf : ∀ al p q, Wm al p → Wm al q → Wm al (f p q)) : NF (ring2 x y f) := by
+  obtain ⟨alx, px, hwx, rfl⟩ := hx
+  obtain ⟨aly, py, hwy, rfl⟩ := hy
+  set X := fromP alx px
+  set Y := fromP aly py
+  refine ⟨ratoms (ratoms [] X) Y, _, ⟨fun a ha => ?_, hf _ _ _ ?_ ?_⟩, rfl⟩
+  · rcases AtomsOK_fromP hwy _ a ha with h | h
+    · rcases AtomsOK_fromP hwx _ a h with h | h
+      · simp at h
+      · exact h
+    · exact h
+  · exact Wm_toF _ [] X (fun a ha => sub_ratoms _ Y a ha)
+  · exact Wm_toF _ (ratoms [] X) Y (fun a ha => ha)
+
+theorem NF_ring1 {x : Tree} (hx : NF x) (f : Poly → Poly)
+    (hf : ∀ al p, Wm al p → Wm al (f p)) : NF (ring1 x f) := by
+  obtain ⟨alx, px, hwx, rfl⟩ := hx
+  set X := fromP alx px
+  refine ⟨ratoms [] X, _, ⟨fun a ha => ?_, hf _ _ ?_⟩, rfl⟩
+  · rcases AtomsOK_fromP hwx _ a ha with h | h
+    · simp at h
+    · exact h
+  · exact Wm_toF _ [] X (fun a ha => ha)
+
+theorem NF_rAdd {x y : Tree} (hx : NF x) (hy : NF y) : NF (rAdd x y) := by
+  unfold rAdd
+  split_ifs
+  · exact NF_numNode _
+  · exact NF_ring2 hx hy _ fun _ _ _ hp hq => Wm_append hp hq
+
+theorem NF_rSub {x y : Tree} (hx : NF x) (hy : NF y) : NF (rSub x y) := by
+  unfold rSub
+  split_ifs
+  · exact NF_numNode _
+  · exact NF_ring2 hx hy _ fun _ _ _ hp hq => Wm_append hp (Wm_pneg hq)
+
+theorem NF_rNeg {x : Tree} (hx : NF x) : NF (rNeg x) := by
+  unfold rNeg
+  split_ifs
+  · exact NF_numNode _
+  · exact NF_ring1 hx _ fun _ _ hp => Wm_pneg hp
+
+theorem NF_rMul (A : RAx) {x y : Tree} (hx : NF x) (hy : NF y) : NF (rMul A x y) := by
+  unfold rMul
+  split_ifs
+  · exact NF_numNode _
+  · exact NF_numNode _
+  · exact hy
+  · exact hx
+  · exact NF_ring2 hx hy _ fun _ _ _ hp hq => Wm_pmul hp hq
+
+theorem NF_rDiv (A : RAx) {x y : Tree} (hx : NF x) (hy : NF y) (hn : isNum y = true) :
+    NF (rDiv A x y) := by
+  unfold rDiv
+  split_ifs
+  · exact NF_numNode _
+  · exact NF_ring2 hx hy _ fun _ _ _ hp _ => Wm_pscale _ hp
+
+theorem NF_rPow {x : Tree} (hx : NF x) (n : ℕ) : NF (rPow x n) := by
+  unfold rPow
+  split_ifs with h1 h2 h3 h4
+  · exact NF_numNode _
+  · exact hx
+  · exact NF_numNode _
+  · exact NF_ring1 hx _ fun _ _ hp => Wm_ppow hp _
+  · exact absurd (Int.natCast_nonneg n) h4
+
+/-! ## The mirror decides the theory `Ring` (with R4) -/
+
+open FricasSymbolic.Ring in
+/-- The mirror as a normaliser of `RTerm String`: atoms are symbols, and each operation is
+the corresponding constructor of the rung. -/
+def nfR (A : RAx) : RTerm String → Tree
+  | .num q => numNode q
+  | .atom a => sym a
+  | .add a b => rAdd (nfR A a) (nfR A b)
+  | .sub a b => rSub (nfR A a) (nfR A b)
+  | .neg a => rNeg (nfR A a)
+  | .mul a b => rMul A (nfR A a) (nfR A b)
+  | .pow a n => rPow (nfR A a) n
+  | .divn a q => rDiv A (nfR A a) (numNode q)
+
+theorem isAtom_sym (a : String) : IsAtom (sym a) := by
+  have hn : isNum (sym a) = false := by simp [isNum, numeralForm]
+  constructor
+  · rw [rd]
+    all_goals first | simp [hn] | (intros; simp_all)
+  · intro l
+    rw [ratoms]
+    all_goals first | simp [hn] | (intros; simp_all)
+
+open FricasSymbolic.Ring in
+/-- (N1) for the mirror: the normal form reads back as the polynomial the term denotes. -/
+theorem rd_nfR (A : RAx) (t : RTerm String) : rd (nfR A t) = rename sym (phi t) := by
+  induction t with
+  | num q => simp [nfR, phi, rd_numNode]
+  | atom a => simp [nfR, phi, (isAtom_sym a).1]
+  | add a b iha ihb => simp [nfR, phi, rd_rAdd, iha, ihb]
+  | sub a b iha ihb => simp [nfR, phi, rd_rSub, iha, ihb]
+  | neg a iha => simp [nfR, phi, rd_rNeg, iha]
+  | mul a b iha ihb => simp [nfR, phi, rd_rMul, iha, ihb]
+  | pow a n iha => simp [nfR, phi, rd_rPow, iha]
+  | divn a q iha =>
+    simp only [nfR, phi, rd_rDiv A _ _ (isNum_numNode q), val_numNode, iha, map_mul, rename_C]
+    ring
+
+open FricasSymbolic.Ring in
+theorem NF_nfR (A : RAx) (t : RTerm String) : NF (nfR A t) := by
+  induction t with
+  | num q => exact NF_numNode q
+  | atom a => exact NF_atom (isAtom_sym a)
+  | add a b iha ihb => exact NF_rAdd iha ihb
+  | sub a b iha ihb => exact NF_rSub iha ihb
+  | neg a iha => exact NF_rNeg iha
+  | mul a b iha ihb => exact NF_rMul A iha ihb
+  | pow a n iha => exact NF_rPow iha n
+  | divn a q iha => exact NF_rDiv A iha (NF_numNode q) (isNum_numNode q)
+
+open FricasSymbolic.Ring in
+/-- **(N1) and (N2) for the mirror.** Two defined terms have the same normal form exactly when
+they are equal in the theory `Ring`. -/
+theorem nfR_eq_iff (A : RAx) {s t : RTerm String} (hs : s.Defined) (ht : t.Defined) :
+    nfR A s = nfR A t ↔ Equiv s t := by
+  rw [R4_equiv_iff hs ht]
+  constructor
+  · intro h
+    have := congrArg rd h
+    rw [rd_nfR, rd_nfR] at this
+    exact rename_injective sym (fun a b h => by cases h; rfl) this
+  · intro h
+    exact NF_canonical (NF_nfR A s) (NF_nfR A t) (by rw [rd_nfR, rd_nfR, h])
 
 end FricasSymbolic.RingMirror
