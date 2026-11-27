@@ -1,6 +1,6 @@
 # Plan: Lean proofs for fricas-symbolic
 
-*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8); part 1 under way on branch `claude/lean-part1`: the mirrored normaliser agrees with FriCAS on 7,000 random terms, and L1, L2, L3, L7 and L10 are proved (§3.5). Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
+*2026-11-26. Planning document and hand-off for a separate conversation. Status (evening): Bill's decisions recorded (§8). Part 1 is done (§3.5): L1–L10 are proved, and the mirrored normaliser agrees with FriCAS on 7,000 random terms. Theorem 3 holds wherever Id comes with Num; question 5 (§8) decides how the spec handles the rest. Next: part 2. Revised the same day for the design as it now stands: the ladder of normalisers (decisions 0008, 0009), float numerals (0010) and the bridge (0011). The file name is kept for the links to it.*
 
 ## 1. What Lean can do here
 
@@ -103,7 +103,7 @@ Points where the Lean functions cannot copy the Spad code literally:
 | L9 | `Step A` is well founded (its converse is `WellFounded`), by the measure $`(\lvert t\rvert, \mu(t))`$ | (T), §4.1.1 |
 | L10 | With Id and without Num, `0 - 0` steps to the distinct normal forms `0` (by $`x-0\to x`$) and `-0` (by $`0-x\to -x`$), so $`=_A`$ does not determine `nf` | Theorem 3 (see below) |
 
-**L10 is a counterexample to spec Theorem 3** as stated ("$`A_P`$ and every union of its groups is … confluent"). The proof joins the overlap $`0-0`$ through Num ($`-0 \to 0`$), which a union without Num does not have. FriCAS agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form `0` and `-0` has form `(- 0)`, with or without Ann and Inv (run `20261126-184235-id-zero-minus-zero`). The other root overlaps of $`A_P`$ do not need Num. The spec needs a decision before L5 can be stated (§8, question 5); until then L5 is stated under the hypothesis `A.id → A.num`.
+**L10 is a counterexample to spec Theorem 3** as stated ("$`A_P`$ and every union of its groups is … confluent"). The proof joins the overlap $`0-0`$ through Num ($`-0 \to 0`$), which a union without Num does not have. FriCAS agrees: in `GeneralSymbolicExpression(Integer, [identities])`, `0 - 0` has form `0` and `-0` has form `(- 0)`, with or without Ann and Inv (run `20261126-184235-id-zero-minus-zero`). The other root overlaps of $`A_P`$ do not need Num. L5 is therefore proved under the hypothesis `A.id → A.num`, together with `A.an` (L7 shows that one is needed too). Both hypotheses are necessary: L7 and L10 are the counterexamples without them.
 
 L4, L5 and L8 together give the Church–Rosser property: if $`s =_A t`$ then $`s \to^* \mathrm{nf}(s) = \mathrm{nf}(t) \;{}^*\!\!\leftarrow t`$, with $`\mathrm{nf}(s)`$ a normal form. So $`\mathrm{nf}`$ chooses exactly one normal form per $`=_A`$ class. Without L8, nothing ties $`\mathrm{nf}(t)`$ to $`t`$: L2 relates their values, not their classes. Termination of the rewriting relation is L9; L3 only says that one strategy, bottom-up, ends. This route avoids formalising Newman's lemma and critical pairs in general.
 
@@ -123,7 +123,21 @@ Commit `3f47236` on `claude/lean-part1`, Lean 4.36.0 and Mathlib v4.36.0, 2026-1
 | L7 | `L7_without_AN`, `L7_with_AN` | with (AN) switched off, the (A) step `x+(1+2) → (x+1)+2` joins terms whose normal forms are `x+3` and `(x+1)+2`; with (AN) both are `x+3` |
 | L10 | `L10_id_without_num`, `L10_not_confluent` | for `A = {Id}`: `0-0` steps to `0` and to `-0`, both normal forms; hence some $`s =_A t`$ have $`\mathrm{nf}(s) \ne \mathrm{nf}(t)`$ |
 
-Still to do in part 1: L4, L5, L6, L8, L9.
+**Termination, normal forms and confluence** (`Confluence.lean`). Commit `c58a2d1` on `claude/lean-confluence`, `lean_build` status `ok` (log `20261126-204506-build-fricas-symbolic`); `#print axioms` of every theorem below lists only `propext`, `Classical.choice` and `Quot.sound` (run `20261126-204522-axioms-part1-confluence`).
+
+| No. | Lean | What it says |
+|---|---|---|
+| L9 | `L9_terminating` | for every `A`, `Step A` is well founded: every step lowers $`(\lvert t\rvert, \mu(t))`$ lexicographically (`step_decreases`) |
+| L4 | `L4_nf_isNF` | for every `A`, `nf A t` is a normal form; each smart constructor maps normal forms to normal forms |
+| L6 | `L6_nf_of_isNF`, `nf_nf` | for every `A`, `nf` fixes normal forms, hence is idempotent |
+| L8 | `L8_steps_to_nf` | for every `A`, $`t \to^* \mathrm{nf}(t)`$: each clause of each smart constructor is a sequence of rule applications |
+| — | `sAdd_assoc`, `sMul_assoc`, `sAdd_an`, `sMul_an` | with associativity and (AN), the smart constructors for $`+`$ and $`\cdot`$ are associative on normal forms, and satisfy (AN) on them |
+| L5 | `L5_step`, `L5_eqA`, `eqA_iff_nf_eq` | if Id comes with Num and (AN) is on: $`s =_A t \iff \mathrm{nf}(s) = \mathrm{nf}(t)`$ |
+| — | `church_rosser`, `unique_nf` | under the same hypotheses: $`s =_A t`$ implies a common reduct, and two normal forms equal under $`A`$ are the same term |
+
+**In words.** `EqA A` is the equivalence relation generated by the rules of spec §4.1 and §4.1.1 applied anywhere in a term: the equational theory $`=_A`$ of §2.3, with Num's side conditions. `nf A` is the function that `GeneralSymbolicExpression(R, A)` computes when it builds a term bottom-up (§3.3, with the differential test). So `eqA_iff_nf_eq` says that for every union of the groups Id, Ann, Inv, Num and Assoc in which Id comes with Num, the domain's normal form decides $`=_A`$. With L9 (termination) and L1 (soundness) this is Theorem 3 for those unions. It covers every combination the package offers except those with Id and without Num, where L10 shows the theorem is false.
+
+**How the proof goes.** L5's root cases reduce to identities between smart constructors on normal forms (`L5_root`). All are local except associativity. `sAdd_assoc` follows the clauses of `sAdd A Y Z`, by well-founded recursion on $`(\lvert Z\rvert, \lvert Y\rvert)`$. Its two key lemmas are `sAdd_an`, which is (AN) on normal forms by induction on the left operand, and `sAdd_add_right`, which says $`W + (Z_1+Z_2) = (W+Z_1)+Z_2`$ for a normal form $`Z_1+Z_2`$. The (AN) case of the recursion is exactly the critical pair $`x+(1+2)`$ of 2026-11-26: it needs `sAdd_an`, which needs (AN). `sMul_assoc` is the same, with three more cases for annihilation and the identity.
 
 ## 4. Part 2: the term order
 
@@ -234,7 +248,7 @@ lean/
     ├── Soundness.lean      part 1: L1, L2                              (done)
     ├── Rewriting.lean      part 1: Root, Step, IsNF, EqA from the spec (done)
     ├── Regressions.lean    part 1: L7, L10                             (done)
-    ├── Confluence.lean     part 1: L4–L6, L8, L9
+    ├── Confluence.lean     part 1: L4–L6, L8, L9; Theorem 3          (done)
     ├── Order.lean          part 2: Tree, numeral?, lt; O1–O2
     ├── ATerm.lean          part 3: terms over atoms, Step and Equiv per rung
     ├── Rungs.lean          part 3: R1–R6

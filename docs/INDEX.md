@@ -31,8 +31,8 @@ Tests are named by file and `testcase`: `gsexpr` is `src/input/gsexpr.input`, `s
 | Admissibility | §3.4 | Unknown groups, unimplemented groups, missing requirements, and `ring` with `quotients` but without `field`, are rejected at instantiation | Implemented (`SymbolicAxiomGroups`) in both constructors | symterm: "admissibility" |
 | `eval` (bridge) | §3.2 | $`T/{=_A}`$ is free in the variety of $`A`$: `eval` extends any map of the symbols into a ring $`D`$ satisfying $`A`$; read-back from forms | Implemented (decision 0011): `SymbolicTermFunctions2`, `InputFormEvaluation` | symterm: "bridge: eval is the homomorphism extending phi" (random terms against a model), "adding and dropping axioms by read-back", "without commutativity, into matrices", "refused targets" (must fail), "float numerals" |
 | Prop. 4, (Ord) | §3.5 | $`\prec`$ is a strict total order | Proved; implemented as `SymbolicTermOrder` (in `gsexpr.spad`) | gsexpr: "Ord: the term order is a strict total order" (37 terms, all pairs and triples); symterm: "term order on numerals: exact, then float, by value" |
-| Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved | via (Val) |
-| Theorem 3 | §4.1, §4.1.1 | $`A_P`$ sound, terminating, confluent; extended to $`A_P \cup \mathrm{Assoc}`$ in §4.1.1 | Proved (sketch: critical pairs listed) | — (V4: confluence by construction order; V5: Lean) |
+| Prop. 2 | §3.3 | Sound + terminating $`A`$ ⇒ (Val) preserved, pair domain ≅ its image in `Expression` | Proved; in Lean for $`A \subseteq A_P \cup \mathrm{Assoc}`$: `nf_refines` (L2), plan §3.5 | via (Val) |
+| Theorem 3 | §4.1, §4.1.1 | $`A_P`$ sound, terminating, confluent; extended to $`A_P \cup \mathrm{Assoc}`$ in §4.1.1 | Proved in Lean for every union of the groups in which Id comes with Num: `eqA_iff_nf_eq`, `L9_terminating` (plan §3.5). **False for Id without Num** (`L10_not_confluent`); repair pending (plan §8, question 5) | — (V4: confluence by construction order; V5: Lean) |
 
 ## Axiom groups
 
