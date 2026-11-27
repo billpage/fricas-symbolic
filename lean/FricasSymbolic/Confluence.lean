@@ -657,4 +657,120 @@ theorem sDiv_inv (hi : A.inv = true) {X : Term} (hX : IsNF A X) :
 
 end local_identities
 
+/-! ## L5, associativity: `sAdd` and `sMul` are associative on normal forms
+
+This is where the hand proof of 2026-11-26 went wrong: without (AN) the
+statement is false (L7). The proof follows the clauses of `sAdd Y Z`, by
+well-founded recursion on `(|Z|, |Y|)`. -/
+
+section assoc_add
+
+variable (A)
+
+theorem sAdd_an_path (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) {m : ℚ}
+    (hz : ¬ (A.id = true ∧ m = 0)) (X : Term) (n : ℚ) :
+    sAdd A (.add X (.num n)) (.num m) = sAdd A X (.num (n + m)) := by
+  have g3 : ¬ (A.id && (Term.num m).isLit 0) = true := by simpa [isLit, isNum, nv] using hz
+  conv_lhs => rw [sAdd]
+  simp only [g3, Bool.false_eq_true, ↓reduceIte]
+  simp [ha, hn, han, isNum, isLit, isAdd, fst, snd, nv]
+
+theorem sAdd_plain {X : Term} {n : ℚ} (h1 : X.isNum = false)
+    (h2 : ¬ (X.isAdd = true ∧ X.snd.isNum = true)) (hz : ¬ (A.id = true ∧ n = 0)) :
+    sAdd A X (.num n) = .add X (.num n) := by
+  have g1 : ¬ (A.num && X.isNum && (Term.num n).isNum) = true := by simp [h1]
+  have g2 : ¬ (A.id && X.isLit 0) = true := by simp [isLit, h1]
+  have g3 : ¬ (A.id && (Term.num n).isLit 0) = true := by simpa [isLit, isNum, nv] using hz
+  have g4 : ¬ (A.assoc && (Term.num n).isAdd) = true := by simp [isAdd]
+  have g5 : ¬ (A.assoc && A.num && A.an && (Term.num n).isNum && X.isAdd && X.snd.isNum) = true := by
+    intro h; simp only [Bool.and_eq_true] at h; exact h2 ⟨h.1.2, h.2⟩
+  rw [sAdd]; simp only [g1, g2, g3, g4, g5, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+
+theorem sAdd_an_plain (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) {X : Term}
+    (h1 : X.isNum = false) (h2 : ¬ (X.isAdd = true ∧ X.snd.isNum = true)) (n m : ℚ) :
+    sAdd A (sAdd A X (.num n)) (.num m) = sAdd A X (.num (n + m)) := by
+  by_cases hz : A.id = true ∧ n = 0
+  · obtain ⟨hi, rfl⟩ := hz; rw [sAdd_zero_r A hi, zero_add]
+  rw [sAdd_plain A h1 h2 hz]
+  by_cases hm : A.id = true ∧ m = 0
+  · obtain ⟨hi, rfl⟩ := hm; rw [sAdd_zero_r A hi, add_zero, sAdd_plain A h1 h2 hz]
+  · rw [sAdd_an_path A ha hn han hm]
+
+/-- (AN) holds for `sAdd` on normal forms: `(X + n) + m = X + (n + m)`. -/
+theorem sAdd_an (ha : A.assoc = true) (hn : A.num = true) (han : A.an = true) (X : Term)
+    (hX : IsNF A X) (n m : ℚ) :
+    sAdd A (sAdd A X (.num n)) (.num m) = sAdd A X (.num (n + m)) := by
+  induction X generalizing n m with
+  | num p => rw [sAdd_num_num A hn, sAdd_num_num A hn, sAdd_num_num A hn, add_assoc]
+  | add X1 X2 ih1 _ =>
+    by_cases hp : X2.isNum = true
+    · obtain ⟨p, rfl⟩ := isNum_iff.1 hp
+      by_cases hz : A.id = true ∧ n = 0
+      · obtain ⟨hi, rfl⟩ := hz; rw [sAdd_zero_r A hi, zero_add]
+      rw [sAdd_an_path A ha hn han hz X1 p, ih1 hX.add_l]
+      by_cases hz' : A.id = true ∧ n + m = 0
+      · rw [add_assoc, hz'.2, add_zero, sAdd_zero_r A hz'.1]
+        exact sAdd_eq_of_isNF hX
+      · rw [sAdd_an_path A ha hn han hz' X1 p, add_assoc]
+    · exact sAdd_an_plain A ha hn han rfl (by simp [isAdd, snd, hp]) n m
+  | _ => exact sAdd_an_plain A ha hn han rfl (by simp [isAdd]) n m
+
+theorem sAdd_add_right (ha : A.assoc = true) (Z1 Z2 : Term) (hZ : IsNF A (.add Z1 Z2))
+    (W : Term) : sAdd A W (.add Z1 Z2) = sAdd A (sAdd A W Z1) Z2 := by
+  by_cases g2 : A.id = true ∧ W = .num 0
+  · obtain ⟨hi, rfl⟩ := g2
+    rw [sAdd_zero_l A hi, sAdd_zero_l A hi]; exact (sAdd_eq_of_isNF hZ).symm
+  · have g2' : ¬ (A.id && W.isLit 0) = true := by simpa [isLit_iff] using g2
+    conv_lhs => rw [sAdd]
+    simp only [g2', Bool.false_eq_true, ↓reduceIte]
+    simp [ha, isNum, isLit, isAdd, fst, snd]
+
+/-- `sAdd` is associative on normal forms (needs (AN) when Num is present). -/
+theorem sAdd_assoc (ha : A.assoc = true) (han : A.an = true) (X Y Z : Term)
+    (hX : IsNF A X) (hY : IsNF A Y) (hZ : IsNF A Z) :
+    sAdd A X (sAdd A Y Z) = sAdd A (sAdd A X Y) Z := by
+  by_cases c1 : A.num = true ∧ Y.isNum = true ∧ Z.isNum = true
+  · obtain ⟨hn, hy, hz⟩ := c1
+    obtain ⟨p, rfl⟩ := isNum_iff.1 hy
+    obtain ⟨q, rfl⟩ := isNum_iff.1 hz
+    rw [sAdd_num_num A hn, sAdd_an A ha hn han X hX p q]
+  by_cases c2 : A.id = true ∧ Y = .num 0
+  · obtain ⟨hi, rfl⟩ := c2; rw [sAdd_zero_l A hi, sAdd_zero_r A hi]
+  by_cases c3 : A.id = true ∧ Z = .num 0
+  · obtain ⟨hi, rfl⟩ := c3; rw [sAdd_zero_r A hi, sAdd_zero_r A hi]
+  by_cases c4 : Z.isAdd = true
+  · obtain ⟨Z1, Z2, rfl⟩ := isAdd_iff.1 c4
+    rw [sAdd_add_right A ha Z1 Z2 hZ Y, sAdd_add_right A ha Z1 Z2 hZ (sAdd A X Y),
+      sAdd_assoc ha han X (sAdd A Y Z1) Z2 hX (sAdd_isNF _ _ hY hZ.add_l) hZ.add_r,
+      sAdd_assoc ha han X Y Z1 hX hY hZ.add_l]
+  by_cases c5 : A.num = true ∧ Z.isNum = true ∧ Y.isAdd = true ∧ Y.snd.isNum = true
+  · obtain ⟨hn, hz, hy, hys⟩ := c5
+    obtain ⟨m, rfl⟩ := isNum_iff.1 hz
+    obtain ⟨Y1, Y2, rfl⟩ := isAdd_iff.1 hy
+    simp only [snd] at hys
+    obtain ⟨n, rfl⟩ := isNum_iff.1 hys
+    have hz3 : ¬ (A.id = true ∧ m = 0) := fun h => c3 ⟨h.1, by rw [h.2]⟩
+    rw [sAdd_an_path A ha hn han hz3 Y1 n, sAdd_add_right A ha Y1 (.num n) hY X,
+      sAdd_an A ha hn han _ (sAdd_isNF _ _ hX hY.add_l) n m,
+      sAdd_assoc ha han X Y1 (.num (n + m)) hX hY.add_l (IsNF.num _)]
+  · have g1 : ¬ (A.num && Y.isNum && Z.isNum) = true := by
+      intro h; simp only [Bool.and_eq_true] at h; exact c1 ⟨h.1.1, h.1.2, h.2⟩
+    have g2 : ¬ (A.id && Y.isLit 0) = true := by simpa [isLit_iff] using c2
+    have g3 : ¬ (A.id && Z.isLit 0) = true := by simpa [isLit_iff] using c3
+    have g4 : ¬ (A.assoc && Z.isAdd) = true := by simpa using c4
+    have g5 : ¬ (A.assoc && A.num && A.an && Z.isNum && Y.isAdd && Y.snd.isNum) = true := by
+      intro h; simp only [Bool.and_eq_true] at h
+      exact c5 ⟨h.1.1.1.1.2, h.1.1.2, h.1.2, h.2⟩
+    have e : sAdd A Y Z = .add Y Z := by
+      rw [sAdd]; simp only [g1, g2, g3, g4, g5, Bool.false_eq_true, ↓reduceIte, ↓reduceDIte]
+    have hYZ : IsNF A (.add Y Z) := e ▸ sAdd_isNF _ _ hY hZ
+    rw [e, sAdd_add_right A ha Y Z hYZ X]
+termination_by (Z.size, Y.size)
+decreasing_by
+  all_goals first
+    | exact Prod.Lex.left _ _ (by simp only [size]; omega)
+    | exact Prod.Lex.right' _ (by simp [size]) (by simp only [size]; omega)
+
+end assoc_add
+
 end FricasSymbolic
